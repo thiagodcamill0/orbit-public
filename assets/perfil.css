@@ -1,0 +1,152 @@
+/* Perfil no pé da lateral (assets/perfil.js). Mesma paleta e estados dos itens da lateral:
+   repouso cinza calmo, hover #252525, aberto = a pílula #2d2d2d com luz de 1 px, clique afunda. */
+
+.perfil-pe {
+  position: sticky; bottom: 0; z-index: 2; flex: none;
+  margin: 2px -10px 0; padding: 8px 10px 10px;
+  background: var(--lat-fundo); border-top: 1px solid var(--lat-fio);
+}
+.perfil-btn {
+  --pf-anel: var(--lat-fundo);
+  width: 100%; height: 46px; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 7px;
+  border: 0; border-radius: 10px; background: none; color: var(--lat-t); text-align: left;
+  transition: background-color .15s var(--ease-press), color .15s var(--ease-press), transform .16s var(--ease-press), box-shadow .15s ease;
+}
+.perfil-btn:hover { --pf-anel: var(--lat-hover); background: var(--lat-hover); color: var(--t1); }
+.perfil-btn[aria-expanded="true"] { --pf-anel: var(--lat-pilula); background: var(--lat-pilula); box-shadow: var(--lat-pilula-sombra); color: #f5f5f5; }
+.perfil-btn:active { transform: scale(.975); }
+.perfil-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--lat-fundo), 0 0 0 4px rgba(112, 184, 255, .7); }
+
+/* Avatar: iniciais no círculo; com GitHub, a foto e o selo pequeno no canto */
+.perfil-av {
+  position: relative; width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 50%;
+  background: #303030; color: #e5e5e5; font-size: 11px; font-weight: 600; letter-spacing: .02em; line-height: 1;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+.perfil-av img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.perfil-av .pf-selo {
+  position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--pf-anel, var(--sup)); color: #ededed; transition: background-color .15s var(--ease-press);
+}
+.perfil-av .pf-selo.aviso { color: var(--agu-t); }
+.perfil-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
+.perfil-nome { font-size: 13.5px; font-weight: 500; color: #e4e4e4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfil-sub { font-size: 11.5px; color: #6a6a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfil-sub.aviso { color: var(--agu-t); }
+.perfil-seta { flex: none; color: #5c5c5c; transition: color .15s ease; }
+.perfil-btn:hover .perfil-seta, .perfil-btn[aria-expanded="true"] .perfil-seta { color: var(--t2); }
+
+/* Popover do perfil */
+.perfil-pop {
+  position: fixed; z-index: 45; top: 0; left: 0; width: 300px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto;
+  padding: 6px; border-radius: 14px; background: var(--sup); border: 1px solid rgba(255, 255, 255, .08); color: var(--t1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4);
+  animation: pf-entra .16s var(--ease-press);
+}
+.perfil-pop.abaixo { animation-name: pf-entra-abaixo; }
+@keyframes pf-entra { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+@keyframes pf-entra-abaixo { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.pf-cab { display: flex; align-items: center; gap: 11px; padding: 8px 8px 10px; min-width: 0; }
+.pf-cab .perfil-av { --pf-anel: var(--sup); width: 36px; height: 36px; font-size: 13px; }
+.pf-cab .perfil-av .pf-selo { width: 16px; height: 16px; }
+.pf-cab-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pf-cab-txt b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-cab-txt small { font-size: 11.5px; color: #6a6a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-sep { height: 1px; margin: 2px 4px 4px; background: var(--lat-fio); }
+.pf-rot { padding: 8px 9px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #5c5c5c; }
+
+.pf-item {
+  width: 100%; height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 9px; border: 0; border-radius: 8px; background: none;
+  color: #e4e4e4; font-size: 13px; text-align: left; text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+}
+.pf-item svg { flex: none; color: #9a9a9a; transition: color .12s ease; }
+.pf-item .pf-item-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pf-item:hover, .pf-item:focus-visible { background: rgba(255, 255, 255, .06); color: var(--t1); outline: none; }
+.pf-item:hover svg, .pf-item:focus-visible svg { color: var(--t1); }
+.pf-item[aria-expanded="true"] .pf-item-fim { transform: rotate(90deg); }
+.pf-item .pf-item-fim { color: #5c5c5c; transition: transform .15s var(--ease-press), color .12s ease; }
+.pf-item.perigo:hover, .pf-item.perigo:focus-visible { background: rgba(239, 68, 68, .08); color: #fca5a5; }
+.pf-item.perigo:hover svg, .pf-item.perigo:focus-visible svg { color: #fca5a5; }
+.pf-item.perigo.confirmar { background: rgba(239, 68, 68, .12); color: #fecaca; }
+.pf-item.perigo.confirmar svg { color: #fecaca; }
+
+/* Conta vinculada */
+.pf-gh { display: flex; align-items: center; gap: 10px; margin: 0 2px 4px; padding: 8px 8px; border-radius: 10px; background: var(--poco); box-shadow: var(--poco-sombra); min-width: 0; }
+.pf-gh .perfil-av { width: 30px; height: 30px; }
+.pf-gh-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pf-gh-txt b { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-gh-txt small { font-size: 11.5px; color: #6a6a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-vinc { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #7a7a7a; }
+.pf-vinc svg { color: var(--ok-t, #3dd68c); }
+.pf-vinc.aviso, .pf-vinc.aviso svg { color: var(--agu-t); }
+
+/* Formulário do token */
+.pf-form { padding: 2px 9px 8px; }
+.pf-dica { margin: 4px 0 8px; font-size: 12px; line-height: 1.45; color: #8a8a8a; }
+.pf-campo {
+  display: block; width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--lat-fio); border-radius: 9px;
+  background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t1); font: 12px var(--mono); outline: none;
+  transition: border-color .15s ease, box-shadow .2s ease;
+}
+.pf-campo::placeholder { color: #5c5c5c; font-family: var(--sans); font-size: 12.5px; }
+.pf-campo:hover { border-color: rgba(255, 255, 255, .1); }
+.pf-campo:focus { border-color: rgba(255, 255, 255, .16); box-shadow: var(--poco-sombra), 0 0 0 3px rgba(255, 255, 255, .05); }
+.pf-campo[aria-invalid="true"] { border-color: rgba(239, 68, 68, .45); }
+.pf-erro { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: #fca5a5; }
+.pf-acoes { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.pf-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #8a8a8a; text-decoration: none; border-radius: 4px; transition: color .12s ease; }
+.pf-link:hover, .pf-link:focus-visible { color: var(--t1); }
+.pf-link svg { color: currentColor; }
+.pf-nota { display: flex; align-items: flex-start; gap: 7px; margin: 10px 0 0; font-size: 11.5px; line-height: 1.4; color: #6a6a6a; }
+.pf-nota svg { flex: none; margin-top: 1px; color: #6a6a6a; }
+.pf-aviso { display: flex; align-items: flex-start; gap: 8px; margin: 0 2px 4px; padding: 8px 9px; border-radius: 9px; font-size: 12px; line-height: 1.4;
+  color: #c9c9c9; background: rgba(255, 197, 61, .06); box-shadow: inset 0 0 0 1px rgba(255, 197, 61, .16); }
+.pf-aviso svg { flex: none; margin-top: 1px; color: var(--agu-t); }
+.pf-aviso.neutro { background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 1px var(--lat-fio); color: #8a8a8a; }
+.pf-aviso.neutro svg { color: #8a8a8a; }
+.pf-aviso a { color: #c9c9c9; }
+.pf-aviso a:hover { color: var(--t1); }
+.pf-girar { width: 13px; height: 13px; margin: 0 1px; border-radius: 50%; border: 1.6px solid rgba(17, 17, 18, .22); border-top-color: #111112; animation: girar .8s linear infinite; }
+
+/* Conta do Claude (19/10): o cartão do GitHub com a marca do Claude no lugar da foto */
+.pf-cl-logo { background: rgba(217, 119, 87, .1); box-shadow: inset 0 0 0 1px rgba(217, 119, 87, .22); }
+.pf-cl-marca { fill: none; stroke: #d97757; stroke-width: 2.1; stroke-linecap: round; }
+.pf-aviso.pf-ok svg { color: var(--ok-t, #3dd68c); }
+.pf-cl-ent { align-items: flex-start; }
+.pf-cl-ent > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pf-cl-ent-acoes { display: flex; align-items: center; gap: 14px; }
+button.pf-link { padding: 0; border: 0; background: none; font: inherit; font-size: 12px; cursor: pointer; }
+.pf-girar.claro { flex: none; margin: 1px 0 0; border-color: rgba(255, 255, 255, .14); border-top-color: #c9c9c9; }
+.pf-cl-nota { margin: 4px 0 6px; padding: 0 9px; }
+
+/* Confirmação de sair/trocar */
+.pf-conf { margin: 2px 2px 6px; padding: 10px 10px 10px; border-radius: 10px; background: var(--poco); box-shadow: var(--poco-sombra), inset 0 0 0 1px rgba(239, 68, 68, .14); outline: none; }
+.pf-conf-tit { display: block; font-size: 13px; font-weight: 600; color: var(--t1); }
+.pf-conf-txt { margin: 5px 0 0; font-size: 12px; line-height: 1.45; color: #9a9a9a; }
+.pf-conf-lista { margin: 8px 0 0; padding: 0 0 0 15px; display: flex; flex-direction: column; gap: 5px; font-size: 12px; line-height: 1.45; color: #8a8a8a; }
+.pf-conf-lista b { font-weight: 600; color: #c9c9c9; }
+.pf-conf-lista li::marker { color: #5c5c5c; }
+.pf-conf-acoes { display: flex; flex-direction: column; gap: 6px; margin-top: 11px; }
+.pf-conf-acoes .btn { width: 100%; justify-content: center; gap: 7px; white-space: nowrap; }
+
+/* Barra lateral recolhida: só o avatar, centrado */
+@media (min-width: 1100px) {
+  body.lat-recolhida .perfil-pe { margin: 2px -8px 0; padding: 8px 8px 10px; }
+  body.lat-recolhida .perfil-btn { justify-content: center; padding: 0; }
+  body.lat-recolhida .perfil-txt, body.lat-recolhida .perfil-seta { display: none; }
+}
+/* Tela estreita: a lateral vira a barra do topo; o perfil fica como avatar ao lado dos ícones */
+@media (max-width: 1099px) {
+  .perfil-pe { position: static; margin: 0; padding: 0; border: 0; background: none; }
+  .perfil-btn { width: 32px; height: 32px; padding: 0; justify-content: center; border-radius: 8px; }
+  .perfil-txt, .perfil-seta { display: none; }
+  .perfil-btn .perfil-av { width: 24px; height: 24px; font-size: 10px; }
+  .perfil-btn .perfil-av .pf-selo { width: 12px; height: 12px; right: -3px; bottom: -3px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .perfil-pop { animation: none; }
+  .perfil-btn, .pf-item, .pf-item .pf-item-fim, .perfil-av .pf-selo { transition: none !important; }
+  .perfil-btn:active { transform: none; }
+  .pf-girar { animation-duration: 2.4s; }
+}

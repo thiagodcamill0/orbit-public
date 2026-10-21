@@ -1,0 +1,67 @@
+# Dependências: Shiki (realce da prévia), node-pty e xterm.js (terminal integrado). Instala com "npm install" (package-lock.json fixa as versões).
+node_modules/
+
+# Dados de uso e estado local: o Orbit grava na própria pasta (GERENCIADOR_DADOS).
+# Inclui motor.json (token do pipe do motor), estado, histórico, instâncias, repos e config.
+/*.json
+!/package.json
+!/package-lock.json
+*.pid
+*.lock
+
+# Logs, cache e temporários
+/logs/
+/avisos-subagentes/
+# Anotações de trabalho de quem prepara esta cópia (nunca vão ao GitHub)
+/.trabalho/
+# Saídas de teste (capturas e dados falsos) que os testes criam na raiz
+/orbit-*/
+*.log
+*.err
+*.tmp
+*.temp
+*.bak
+*~
+.cache/
+__pycache__/
+*.pyc
+
+# Binário baixado (claude.exe, 259 MB)
+/bin/
+
+# Perfis de navegador dos testes
+/edge-*/
+**/edge-perfil/
+**/chrome-perfil/
+
+# Prints e capturas de teste
+**/cap/
+**/capturas/
+assets/office/conferencia-layout.png
+
+# Segredos locais (nunca no repositório)
+.env
+.env.*
+*.pem
+*.key
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Claude Code: só as configurações do projeto
+/.claude/*
+!/.claude/settings.json
+
+# Recados temporários entre agentes
+/AVISO-*.md
+
+# Saída dos testes de interface (no Mac não há $TEMP: grupos-ui e revisao-ui gravam na pasta do app)
+/orbit-*-ui/
+# Notas do usuário (Ideias e registro de reinícios) na pasta de dados
+/notas/
+# Arquivos de progresso dos subagentes (aviso-subagente e skill liderar-time), na pasta de dados
+/progresso/
+# Lista local de termos pessoais do script de envio (ferramentas/enviar.mjs)
+/envio-termos.txt

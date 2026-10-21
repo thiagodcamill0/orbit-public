@@ -1,0 +1,101 @@
+/* Orbit — navegador interno numa aba (16/10). Tokens do Orbit, direção do VS Code. Tudo com prefixo .nav- / .aba-web. */
+
+.aba-painel.aba-web { overflow: hidden; }
+.nav-raiz { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #111; }
+
+/* ── Barra ── */
+.nav-barra { flex: none; display: flex; align-items: center; gap: 2px; height: 38px; padding: 0 8px; background: #111;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .06); }
+.nav-btn { flex: none; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: #8a8a8a; cursor: pointer; transition: background-color .18s ease, color .18s ease, transform .12s ease; }
+.nav-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .06); color: #f0f0f0; }
+.nav-btn:active:not(:disabled) { transform: scale(.92); }
+.nav-btn:disabled { color: #3a3a3a; cursor: default; }
+.nav-btn:focus { outline: none; }
+.nav-btn:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: -1px; }
+
+.nav-endereco { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 7px; height: 26px; margin: 0 6px; padding: 0 10px;
+  border-radius: 7px; background: #0a0a0a; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); cursor: text;
+  transition: box-shadow .18s ease, background-color .18s ease; }
+.nav-endereco:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .085); }
+.nav-endereco:focus-within { background: #0c0c0c; box-shadow: inset 0 0 0 1px rgba(112, 184, 255, .7); }
+.nav-end-ic { flex: none; display: grid; place-items: center; color: #5c5c5c; }
+.nav-endereco.local .nav-end-ic { color: #8b8cf3; }
+.nav-campo { flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; color: #d4d4d4;
+  font: inherit; font-size: 12.5px; letter-spacing: 0; text-overflow: ellipsis; }
+.nav-campo::placeholder { color: #5c5c5c; }
+.nav-campo:focus { color: #f0f0f0; }
+
+/* Progresso: fio de 2 px no acento, sob a barra. */
+.nav-prog { position: relative; flex: none; height: 0; z-index: 2; }
+.nav-prog::after { content: ''; position: absolute; left: 0; top: -1px; height: 2px; width: 0; background: #6366f1; opacity: 0;
+  box-shadow: 0 0 8px rgba(99, 102, 241, .45); transition: opacity .3s ease; }
+.nav-prog.on::after { opacity: 1; animation: nav-prog 2.4s cubic-bezier(.2, .7, .2, 1) forwards; }
+@keyframes nav-prog { 0% { width: 0; } 40% { width: 55%; } 100% { width: 88%; } }
+
+/* ── Corpo ── */
+.nav-corpo { position: relative; flex: 1 1 auto; min-height: 0; }
+.nav-quadro { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; color-scheme: normal; }
+.nav-quadro[hidden] { display: block; visibility: hidden; } /* escondido continua vivo e no tamanho certo */
+
+/* Mensagem (bloqueado, fora do ar…) */
+.nav-aviso, .nav-inicio { position: absolute; inset: 0; overflow: auto; }
+.nav-aviso[hidden], .nav-inicio[hidden] { display: none; }
+.nav-aviso { display: grid; place-content: center; justify-items: center; gap: 10px; padding: 32px 24px; text-align: center; color: #9a9a9a;
+  animation: nav-aparece .2s ease; }
+.nav-aviso-ic, .nav-ini-ic { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: #161616; color: #8a8a8a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); margin-bottom: 4px; }
+.nav-aviso[data-estado="bloqueado"] .nav-aviso-ic, .nav-aviso[data-estado="certificado"] .nav-aviso-ic { color: #8b8cf3; }
+.nav-aviso[data-estado="fora-do-ar"] .nav-aviso-ic { color: #f5a524; }
+.nav-aviso h2, .nav-inicio h2 { margin: 0; font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: #f0f0f0; }
+.nav-aviso p { margin: 0; max-width: 420px; font-size: 12.5px; line-height: 1.55; }
+.nav-aviso .nav-aviso-url { max-width: min(520px, 90%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5c5c5c;
+  font-family: var(--mono, ui-monospace, monospace); font-size: 11.5px; }
+.nav-aviso-acoes { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-top: 10px; }
+.nav-aviso-acoes .btn { height: 30px; font-size: 12.5px; }
+.nav-primario { background: #6366f1 !important; border-color: transparent !important; color: #fff !important; }
+.nav-primario:hover { background: #5458e8 !important; }
+.nav-link { padding: 4px 6px; border: 0; background: none; color: #5c5c5c; font: inherit; font-size: 12px; cursor: pointer; border-radius: 5px;
+  transition: color .18s ease; }
+.nav-link:hover { color: #9a9a9a; text-decoration: underline; text-underline-offset: 3px; }
+.nav-link:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); }
+
+/* Aba nova */
+.nav-inicio { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 56px 24px 32px; animation: nav-aparece .2s ease; }
+.nav-ini-cab { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.nav-ini-cab p { margin: 0; color: #7a7a7a; font-size: 12.5px; }
+.nav-ini-listas { width: 100%; max-width: 520px; display: grid; gap: 18px; }
+.nav-ini-carregando { margin: 0; text-align: center; color: #5c5c5c; font-size: 12.5px; }
+.nav-ini-sec h3 { margin: 0 0 6px 10px; font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: #5c5c5c; }
+.nav-ini-sem-tit h3 { display: none; }
+.nav-ini-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.nav-ini-item { width: 100%; display: flex; align-items: center; gap: 10px; min-width: 0; height: 34px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: none; color: #d4d4d4; font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+  transition: background-color .18s ease, color .18s ease; }
+.nav-ini-item:hover { background: rgba(255, 255, 255, .045); color: #f0f0f0; }
+.nav-ini-item:focus { outline: none; }
+.nav-ini-item:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: -1px; }
+.nav-ini-item-ic { flex: none; display: grid; place-items: center; color: #5c5c5c; }
+.nav-ini-nome { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-ini-url { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5c5c5c;
+  font-family: var(--mono, ui-monospace, monospace); font-size: 11.5px; text-align: right; }
+.nav-ini-vivo { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #3a3a3a; }
+.nav-ini-vivo.on { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, .5); }
+.nav-ini-outras summary { width: max-content; margin: 0 0 6px 10px; color: #5c5c5c; font-size: 12px; cursor: pointer; list-style: none; border-radius: 4px; }
+.nav-ini-outras summary::-webkit-details-marker { display: none; }
+.nav-ini-outras summary::before { content: '›'; display: inline-block; width: 12px; transition: transform .18s ease; }
+.nav-ini-outras[open] summary::before { transform: rotate(90deg); }
+.nav-ini-outras summary:hover { color: #9a9a9a; }
+.nav-ini-outras summary:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); }
+.nav-ini-nota { margin: auto 0 0; max-width: 420px; text-align: center; color: #4a4a4a; font-size: 11.5px; line-height: 1.5; }
+
+@keyframes nav-aparece { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nav-aviso, .nav-inicio { animation: none; } .nav-prog.on::after { animation: none; width: 70%; } }
+
+/* Estreito: some o Avançar, a barra continua numa linha. */
+@container principal (max-width: 420px) {
+  .nav-barra { padding: 0 4px; }
+  .nav-btn[aria-label="Avançar"] { display: none; }
+  .nav-endereco { margin: 0 3px; }
+  .nav-inicio { padding-top: 32px; }
+}

@@ -1,0 +1,152 @@
+{
+  "vaso-de-plantas-1.png": [
+    "frontend-planta-1",
+    "frontend-planta-3",
+    "mestre-planta-2",
+    "backend-planta-1",
+    "tester-planta-1",
+    "descanso-planta-1",
+    "descanso-planta-3"
+  ],
+  "vaso-de-plantas-2.png": [
+    "frontend-planta-2",
+    "mestre-planta-1",
+    "mestre-planta-3",
+    "backend-planta-2",
+    "tester-planta-2",
+    "descanso-planta-2",
+    "pesquisador-planta"
+  ],
+  "armario-escritorio-grande.png": [
+    "mestre-arquivo",
+    "backend-arquivo"
+  ],
+  "armario-escritorio-pequeno.png": {
+    "grupo": [
+      "tester-arquivo"
+    ],
+    "topo": true
+  },
+  "mesa-normal.png": [
+    "frontend-estacao-1",
+    "frontend-estacao-2",
+    "frontend-estacao-3",
+    "mestre-estacao-2",
+    "mestre-estacao-3",
+    "backend-estacao-1",
+    "backend-estacao-2",
+    "backend-estacao-3",
+    "tester-estacao-1",
+    "tester-estacao-2",
+    "tester-estacao-3",
+    "pesquisador-estacao-1",
+    "pesquisador-estacao-2",
+    "pesquisador-estacao-3"
+  ],
+  "mesa-ping-pong.png": {
+    "posicoes": [
+      {
+        "elemento": "descanso-pingpong",
+        "px": [
+          1030.7,
+          872,
+          178.6,
+          96
+        ]
+      }
+    ]
+  },
+  "puff.png": {
+    "posicoes": [
+      {
+        "elemento": "descanso-puff-1",
+        "px": [
+          1030.4,
+          720,
+          179.2,
+          40
+        ]
+      },
+      {
+        "elemento": "descanso-puff-2",
+        "px": [
+          1030.4,
+          720,
+          179.2,
+          40
+        ]
+      }
+    ]
+  },
+  "carpete-1.png": [
+    "tester-piso",
+    "descanso-piso",
+    "pesquisador-piso",
+    {
+      "elemento": "corredor",
+      "textura": "#2e2e2e"
+    }
+  ],
+  "carpete-2.png": [
+    "frontend-piso",
+    "mestre-piso",
+    "backend-piso"
+  ],
+  "mesa-sala-descanso.png": {
+    "grupo": [
+      "descanso-tapete",
+      "descanso-mesinha"
+    ]
+  },
+  "sofá.png": {
+    "posicoes": [
+      {
+        "elemento": "descanso-sofa-1",
+        "px": [
+          760,
+          758.5,
+          160,
+          58.31
+        ]
+      },
+      {
+        "elemento": "descanso-sofa-2",
+        "px": [
+          760,
+          898.4,
+          160,
+          58.31
+        ],
+        "espelhar": "vertical"
+      }
+    ]
+  },
+  "parede-frontend.png": "frontend-sala",
+  "parede-tester.png": "tester-sala",
+  "parede-descanso.png": "descanso-sala",
+  "parede-mestre.png": "mestre-sala",
+  "parede-backend.png": "backend-sala",
+  "parede-pesquisa.png": "pesquisador-sala",
+  "soleira-porta-passagem.png": [
+    "frontend-porta",
+    "mestre-porta",
+    "backend-porta",
+    "tester-porta",
+    "descanso-porta-1",
+    "descanso-porta-2",
+    "pesquisador-porta"
+  ],
+  "mesa-mestre.png": "mestre-estacao-1",
+  "graficos-sala-mestre.png": "mestre-lousa",
+  "bancada-aparelhos.png": "tester-bancada",
+  "servidor-backend.png": {
+    "grupo": [
+      "backend-rack-1",
+      "backend-rack-2",
+      "backend-rack-3"
+    ],
+    "topo": true
+  },
+  "mesa-cafe.png": "descanso-cafe",
+  "globo-pesquisador.png": "pesquisador-globo"
+}

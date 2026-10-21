@@ -1,0 +1,107 @@
+/* Orbit — modo de edição dos widgets da Visão geral (19/10, no estilo do iPhone). Lógica em assets/widgets.js.
+   Editáveis: os gráficos e a Sincronização (.graf[data-widget]). As vagas são da coluna (index.html, "Home:
+   gráficos dos agentes"): a largura vem da vaga e cada widget tem uma versão para vaga estreita e para vaga larga,
+   medida no próprio cartão (container queries), sem cortar conteúdo.
+   Curvas e tempos das abas e painéis (assets/abas.css): cubic-bezier(.2, .8, .2, 1), 200–380 ms. */
+
+/* ───────────── Versões por tamanho de vaga ───────────── */
+
+/* Sessões agora: a rosca e a legenda são um bloco só (display: contents fora da vaga larga, o layout de sempre).
+   Larga (≥ 640 px úteis, só numa vaga do pé ou na linha inteira da lateral): rosca à esquerda e legenda à direita;
+   com mais espaço, a legenda em duas colunas. */
+.ge-corpo { display: contents; }
+@container gest (min-width: 640px) {
+  .ge-corpo { display: grid; grid-template-columns: 176px minmax(0, 1fr); align-items: center; column-gap: 36px; }
+  .ge-corpo .ge-rosca { margin: 0; }
+  #ge-leg { grid-template-columns: minmax(0, 1fr); }
+  #ge-leg li:nth-child(2)::before { display: block; }
+}
+@container gest (min-width: 860px) {
+  #ge-leg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #ge-leg li:nth-child(2)::before { display: none; }
+}
+
+/* Uso de contexto: larga, as sessões em duas colunas (o fio de cima some na 1ª linha das duas). */
+.graf-ctx { container: gctx / inline-size; }
+@container gctx (min-width: 640px) {
+  .graf-ctx .gc-barras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+  .graf-ctx .gc-linha:nth-child(2)::before { display: none; }
+  .graf-ctx .gc-vazio { grid-column: 1 / -1; }
+}
+
+/* Uso do plano: estreito (uma vaga da lateral), a identificação (plano e conta) desce para baixo do número,
+   como na coluna de 250 px. */
+@container guso (max-width: 300px) {
+  .graf-uso .gf-topo { flex-direction: column; }
+  .gu-id { align-items: flex-start; max-width: 100%; margin-top: 0; }
+}
+
+/* ───────────── Modo de edição ───────────── */
+
+/* Segurar: o cartão afunda um pouco enquanto o tempo corre (some se o clique for curto). */
+.graf[data-widget] { transition: scale .38s cubic-bezier(.2, .8, .2, 1); }
+.graf[data-widget].wd-segurando { scale: .985; }
+
+/* Tremor: só rotação (a propriedade rotate), para somar com o arrasto (translate) e o FLIP (transform) sem um
+   desfazer o outro. O ângulo vem do JS pela largura (--wd-ang): o canto anda ~1,6 px em qualquer tamanho. A fase
+   (--wd-fase) desencontra os cartões. */
+.wd-editando .graf[data-widget] {
+  cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none;
+  box-shadow: var(--sombra), 0 0 0 1px rgba(255, 255, 255, .085);
+  animation: wd-tremor .3s ease-in-out var(--wd-fase, 0s) infinite alternate;
+}
+.wd-editando .graf[data-widget] > * { pointer-events: none; }
+@keyframes wd-tremor { from { rotate: calc(var(--wd-ang, .4deg) * -1); } to { rotate: var(--wd-ang, .4deg); } }
+
+/* Os outros elementos da Home ficam de fora: um pouco apagados, sem tremer. */
+.wd-fora { transition: opacity .24s ease; }
+.wd-editando .wd-fora { opacity: .5; }
+
+/* Arrastando: o cartão sobe (escala, sombra), para de tremer e segue o ponteiro (translate, no JS). */
+.wd-editando .graf[data-widget].wd-arrastado {
+  position: relative; z-index: 20; cursor: grabbing; animation: none; rotate: 0deg; scale: 1.02;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 18px 44px rgba(0, 0, 0, .55), 0 4px 12px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .13);
+  transition: scale .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s ease;
+}
+.wd-editando .graf[data-widget].wd-volta { position: relative; z-index: 20; transition: translate .28s cubic-bezier(.2, .8, .2, 1), scale .28s cubic-bezier(.2, .8, .2, 1); }
+.wd-arrastando, .wd-arrastando * { cursor: grabbing !important; }
+/* Alvo: a vaga que vai receber o cartão, marcada por um anel claro e um leve recuo. */
+.wd-editando .graf[data-widget].wd-alvo {
+  scale: .975; box-shadow: var(--sombra), 0 0 0 1.5px rgba(112, 184, 255, .7), 0 0 0 6px rgba(112, 184, 255, .12);
+  transition: scale .2s cubic-bezier(.2, .8, .2, 1), box-shadow .16s ease;
+}
+/* A cena em pé acompanha o último cartão da lateral quando ele muda de altura na troca. */
+.wd-editando .cena-v { transition: top .38s cubic-bezier(.2, .8, .2, 1), height .38s cubic-bezier(.2, .8, .2, 1), opacity 240ms ease; }
+
+/* Barra do modo de edição: pílula discreta embaixo, no centro da Home (posição no JS). */
+.wd-barra {
+  position: fixed; z-index: 45; left: 50%; bottom: 24px; display: flex; align-items: center; gap: 4px; max-width: calc(100vw - 24px);
+  padding: 5px 5px 5px 14px; border-radius: 12px; background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .08); color: #9a9a9a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4);
+  font-size: 12.5px; line-height: 1; white-space: nowrap; translate: -50% 0;
+  transition: opacity .2s ease, transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s;
+}
+.wd-barra.fechada { opacity: 0; transform: translateY(10px) scale(.98); visibility: hidden; pointer-events: none; transition: opacity .16s ease, transform .2s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .2s; }
+.wd-barra-txt { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-right: 8px; overflow: hidden; text-overflow: ellipsis; }
+.wd-barra-txt i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #70b8ff; box-shadow: 0 0 0 3px rgba(112, 184, 255, .18); }
+.wd-barra button {
+  flex: none; height: 28px; padding: 0 11px; border: 0; border-radius: 8px; background: transparent; color: #9a9a9a; font: inherit; font-size: 12.5px; font-weight: 500;
+  cursor: pointer; transition: background-color .15s ease, color .15s ease, opacity .15s ease, transform .16s cubic-bezier(.23, 1, .32, 1);
+}
+.wd-barra button:hover { background: #262626; color: #f0f0f0; }
+.wd-barra button:active { transform: scale(.975); }
+.wd-barra button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(112, 184, 255, .7); }
+.wd-barra button[disabled] { opacity: .4; cursor: default; }
+.wd-barra button[disabled]:hover { background: transparent; color: #9a9a9a; }
+.wd-barra .wd-concluir { background: #2d2d2d; color: #f0f0f0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .5); }
+.wd-barra .wd-concluir:hover { background: #343434; }
+@media (max-width: 520px) { .wd-barra-dica { display: none; } }
+
+/* Movimento reduzido: sem tremor e sem o afundar; o anel fixo marca o que é editável e as trocas são instantâneas
+   (no JS). O arrasto segue o ponteiro, que é manipulação direta. */
+@media (prefers-reduced-motion: reduce) {
+  .graf[data-widget], .wd-fora, .wd-barra, .wd-barra.fechada, .wd-editando .cena-v { transition: none; }
+  .graf[data-widget].wd-segurando { scale: none; }
+  .wd-editando .graf[data-widget] { animation: none; box-shadow: var(--sombra), 0 0 0 1px rgba(255, 255, 255, .16); }
+  .wd-editando .graf[data-widget].wd-arrastado, .wd-editando .graf[data-widget].wd-alvo, .wd-editando .graf[data-widget].wd-volta { transition: none; }
+}

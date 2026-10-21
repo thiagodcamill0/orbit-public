@@ -1,0 +1,157 @@
+/* Orbit — abas e painéis em grade: lado a lado e empilhados (rodada 9). Direção do VS Code com os tokens do Orbit.
+   Tudo com prefixo .abas- / .aba- para não vazar no resto da página. */
+
+.abas-raiz { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: #111; position: relative; }
+
+/* ── Grupo (painel) ── */
+/* Grade em árvore (abas.js): cada grupo é posicionado na raiz por fração (left/top/width/height inline). */
+.abas-grupo { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.abas-barra { position: relative; display: flex; flex: none; height: 35px; padding-left: 4px; background: #0c0c0c; box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .06); }
+.abas-grupo.vazio .abas-barra { display: none; }
+.abas-lista { position: relative; display: flex; flex: 1 1 auto; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.abas-lista::-webkit-scrollbar { height: 3px; }
+.abas-lista::-webkit-scrollbar-track { background: transparent; }
+.abas-lista::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+.abas-barra:hover .abas-lista::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); }
+
+/* ── Aba ── */
+/* Aba de cantos arredondados em cima, recuada 5 px do topo da barra; a ativa é um cartão que se funde com o painel. */
+.aba { position: relative; flex: none; display: flex; align-items: center; gap: 6px; height: calc(100% - 5px); margin-top: 5px; max-width: 220px; min-width: 0;
+  padding: 0 6px 0 10px; border-radius: 8px 8px 0 0; background: transparent; color: #8a8a8a;
+  font-size: 12.5px; line-height: 1; white-space: nowrap; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none;
+  transition: color .16s ease, background-color .16s ease, box-shadow .16s ease, opacity .16s ease; }
+/* Marca da ativa: pílula curta e arredondada no topo; cinza no painel sem foco, índigo no painel em foco; cresce do centro ao trocar. */
+.aba::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: rgba(255, 255, 255, .16);
+  opacity: 0; transform: scaleX(.4); transition: transform .24s cubic-bezier(.2, .8, .2, 1), opacity .16s ease, background-color .16s ease; }
+.aba:hover { color: #d2d2d2; background: rgba(255, 255, 255, .035); }
+.aba.ativa { background: #111; color: #bdbdbd;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, .06), inset -1px 0 0 rgba(255, 255, 255, .06), inset 0 1px 0 rgba(255, 255, 255, .08); }
+.aba.ativa::before { opacity: 1; transform: none; }
+.abas-grupo.foco .aba.ativa { color: #f0f0f0; }
+.abas-grupo.foco .aba.ativa::before { background: #6366f1; box-shadow: 0 0 8px rgba(99, 102, 241, .45); }
+/* A barra tem o fio de baixo; a ativa "abre" para o painel. */
+.aba.ativa::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: #111; }
+.aba:focus { outline: none; }
+.aba:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: -2px; color: #f0f0f0; }
+
+.aba-ic { flex: none; width: 16px; height: 16px; display: grid; place-items: center; color: inherit; }
+.aba-ic:empty { display: none; }
+.aba-ic > * { max-width: 16px; max-height: 16px; }
+.aba-tit { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 1px 0; }
+.aba.previa .aba-tit { font-style: italic; }
+
+.aba-acao { position: relative; flex: none; width: 16px; height: 16px; display: grid; place-items: center; margin-left: 2px; }
+.aba-x { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 4px; color: #8a8a8a; visibility: hidden; opacity: 0;
+  transition: background-color .16s ease, color .16s ease, opacity .16s ease, transform .12s ease; }
+.aba-x svg { width: 14px; height: 14px; }
+.aba.ativa .aba-x, .aba:hover .aba-x, .aba:focus-visible .aba-x { visibility: visible; opacity: 1; }
+.aba-x:hover { background: rgba(255, 255, 255, .09); color: #f0f0f0; }
+.aba-x:active { transform: scale(.88); }
+/* Selo: ponto de 8 px no lugar do × enquanto a aba não está em hover. */
+.aba-selo { position: absolute; top: 5px; left: 5px; width: 8px; height: 8px; border-radius: 50%; background: #6366f1; display: none; pointer-events: none; }
+.aba[data-selo] .aba-selo { display: block; }
+.aba[data-selo="atencao"] .aba-selo { background: #f5a524; }
+.aba[data-selo]:not(:hover) .aba-x { visibility: hidden; opacity: 0; }
+.aba[data-selo]:hover .aba-selo { display: none; }
+
+/* ── Botões à direita da barra ── */
+.abas-acoes { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 6px; }
+.abas-btn { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none;
+  color: #5c5c5c; cursor: pointer; transition: background-color .16s ease, color .16s ease, transform .12s ease; }
+.abas-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .06); color: #f0f0f0; }
+.abas-btn:active:not(:disabled) { transform: scale(.92); }
+.abas-grupo.foco .abas-btn { color: #7a7a7a; }
+.abas-btn:disabled { opacity: .35; cursor: default; }
+.abas-btn:focus { outline: none; }
+.abas-btn:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: 0; }
+
+/* ── Corpo e painéis ── */
+.abas-corpo { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden;
+  background-color: #111; background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px); background-size: 24px 24px; }
+.aba-painel { position: absolute; inset: 0; overflow: auto; overflow-x: hidden; container-type: inline-size; container-name: principal;
+  background-color: #111; background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px); background-size: 24px 24px; }
+.aba-painel[hidden] { display: none; }
+.aba-painel:focus { outline: none; }
+
+/* ── Estado vazio ── */
+.abas-vazio { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; color: #5c5c5c;
+  font-size: 12.5px; pointer-events: none; user-select: none; animation: abas-surge .32s cubic-bezier(.2, .8, .2, 1); }
+@keyframes abas-surge { from { opacity: 0; } }
+.abas-vazio-logo { width: 56px; height: 56px; opacity: .14; filter: grayscale(1); }
+
+/* ── Divisória: fio de 1 px; no hover (com um respiro, para não acender de passagem) surge um traço índigo discreto ── */
+.abas-div { position: absolute; z-index: 3; top: 0; height: 100%; width: 1px; background: rgba(255, 255, 255, .06); cursor: col-resize; touch-action: none; }
+.abas-div::before { content: ''; position: absolute; top: 0; bottom: 0; left: -1px; width: 3px; border-radius: 2px; background: #6366f1;
+  opacity: 0; transform: scaleY(.6); pointer-events: none; transition: opacity .2s ease, transform .28s cubic-bezier(.2, .8, .2, 1); }
+.abas-div::after { content: ''; position: absolute; top: 0; bottom: 0; left: -3px; right: -3px; }
+.abas-div:hover::before { opacity: .5; transform: none; transition-delay: .12s; }
+.abas-div.arrastando::before { opacity: .9; transform: none; transition-delay: 0s; }
+.abas-div:focus { outline: none; }
+.abas-div:focus-visible::before { background: rgba(112, 184, 255, .8); opacity: 1; transform: none; transition-delay: 0s; }
+/* Deitada: entre painéis empilhados; o mesmo traço, girado. */
+.abas-div.deitada { left: 0; width: 100%; height: 1px; cursor: row-resize; }
+.abas-div.deitada::before { top: -1px; bottom: auto; left: 0; right: 0; width: auto; height: 3px; transform: scaleX(.6); }
+.abas-div.deitada::after { top: -3px; bottom: -3px; left: 0; right: 0; }
+.abas-div.deitada:hover::before, .abas-div.deitada.arrastando::before, .abas-div.deitada:focus-visible::before { transform: none; }
+.abas-raiz.redimensionando { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+.abas-raiz.redimensionando.em-altura { cursor: row-resize; }
+.abas-raiz.redimensionando .aba-painel, .abas-raiz.redimensionando .abas-barra { pointer-events: none; }
+
+/* ── Arrastar ── */
+/* Prévia da área de destino: um véu cinza de borda suave, recuado das bordas do painel. */
+.abas-zona { position: absolute; top: 6px; bottom: 6px; left: 6px; right: 6px; z-index: 5; pointer-events: none; border-radius: 10px;
+  background: rgba(120, 124, 132, .3); box-shadow: inset 0 0 0 1px rgba(170, 174, 182, .45), inset 0 0 28px rgba(0, 0, 0, .12);
+  opacity: 0; visibility: hidden;
+  transition: opacity .16s ease, visibility 0s linear .16s, left .22s cubic-bezier(.2, .8, .2, 1), right .22s cubic-bezier(.2, .8, .2, 1),
+    top .22s cubic-bezier(.2, .8, .2, 1), bottom .22s cubic-bezier(.2, .8, .2, 1); }
+.abas-zona.on { opacity: 1; visibility: visible;
+  transition: opacity .16s ease, visibility 0s, left .22s cubic-bezier(.2, .8, .2, 1), right .22s cubic-bezier(.2, .8, .2, 1),
+    top .22s cubic-bezier(.2, .8, .2, 1), bottom .22s cubic-bezier(.2, .8, .2, 1); }
+.abas-zona.esquerda { right: calc(50% + 3px); }
+.abas-zona.direita { left: calc(50% + 3px); }
+.abas-zona.cima { bottom: calc(50% + 3px); }
+.abas-zona.baixo { top: calc(50% + 3px); }
+/* Vão na barra: as abas se afastam e uma pílula cinza marca onde a aba entra. */
+.abas-ins { position: absolute; top: 5px; bottom: 5px; left: 0; width: 0; z-index: 4; pointer-events: none; border-radius: 7px;
+  background: rgba(120, 124, 132, .3); box-shadow: inset 0 0 0 1px rgba(170, 174, 182, .45); opacity: 0;
+  transition: opacity .14s ease, left .2s cubic-bezier(.2, .8, .2, 1), width .2s cubic-bezier(.2, .8, .2, 1); }
+.abas-ins.on { opacity: 1; }
+.abas-zona.sem-tr, .abas-ins.sem-tr { transition: none; }
+.abas-raiz.arrastando .aba { transition: transform .2s cubic-bezier(.2, .8, .2, 1), color .16s ease, background-color .16s ease, opacity .16s ease; }
+.abas-raiz.arrastando .aba:hover { background: transparent; }
+.abas-raiz.arrastando .aba-painel { pointer-events: none; }
+.aba.arrastada { opacity: 0; cursor: grabbing; }
+.aba.arrastada.fora { opacity: .3; }
+/* Fantasma: a própria aba, levemente erguida, presa ao cursor no ponto onde foi pega. */
+.abas-fantasma { position: fixed; z-index: 70; top: 0; left: 0; pointer-events: none; box-sizing: border-box; display: flex; align-items: center; gap: 6px;
+  max-width: 220px; padding: 0 12px 0 10px; border-radius: 8px; background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .085); color: #f0f0f0;
+  font-size: 12.5px; line-height: 1; white-space: nowrap; overflow: hidden; cursor: grabbing; will-change: transform; scale: 1.03;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 14px 36px rgba(0, 0, 0, .5), 0 3px 10px rgba(0, 0, 0, .35);
+  animation: abas-ergue .2s cubic-bezier(.2, .8, .2, 1); }
+.abas-fantasma.previa .aba-tit { font-style: italic; }
+@keyframes abas-ergue { from { scale: 1; background-color: #111; border-color: transparent; box-shadow: 0 0 0 rgba(0, 0, 0, 0); } }
+/* Reflexo da aba fechada: some no lugar enquanto as vizinhas ocupam o espaço. */
+.abas-sai { position: absolute; top: 5px; height: calc(100% - 5px); box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 10px;
+  color: #8a8a8a; font-size: 12.5px; line-height: 1; white-space: nowrap; overflow: hidden; pointer-events: none; }
+.abas-sai.ativa { color: #f0f0f0; }
+
+/* ── Menu (mesmo visual do .menu-flut do index.html) ── */
+.abas-menu { position: fixed; z-index: 60; top: 0; left: 0; min-width: 232px; max-width: min(320px, calc(100vw - 24px)); max-height: min(380px, calc(100vh - 24px));
+  overflow-y: auto; padding: 5px; border-radius: 12px; background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .08); color: #f0f0f0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4);
+  animation: abas-entra .16s cubic-bezier(.23, 1, .32, 1); font-family: inherit; }
+@keyframes abas-entra { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.abas-mi { width: 100%; height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 9px; border: 0; border-radius: 8px; background: none;
+  color: #e4e4e4; font: inherit; font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer; transition: background-color .12s ease, color .12s ease; }
+.abas-mi-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.abas-mi:hover, .abas-mi:focus-visible, .abas-mi:focus { background: rgba(255, 255, 255, .06); color: #f0f0f0; outline: none; }
+.abas-mi[aria-disabled="true"] { color: #5c5c5c; cursor: default; }
+.abas-mi[aria-disabled="true"]:hover { color: #5c5c5c; }
+.abas-menu-sep { height: 1px; margin: 5px 4px; background: rgba(255, 255, 255, .06); }
+
+@media (prefers-reduced-motion: reduce) {
+  .abas-menu, .abas-fantasma, .abas-vazio { animation: none; }
+  .aba, .aba::before, .aba-x, .abas-btn, .abas-div::before, .abas-zona, .abas-zona.on, .abas-ins, .abas-mi,
+  .abas-raiz.arrastando .aba { transition: none; }
+  .abas-fantasma { scale: none; }
+}

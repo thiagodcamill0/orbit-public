@@ -1,0 +1,104 @@
+{
+  "sala": "tester",
+  "origem": [
+    0,
+    600
+  ],
+  "dimensoes": [
+    560,
+    520
+  ],
+  "atlas": "../fundo.png",
+  "pecas": [
+    {
+      "arquivo": "sala.png",
+      "retanguloGlobal": [
+        0,
+        600,
+        560,
+        520
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "armario-dispositivos.png",
+      "retanguloGlobal": [
+        40,
+        680,
+        40,
+        80
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "checklist-bancada.png",
+      "retanguloGlobal": [
+        480,
+        720,
+        40,
+        120
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "bancada-aparelhos.png",
+      "retanguloGlobal": [
+        360,
+        1040,
+        160,
+        40
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "planta-inferior.png",
+      "retanguloGlobal": [
+        40,
+        1040,
+        40,
+        40
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "planta-superior.png",
+      "retanguloGlobal": [
+        480,
+        640,
+        40,
+        40
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "estacao-1.png",
+      "retanguloGlobal": [
+        80,
+        756,
+        120,
+        80
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "estacao-2.png",
+      "retanguloGlobal": [
+        320,
+        756,
+        120,
+        80
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    },
+    {
+      "arquivo": "estacao-3.png",
+      "retanguloGlobal": [
+        200,
+        916,
+        120,
+        80
+      ],
+      "tipo": "recorte opaco; não sobrepor ao atlas"
+    }
+  ]
+}

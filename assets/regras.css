@@ -1,0 +1,22 @@
+/* Configurações → Permissões dos agentes (assets/regras.js) */
+.rg { display: flex; flex-direction: column; gap: 10px; padding: 2px 0 12px; }
+.rg-nota, .rg-vazio { margin: 0; font-size: 12px; line-height: 1.5; color: var(--t3); }
+.rg-erro { margin: 0; font-size: 12px; color: var(--erro-t, #ff9592); overflow-wrap: anywhere; }
+.rg-proj { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--fio); }
+.rg-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.rg-nome { display: flex; flex-direction: column; min-width: 0; flex: 1 1 200px; }
+.rg-nome strong { font-size: 13px; font-weight: 500; color: var(--t1); }
+.rg-pasta { color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rg-arq { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 11.5px; }
+.rg-arq-rot { color: var(--t2); }
+.rg-arq-dica { color: var(--t3); }
+.rg-regras { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rg-regra { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-height: 26px; padding: 0 2px 0 8px; border: 1px solid var(--fio-2); border-radius: 7px; background: var(--bloco); }
+.rg-regra code { min-width: 0; color: var(--t1); overflow-wrap: anywhere; }
+.rg-tipo { font-size: 11px; color: var(--agu-t); }
+.rg-deny .rg-tipo { color: var(--erro-t, #ff9592); }
+.rg .btn-icone.rg-x { width: 22px; height: 22px; border-radius: 5px; color: var(--t3); }
+.rg .btn-icone.rg-x:hover, .rg .btn-icone.rg-x:focus-visible { color: var(--erro-t, #ff9592); }
+.rg button:disabled { opacity: .55; cursor: default; }
+.rg-outros summary { font-size: 12px; color: var(--t2); cursor: pointer; padding: 6px 0 0; border-radius: 4px; }
+.rg-outros[open] summary { margin-bottom: 2px; }

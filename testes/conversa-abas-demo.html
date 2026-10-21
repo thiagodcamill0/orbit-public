@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- Demo da rodada 9: várias instâncias da Conversa (window.Conversa.criar) lado a lado, cada uma num painel de
+     aba com a classe cv-em-aba, mais a instância principal (montar) numa coluna de detalhe à direita.
+     Carrega assets/conversa.* e assets/anexos.* de verdade com um `api` falso mínimo; as rotas /estado, /modelos e
+     /sessao/:id/conversa* vêm do servidor que serve esta página (testes/conversa-abas.test.mjs encaminha ao mock).
+     Parâmetros: ?ids=a,b,c (sessões; sem eles, as duas primeiras do Orbit que não estão ocupadas)
+                 &principal=0 (sem o painel de detalhe)
+     Espiões para o teste: window.demo = { insts, principal, ouvintesApi(), ouvintesGlobais(), fluxosAbertos() }. -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Conversa em abas · demo</title>
+<script>
+  // Espiões instalados antes da Conversa: ouvintes de document/window e EventSource abertos.
+  (function () {
+    const globais = new Set();
+    for (const alvo of [document, window]) {
+      const add = alvo.addEventListener.bind(alvo), rem = alvo.removeEventListener.bind(alvo);
+      const chave = (t, f, o) => (alvo === document ? 'd:' : 'w:') + t + ':' + (typeof o === 'boolean' ? o : !!(o && o.capture));
+      alvo.addEventListener = function (t, f, o) { if (f && f.__demo == null) f.__demo = Math.random(); globais.add(chave(t, f, o) + ':' + f.__demo); return add(t, f, o); };
+      alvo.removeEventListener = function (t, f, o) { if (f) globais.delete(chave(t, f, o) + ':' + f.__demo); return rem(t, f, o); };
+    }
+    const ES = window.EventSource, abertos = new Set();
+    window.EventSource = class extends ES {
+      constructor(...a) { super(...a); abertos.add(this); }
+      close() { abertos.delete(this); super.close(); }
+    };
+    window.demo = { ouvintesGlobais: () => globais.size, fluxosAbertos: () => [...abertos].map((e) => e.url) };
+  })();
+</script>
+<link rel="stylesheet" href="/assets/anexos.css">
+<link rel="stylesheet" href="/assets/conversa.css">
+<style>
+  /* Tokens do Orbit (os mesmos do index.html) e os botões que a Conversa usa. */
+  :root {
+    --fundo: #0a0a0a; --casca: #111111; --cartao: #161616; --bloco: #1f1f1f; --bloco-2: #242424;
+    --fio: #252525; --fio-2: #2e2e2e; --fio-3: #3a3a3a; --t1: #f0f0f0; --t2: #9a9a9a; --t3: #5c5c5c;
+    --acento: #6366f1; --poco: #171717; --poco-sombra: inset 0 1px 2px rgba(0, 0, 0, .35); --anel: rgba(112, 184, 255, .7);
+    --sup: #1d1d1d; --ok-t: #3dd68c; --agu-t: #ffca16; --trab-t: #70b8ff;
+    --sans: Geist, system-ui, "Segoe UI Variable", sans-serif; --mono: "Cascadia Code", ui-monospace, Consolas, monospace;
+    --ease: ease; --ease-press: cubic-bezier(.23, 1, .32, 1); color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--fundo); color: var(--t1); font: 400 12.5px/1.45 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; }
+  .btn { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--fio-2); border-radius: 8px;
+    background: var(--bloco); color: var(--t1); font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color .18s ease, border-color .18s ease; }
+  .btn:hover { background: var(--bloco-2); border-color: var(--fio-3); }
+  .btn svg { color: var(--t2); }
+  .btn.p { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 7px; }
+  .btn.contorno { background: transparent; border-color: var(--fio-3); }
+  .link { border: 0; background: none; padding: 4px 0; color: var(--t3); font-size: 12px; white-space: nowrap; cursor: pointer; }
+  .link:hover { color: var(--t1); }
+  .ctx-foco { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid var(--fio-2); border-radius: 7px; background: #121212; color: var(--t1); font-size: 12px; }
+  .md { color: #cfcfcf; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
+  .md p { margin: 0 0 8px; }
+  .md > :last-child { margin-bottom: 0; }
+  :focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel); }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-thumb { background: #2e2e2e; }
+
+  /* Layout da demo: grupos de abas lado a lado (como o assets/abas.js) e o detalhe à direita. */
+  .demo { display: flex; height: 100%; }
+  .grupo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid rgba(255, 255, 255, .06); }
+  .barra { flex: none; height: 35px; display: flex; align-items: stretch; background: var(--casca); border-bottom: 1px solid rgba(255, 255, 255, .06); }
+  .barra span { display: flex; align-items: center; gap: 6px; padding: 0 12px; max-width: 220px; color: var(--t1); border-top: 1px solid var(--acento); background: var(--fundo);
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .aba-painel { position: relative; flex: 1; min-height: 0; overflow: auto; container-type: inline-size; container-name: principal; }
+  .detalhe { flex: none; width: 380px; display: flex; flex-direction: column; border-left: 1px solid var(--fio); background: var(--casca); }
+  .detalhe > h2 { margin: 0; padding: 10px 16px; font-size: 12px; font-weight: 500; color: var(--t2); border-bottom: 1px solid var(--fio); }
+  #pk-conversa { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  @media (max-width: 900px) { .detalhe { display: none; } }
+  .ico { display: inline-grid; place-items: center; }
+  .ponto { display: inline-block; border-radius: 50%; background: var(--trab-t); }
+  .balao { position: fixed; z-index: 50; width: 280px; padding: 12px; border: 1px solid var(--fio-3); border-radius: 10px; background: #1d1d1d; color: var(--t1); }
+  .balao p { margin: 0 0 10px; color: var(--t2); }
+</style>
+</head>
+<body>
+<div class="demo" id="demo"></div>
+<script src="/assets/anexos.js"></script>
+<script src="/assets/conversa.js"></script>
+<script>
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const estado = await (await fetch('/estado', { cache: 'no-store' })).json();
+  const sessoes = new Map((estado.sessoes || []).map((s) => [s.id, s]));
+  let ids = (q.get('ids') || '').split(',').filter(Boolean);
+  if (!ids.length) ids = [...sessoes.values()].filter((s) => s.controle && s.controle.modo === 'orbit' && !s.controle.ocupada).slice(0, 2).map((s) => s.id);
+
+  // Ouvintes do api.on: um conjunto por tipo; a função devolvida cancela (como o index.html).
+  const ouvintes = { sessao: new Set(), acao: new Set(), remover: new Set(), conexao: new Set() };
+  const ns = 'http://www.w3.org/2000/svg';
+  const icone = (n, t = 14) => {
+    const v = document.createElementNS(ns, 'svg');
+    for (const [k, x] of Object.entries({ viewBox: '0 0 16 16', width: t, height: t, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'aria-hidden': 'true', 'data-i': n })) v.setAttribute(k, x);
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', 8); c.setAttribute('cy', 8); c.setAttribute('r', 5);
+    v.append(c);
+    return v;
+  };
+  // Balão simples: acima do âncora (o cartão do prompt da instância), sem sair da janela.
+  function balao(cfg) {
+    return new Promise((ok) => {
+      const el = document.createElement('div');
+      el.className = 'balao';
+      el.setAttribute('role', 'dialog');
+      const p = document.createElement('p'); p.textContent = cfg.texto || '';
+      const sim = document.createElement('button'); sim.className = 'btn p'; sim.textContent = cfg.sim || 'OK';
+      const nao = document.createElement('button'); nao.className = 'btn p contorno'; nao.textContent = 'Cancelar';
+      el.append(p, nao, sim);
+      document.body.append(el);
+      const r = (cfg.ancora || document.body).getBoundingClientRect();
+      el.style.left = Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8)) + 'px';
+      el.style.top = Math.max(8, r.top - el.offsetHeight - 8) + 'px';
+      const fim = (v) => { el.remove(); ok({ ok: v, valor: '' }); };
+      sim.onclick = () => fim(true); nao.onclick = () => fim(false);
+      window.demo.balao = el;
+    });
+  }
+  const base = {
+    sessao: (id) => { const s = sessoes.get(id); return s ? JSON.parse(JSON.stringify(s)) : null; },
+    on: (tipo, fn) => { const c = ouvintes[tipo]; if (!c || typeof fn !== 'function') return () => {}; c.add(fn); return () => c.delete(fn); },
+    selecionar: (id) => sessoes.has(id),
+    confirmar: () => Promise.resolve(false),
+    balao,
+    toast: (t) => console.log('toast:', t),
+    md: (t) => { const f = document.createDocumentFragment(); for (const par of String(t || '').split(/\n{2,}/)) { const p = document.createElement('p'); p.textContent = par; f.append(p); } return f; },
+    icone: (n, t) => { const s = document.createElement('span'); s.className = 'ico'; s.append(icone(n, t)); return s; },
+    ponto: (st, t = 12) => { const s = document.createElement('span'); s.className = 'ponto'; s.style.width = s.style.height = Math.round(t * .6) + 'px'; return s; },
+    nome: (id) => { const s = sessoes.get(id); return s ? s.nome || id : ''; },
+    visivel: () => !document.hidden,
+    abrirVSCode: () => {},
+    abrirSessao: () => {},
+    selecionada: () => null,
+    modelos: () => fetch('/modelos', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))),
+    nomeModelo: (id) => id,
+  };
+
+  const demo = document.getElementById('demo');
+  const insts = [];
+  for (const id of ids) {
+    const grupo = document.createElement('div'); grupo.className = 'grupo';
+    const barra = document.createElement('div'); barra.className = 'barra';
+    const aba = document.createElement('span'); aba.textContent = base.nome(id) || id; barra.append(aba);
+    const painel = document.createElement('div'); painel.className = 'aba-painel'; painel.setAttribute('role', 'tabpanel');
+    const el = document.createElement('section'); el.className = 'cv-em-aba'; el.setAttribute('aria-label', 'Conversa'); el.dataset.sessao = id;
+    painel.append(el); grupo.append(barra, painel); demo.append(grupo);
+    const inst = window.Conversa.criar(el, Object.freeze({ ...base, selecionada: () => id }));
+    inst.abrir(id);
+    insts.push({ id, el, inst });
+  }
+  let principal = null;
+  if (q.get('principal') !== '0') {
+    const det = document.createElement('aside'); det.className = 'detalhe';
+    const h = document.createElement('h2'); h.textContent = 'Detalhe (instância principal)';
+    const sec = document.createElement('section'); sec.id = 'pk-conversa';
+    det.append(h, sec); demo.append(det);
+    window.Conversa.montar(sec, base);
+    principal = ids[0] || null;
+    if (principal) window.Conversa.abrir(principal);
+  }
+  Object.assign(window.demo, {
+    insts, principal, sessoes,
+    ouvintesApi: () => Object.values(ouvintes).reduce((n, c) => n + c.size, 0),
+    pronto: true,
+  });
+})().catch((e) => { console.error('demo', e); });
+</script>
+</body>
+</html>

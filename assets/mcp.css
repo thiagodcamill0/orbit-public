@@ -1,0 +1,111 @@
+/* Configurações → Conexões MCP (assets/mcp.js). Só a paleta do Orbit, no vocabulário da aba Skills: ladrilho #262626
+   com luz de 1 px, campo = poço #171717, fios brancos 6%, chips sólidos e interruptor verde (--ok), como o da aba Skills desde 17/10. Cor só nos
+   estados: verde conectado, vermelho falhou, âmbar aguardando aprovação ou chave em texto puro, cinza desativado. */
+.mcp { display: flex; flex-direction: column; gap: 10px; padding: 2px 0 12px; --mcp-ok: var(--ok-t, #3dd68c); --mcp-erro: var(--erro-t, #ff9592); --mcp-aviso: var(--agu-t, #ffca16); }
+.mcp-nota, .mcp-vazio, .mcp-rodape { margin: 0; font-size: 12px; line-height: 1.5; color: var(--t3); }
+.mcp-rodape { padding-top: 8px; border-top: 1px solid var(--fio); font-size: 11.5px; }
+.mcp-erro { margin: 0; font-size: 12px; color: var(--mcp-erro); overflow-wrap: anywhere; }
+.mcp-dica { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--t3); overflow-wrap: anywhere; }
+.mcp-dica-aviso { color: var(--mcp-aviso); }
+.mcp button:disabled, .mcp select:disabled { opacity: .55; cursor: default; }
+
+/* Cabeçalho: projeto · quando · Verificar · Adicionar */
+.mcp-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mcp-cab .btn { gap: 6px; }
+.mcp-quando { flex: 1 1 auto; min-width: 0; font-size: 11.5px; color: var(--t3); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcp-sel-w { position: relative; display: inline-flex; align-items: center; max-width: 100%; min-width: 0; }
+.mcp-campo {
+  width: 100%; min-width: 0; height: 30px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--lat-fio, rgba(255, 255, 255, .06)); background: var(--poco, #171717); box-shadow: var(--poco-sombra);
+  color: var(--t1); font: 12.5px var(--sans); outline: none;
+  transition: border-color .15s ease, box-shadow .2s ease, background-color .15s ease;
+}
+.mcp-campo.mono { font-family: var(--mono); font-size: 12px; }
+.mcp-campo::placeholder { color: #565656; }
+.mcp-campo:hover { border-color: rgba(255, 255, 255, .1); }
+.mcp-campo:focus { border-color: rgba(255, 255, 255, .16); background: #151515; box-shadow: var(--poco-sombra), 0 0 0 3px rgba(255, 255, 255, .05); }
+/* A aparência dos seletores é a das Configurações (.cfg select: lista do Orbit com base-select, ou o nativo em poço). */
+.mcp-sel { width: auto; max-width: 240px; text-overflow: ellipsis; }
+.mcp-cab .mcp-sel { font-weight: 500; }
+
+/* Aviso dos pendentes */
+.mcp-pend { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.45;
+  color: var(--mcp-aviso); background: rgba(255, 197, 61, .07); border: 1px solid rgba(255, 197, 61, .2); }
+.mcp-pend svg { flex: none; margin-top: 1px; }
+
+/* Lista */
+.mcp-lista { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.mcp-srv { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid var(--fio); }
+.mcp-srv:first-child { border-top: 0; }
+.mcp-srv-off .mcp-nome, .mcp-srv-off .mcp-cmd { color: var(--t3); }
+.mcp-mono { flex: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-top: 1px; border-radius: 7px;
+  background: #262626; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05); color: #a3a3a3; }
+.mcp-srv-pend .mcp-mono { color: var(--mcp-aviso); }
+.mcp-meio { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mcp-l1 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.mcp-nome { min-width: 0; max-width: 100%; font-size: 13px; font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcp-chip { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; background: #262626; font-size: 10.5px; color: #a3a3a3; white-space: nowrap; }
+.mcp-l2 { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 12px; color: var(--t2); }
+.mcp-l2 > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.mcp-ponto { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #5c5c5c; transform: translateY(-1px); }
+.mcp-ok .mcp-ponto { background: var(--mcp-ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mcp-ok) 18%, transparent); }
+.mcp-erro.mcp-l2 { color: var(--mcp-erro); }
+.mcp-erro .mcp-ponto { background: var(--mcp-erro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mcp-erro) 18%, transparent); }
+.mcp-aviso .mcp-ponto { background: var(--mcp-aviso); }
+.mcp-aviso { color: var(--mcp-aviso); }
+.mcp-off { color: var(--t3); }
+.mcp-neutro .mcp-ponto { background: transparent; border: 1px solid #5c5c5c; }
+.mcp-cmd { display: block; max-width: 100%; padding: 4px 7px; border-radius: 6px; background: var(--poco, #171717); font: 11.5px/1.5 var(--mono); color: #c8c8c8;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcp-cmd-todo { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--t1); }
+.mcp-chaves { display: flex; flex-wrap: wrap; gap: 6px; }
+.mcp-chave-it { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--t3); }
+.mcp-chave-it svg { color: var(--mcp-ok); }
+.mcp-falta, .mcp-falta svg { color: var(--mcp-aviso); }
+.mcp-alerta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11.5px; line-height: 1.45; color: var(--mcp-aviso); }
+.mcp-alerta > span { flex: 1 1 200px; min-width: 0; }
+.mcp-aprovar { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; padding: 8px 10px; border-radius: 8px; background: #191919; border: 1px solid rgba(255, 197, 61, .18); }
+.mcp-aprovar > p:first-child { margin: 0; font-size: 12px; color: var(--t2); }
+.mcp-aprovar-b { display: flex; justify-content: flex-end; }
+.mcp .btn.p { gap: 5px; }
+
+.mcp-acoes { flex: none; display: flex; align-items: center; gap: 4px; padding-top: 4px; }
+.mcp .chave.mcp-tg { width: 28px; height: 16px; }
+.mcp .chave.mcp-tg::before { top: 3px; left: 3px; width: 10px; height: 10px; }
+.mcp .chave.mcp-tg:checked { background: var(--ok, #30a46c); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+.mcp .chave.mcp-tg:checked:hover:not(:disabled) { background: color-mix(in srgb, var(--ok, #30a46c) 85%, #fff); }
+.mcp .chave.mcp-tg:checked::before { background: #fff; transform: translateX(12px); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.mcp .chave.mcp-tg:active:not(:disabled)::before { width: 13px; }
+.mcp .chave.mcp-tg:checked:active:not(:disabled)::before { transform: translateX(9px); }
+.mcp .chave.mcp-tg:disabled { opacity: .35; cursor: not-allowed; }
+.mcp .chave.mcp-tg:focus-visible { box-shadow: 0 0 0 2px var(--sup, #1d1d1d), 0 0 0 4px var(--anel, rgba(112, 184, 255, .7)); }
+.mcp .btn-icone.mcp-x { width: 24px; height: 24px; border-radius: 6px; color: var(--t3); }
+.mcp .btn-icone.mcp-x:hover, .mcp .btn-icone.mcp-x:focus-visible { color: var(--mcp-erro); }
+.mcp-x-vago { width: 24px; }
+
+/* Formulário */
+.mcp-form { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #191919; border: 1px solid var(--fio); }
+.mcp-f-linha { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 10px; }
+.mcp-f-topo { align-items: start; }
+.mcp-f-topo .mcp-f-rot { padding-top: 6px; }
+.mcp-f-linha > label, .mcp-f-rot { font-size: 12px; color: var(--t2); }
+.mcp-f-linha .mcp-sel-w .mcp-sel { max-width: none; width: 100%; }
+.mcp-f-linha .mcp-sel-w { width: 100%; }
+.mcp-form > .mcp-dica { padding-left: 122px; }
+.mcp-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 8px; background: var(--poco, #171717); width: fit-content; }
+.mcp-seg-b { height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--t2); font: 12px var(--sans); cursor: pointer; }
+.mcp-seg-b:hover { color: var(--t1); }
+.mcp-seg-b[aria-pressed="true"] { background: #2d2d2d; color: var(--t1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+.mcp-seg-b:focus-visible { outline: 2px solid var(--anel, rgba(112, 184, 255, .7)); outline-offset: 1px; }
+.mcp-f-url { display: flex; gap: 6px; }
+.mcp-f-url .mcp-sel { flex: none; }
+.mcp-f-chaves { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mcp-f-chave { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr) 24px; gap: 6px; align-items: center; }
+.mcp-f-mais { width: fit-content; }
+.mcp-f-b { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+
+@media (max-width: 520px) {
+  .mcp-f-linha { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .mcp-form > .mcp-dica { padding-left: 0; }
+  .mcp-quando { order: 3; flex-basis: 100%; text-align: left; }
+}

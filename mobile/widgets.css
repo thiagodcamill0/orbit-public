@@ -1,0 +1,62 @@
+/* Orbit no celular — aba Visão geral (mobile/widgets.js). Usa as variáveis de assets/comum/base.css. Carregar DEPOIS do mobile.css. */
+
+/* Com a aba Visão geral, a barra inferior passa a ter 4 abas. */
+.abas:has(#aba-visao) { grid-template-columns: repeat(4, 1fr); }
+
+#p-visao { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
+#p-visao[hidden] { display: none; }
+
+.wg { padding: 16px; border-radius: 14px; background: var(--sup); box-shadow: var(--sombra), var(--luz-topo); min-width: 0; }
+.wg-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.wg-cab h2 { flex: 1; min-width: 0; margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--t2); }
+.wg-selo { padding: 2px 8px; border-radius: 999px; background: var(--bloco); color: var(--aviso); font-size: 11px; font-weight: 600; }
+.wg-selo[hidden] { display: none; }
+
+.wg-vazio { margin: 0; color: var(--t2); font-size: 14px; }
+.wg-sub { margin: 4px 0 0; font-size: 13px; color: var(--t2); }
+.wg-sub b { font-weight: 650; color: var(--t1); }
+.wg-sub.bom { color: var(--sucesso); }
+.wg-sub.alerta { color: var(--aviso); }
+.wg-lido { margin: 10px 0 0; font-size: 12px; color: var(--t3); }
+.wg-rodape { margin: 0; text-align: center; font-size: 12px; color: var(--aviso); }
+.wg-rodape[hidden] { display: none; }
+
+/* Sessões: rosca + legenda */
+.wg-linha { display: flex; align-items: center; gap: 16px; }
+.wg-rosca-caixa { position: relative; width: 120px; height: 120px; flex: none; }
+.wg-rosca { display: block; transform: rotate(-90deg); }
+.wg-rosca-fundo { fill: none; stroke: var(--bloco); stroke-width: 13; }
+.wg-rosca-seg { fill: none; stroke-width: 13; stroke-linecap: round; }
+.wg-rosca-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.wg-rosca-centro b { font-size: 28px; font-weight: 650; }
+.wg-rosca-centro span { font-size: 11px; color: var(--t2); }
+.wg-leg { flex: 1; min-width: 0; margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.wg-leg li { display: grid; grid-template-columns: 10px 1fr auto 40px; align-items: center; gap: 8px; font-size: 13px; }
+.wg-leg li.zero { opacity: .45; }
+.wg-leg i { width: 10px; height: 10px; border-radius: 50%; }
+.wg-leg-rot { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t1); }
+.wg-leg-p { text-align: right; font-size: 12px; color: var(--t3); }
+
+/* Contexto e uso: número grande + linhas com trilho */
+.wg-topo { display: flex; align-items: baseline; gap: 10px; }
+.wg-grande { font-size: 40px; font-weight: 650; line-height: 1; }
+.wg-uni { font-size: 14px; color: var(--t2); }
+.wg-itens { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.wg-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wg-item-l1 { display: flex; align-items: baseline; gap: 8px; }
+.wg-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.wg-val { font-weight: 650; }
+.wg-trilho { display: block; height: 6px; border-radius: 999px; background: var(--fio-2); overflow: hidden; }
+.wg-trilho i { display: block; height: 100%; border-radius: 999px; }
+.wg-meta { font-size: 12px; color: var(--t3); }
+.wg-meta b { color: var(--t2); font-weight: 600; }
+.wg-prev { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--poco); font-size: 13px; color: var(--t2); }
+.wg-prev b { color: var(--t1); }
+.wg-prev.alerta { color: var(--aviso); }
+.wg-prev.limite { color: var(--perigo); }
+
+/* Projetos: alvos de toque (>= 44px) que abrem a nova instância */
+.wg-projs { display: flex; flex-direction: column; gap: 6px; }
+.wg-proj { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px; width: 100%; min-height: 52px; padding: 8px 12px; border: 0; border-radius: 10px; background: var(--bloco); color: var(--t1); text-align: left; font: inherit; cursor: pointer; }
+.wg-proj .wg-nome { flex: none; max-width: 100%; }
+.wg-vazio.erro { color: var(--aviso); }

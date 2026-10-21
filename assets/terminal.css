@@ -1,0 +1,241 @@
+/* Orbit — terminal integrado (assets/terminal.js). Painel inferior como o do VS Code, com os tokens do Orbit:
+   casca #111, corpo #141414 (o mesmo do visualizador de código), fios branco 6% / 8,5% / 13%, acento #6366f1,
+   verde do "rodando" #3ecf8e. Tudo com prefixo .term- para não vazar no resto da página. */
+
+/* ── Encaixe na área principal: abas em cima, painel embaixo ── */
+.principal.com-terminal { display: flex; flex-direction: column; overflow: hidden; }
+.principal.com-terminal > #abas-raiz { flex: 1 1 auto; min-height: 0; min-width: 0; }
+.principal.com-terminal > #term-painel { flex: none; }
+/* Sem as abas (o abas.js não montou): a página rola como antes e o painel fica preso no rodapé. */
+.principal.com-terminal:not(.com-abas) { display: block; overflow-y: auto; }
+.principal.com-terminal:not(.com-abas) > #term-painel { position: sticky; bottom: 0; }
+
+/* ── Painel ── */
+/* A altura anima de 0 até --term-h; a casca tem a altura final o tempo todo e só é revelada (o xterm não reflui
+   durante a animação). Fechado, fica invisível depois da transição (nada focável). */
+.term-painel { position: relative; z-index: 4; height: 0; min-width: 0; overflow: hidden; visibility: hidden; background: #141414;
+  font-family: var(--sans, 'Geist', system-ui, sans-serif); font-size: 12.5px; color: #f0f0f0;
+  transition: height .24s cubic-bezier(.23, 1, .32, 1), visibility 0s linear .24s; }
+.term-painel.aberto { height: var(--term-h, 300px); visibility: visible; transition: height .24s cubic-bezier(.23, 1, .32, 1), visibility 0s; }
+.term-painel.aberto:not(.animando) { overflow: visible; }
+.term-painel.sem-anim, .term-painel.sem-anim .term-casca, .term-painel.arrastando, .term-painel.arrastando .term-casca { transition: none !important; }
+
+.term-casca { position: absolute; left: 0; right: 0; top: 0; height: var(--term-h, 300px); display: flex; flex-direction: column; min-width: 0;
+  opacity: 0; transform: translateY(10px); transition: opacity .2s ease, transform .24s cubic-bezier(.23, 1, .32, 1); }
+.term-painel.aberto .term-casca { opacity: 1; transform: none; }
+.term-painel.aberto:not(.animando) .term-casca { position: relative; height: 100%; }
+
+/* ── Alça de redimensionar: fio de 1 px; no hover (com respiro) e no arraste acende no acento ── */
+.term-alca { position: absolute; z-index: 6; left: 0; right: 0; top: -3px; height: 7px; cursor: row-resize; touch-action: none; outline: none; }
+.term-alca::after { content: ''; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: rgba(255, 255, 255, .085); pointer-events: none; }
+.term-alca::before { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 2px; height: 3px; border-radius: 2px; background: #6366f1;
+  opacity: 0; transform: scaleX(.6); pointer-events: none; transition: opacity .2s ease, transform .28s cubic-bezier(.2, .8, .2, 1); }
+.term-alca:hover::before { opacity: .55; transform: none; transition-delay: .12s; }
+.term-painel.arrastando .term-alca::before { opacity: .9; transform: none; transition-delay: 0s; }
+.term-alca:focus-visible::before { background: rgba(112, 184, 255, .8); opacity: 1; transform: none; transition-delay: 0s; }
+html.term-redim, html.term-redim * { cursor: row-resize !important; user-select: none !important; -webkit-user-select: none !important; }
+html.term-redim iframe { pointer-events: none; }
+
+/* ── Barra (35 px) ── */
+.term-barra { position: relative; flex: none; display: flex; align-items: stretch; height: 35px; min-width: 0; padding-left: 6px; background: #111;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .06); }
+.term-abas { position: relative; flex: 1 1 auto; display: flex; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; }
+.term-abas::-webkit-scrollbar { display: none; }
+
+/* ── Aba ── */
+.term-aba { position: relative; flex: none; display: flex; align-items: center; gap: 7px; height: calc(100% - 5px); margin-top: 5px; max-width: 200px; min-width: 0;
+  padding: 0 6px 0 10px; border-radius: 7px 7px 0 0; color: #9a9a9a; font-size: 12.5px; line-height: 1; white-space: nowrap; cursor: pointer;
+  user-select: none; -webkit-user-select: none; touch-action: none; outline: none;
+  transition: color .18s ease, background-color .18s ease, box-shadow .18s ease, opacity .18s ease, transform .12s ease; }
+.term-aba::before { content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 1px; border-radius: 1px; background: rgba(255, 255, 255, .22);
+  opacity: 0; transform: scaleX(.4); transition: transform .24s cubic-bezier(.2, .8, .2, 1), opacity .16s ease, background-color .18s ease, box-shadow .18s ease; }
+.term-aba:hover { color: #d6d6d6; background: rgba(255, 255, 255, .035); }
+.term-aba:active:not(.arrastada) { transform: scale(.975); }
+.term-aba.ativa { background: #141414; color: #d6d6d6;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, .06), inset -1px 0 0 rgba(255, 255, 255, .06), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.term-aba.ativa::before { opacity: 1; transform: none; }
+.term-aba.ativa::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: #141414; }
+.term-painel.foco .term-aba.ativa { color: #f0f0f0; }
+.term-painel.foco .term-aba.ativa::before { background: #6366f1; box-shadow: 0 0 6px rgba(99, 102, 241, .55); }
+.term-aba:focus-visible { box-shadow: inset 0 0 0 1px rgba(112, 184, 255, .7); color: #f0f0f0; }
+.term-aba.morto .term-aba-nome, .term-aba.morto .term-aba-ic { color: #5c5c5c; }
+.term-aba.morto .term-aba-nome { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, .18); }
+
+.term-aba-ic { flex: none; width: 14px; height: 14px; display: grid; place-items: center; color: #7a7a7a; transition: color .18s ease; }
+.term-aba:hover .term-aba-ic, .term-aba.ativa .term-aba-ic { color: inherit; }
+.term-aba-ic svg { width: 14px; height: 14px; }
+.term-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 1px 0; }
+.term-aba-ed { width: 12ch; min-width: 6ch; max-width: 150px; height: 20px; margin: 0 -3px; padding: 0 4px; border: 0; border-radius: 4px; outline: none;
+  background: #0c0c0c; color: #f0f0f0; font: inherit; font-size: 12.5px; box-shadow: 0 0 0 1px #6366f1, 0 0 0 3px rgba(99, 102, 241, .18); }
+.term-aba-ed::selection { background: rgba(99, 102, 241, .45); }
+
+/* Ponto de "rodando": verde, pulsa devagar. */
+.term-aba-ponto { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #3ecf8e; display: none; }
+.term-aba.ocupado .term-aba-ponto { display: block; animation: term-pulsa 2.6s ease-in-out infinite; }
+@keyframes term-pulsa { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(62, 207, 142, .5); } 50% { opacity: .55; box-shadow: 0 0 0 3px rgba(62, 207, 142, 0); } }
+
+.term-aba-x { flex: none; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 4px; color: #8a8a8a; visibility: hidden; opacity: 0;
+  transition: background-color .16s ease, color .16s ease, opacity .16s ease, transform .12s ease; }
+.term-aba-x svg { width: 14px; height: 14px; }
+.term-aba.ativa .term-aba-x, .term-aba:hover .term-aba-x, .term-aba:focus-visible .term-aba-x { visibility: visible; opacity: 1; }
+.term-aba-x:hover { background: rgba(255, 255, 255, .09); color: #f0f0f0; }
+.term-aba-x:active { transform: scale(.88); }
+.term-aba.editando .term-aba-x { visibility: hidden; }
+
+/* Arrastar para reordenar: a aba segue o cursor, as vizinhas deslizam. */
+.term-abas.arrastando .term-aba { transition: color .18s ease, background-color .18s ease; }
+.term-abas.arrastando .term-aba:hover { background: transparent; }
+.term-aba.arrastada { z-index: 3; cursor: grabbing; background: #1a1a1a; color: #f0f0f0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 6px 18px rgba(0, 0, 0, .35); }
+.term-aba.arrastada::after { display: none; }
+/* Reflexo da aba fechada: some no lugar enquanto as vizinhas ocupam o espaço. */
+.term-aba-sai { position: absolute; top: 5px; height: calc(100% - 5px); box-sizing: border-box; display: flex; align-items: center; gap: 7px; padding: 0 6px 0 10px;
+  color: #9a9a9a; font-size: 12.5px; line-height: 1; white-space: nowrap; overflow: hidden; pointer-events: none; }
+
+/* ── Ações à direita ── */
+.term-acoes { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 6px 0 4px; }
+.term-novo { display: flex; align-items: center; border-radius: 6px; transition: background-color .18s ease; }
+.term-novo:hover { background: rgba(255, 255, 255, .035); }
+.term-btn { position: relative; width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none;
+  color: #5c5c5c; cursor: pointer; transition: background-color .18s ease, color .18s ease, transform .12s ease; }
+.term-painel.foco .term-btn { color: #7a7a7a; }
+.term-btn:hover:not(:disabled), .term-btn[aria-expanded="true"] { background: rgba(255, 255, 255, .06); color: #f0f0f0; }
+.term-btn:active:not(:disabled) { transform: scale(.94); }
+.term-btn:disabled { opacity: .35; cursor: default; }
+.term-btn:focus { outline: none; }
+.term-btn:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: 0; }
+.term-btn.estreito { width: 16px; margin-left: -2px; }
+.term-btn.estreito svg { width: 12px; height: 12px; }
+.term-btn[aria-busy="true"] svg { animation: term-respira 1s ease-in-out infinite; }
+@keyframes term-respira { 50% { opacity: .35; } }
+.term-sep { flex: none; width: 1px; height: 14px; margin: 0 5px; background: rgba(255, 255, 255, .085); }
+
+/* Chip da URL local detectada no terminal ativo. */
+.term-chip { flex: none; display: flex; align-items: center; gap: 6px; height: 22px; max-width: 220px; margin-right: 4px; padding: 0 7px 0 8px;
+  border: 1px solid rgba(255, 255, 255, .085); border-radius: 6px; background: transparent; color: #9a9a9a; cursor: pointer;
+  font: 400 11.5px/1 var(--mono, 'Geist Mono', ui-monospace, monospace); white-space: nowrap;
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease, transform .12s ease; }
+.term-chip[hidden] { display: none; }
+.term-chip:hover { color: #f0f0f0; border-color: rgba(255, 255, 255, .13); background: rgba(255, 255, 255, .04); }
+.term-chip:active { transform: scale(.975); }
+.term-chip:focus { outline: none; }
+.term-chip:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: 1px; }
+.term-chip-ponto { flex: none; width: 5px; height: 5px; border-radius: 50%; background: #3ecf8e; box-shadow: 0 0 0 2px rgba(62, 207, 142, .14); }
+.term-chip-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.term-chip-seta { flex: none; width: 11px; height: 11px; opacity: .7; transition: transform .18s cubic-bezier(.2, .8, .2, 1), opacity .18s ease; }
+.term-chip:hover .term-chip-seta { opacity: 1; transform: translate(1px, -1px); }
+.term-chip.surge { animation: term-surge .26s cubic-bezier(.23, 1, .32, 1); }
+@keyframes term-surge { from { opacity: 0; transform: scale(.94); } }
+
+/* ── Corpo ── */
+.term-corpo { position: relative; flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden; background: #141414; }
+.term-vista { position: absolute; inset: 0; padding: 6px 0 2px 14px; }
+.term-vista[hidden] { display: none; }
+.term-vista .xterm { height: 100%; }
+.term-vista .xterm .xterm-viewport { background-color: #141414; }
+.term-vista .xterm-helper-textarea:focus { outline: none; }
+/* Rolagem fina como a do app. */
+.term-vista .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider { left: 5px !important; width: 5px !important; border-radius: 3px; }
+.term-vista .xterm .xterm-scrollable-element > .scrollbar.vertical:hover > .slider { left: 4px !important; width: 7px !important; }
+.term-vista .xterm .xterm-scrollable-element > .shadow.top { box-shadow: rgba(0, 0, 0, .55) 0 6px 6px -6px inset; }
+.term-vista .xterm a, .term-vista .xterm .xterm-cursor-pointer { cursor: pointer; }
+
+/* ── Estados (carregando, vazio, indisponível, erro) ── */
+.term-estado { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 20px; text-align: center;
+  background: #141414; animation: term-aparece .3s cubic-bezier(.23, 1, .32, 1); }
+.term-estado[hidden] { display: none; }
+@keyframes term-aparece { from { opacity: 0; transform: translateY(4px); } }
+.term-estado-ic { width: 40px; height: 40px; display: grid; place-items: center; margin-bottom: 4px; border-radius: 11px; color: #7a7a7a;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .015)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .085), inset 0 1px 0 rgba(255, 255, 255, .05); }
+.term-estado-ic svg { width: 20px; height: 20px; }
+.term-estado-tit { max-width: 420px; font-size: 13px; font-weight: 500; color: #e4e4e4; letter-spacing: -.005em; }
+.term-estado-sub { max-width: 380px; font-size: 12px; line-height: 1.5; color: #5c5c5c; }
+.term-estado-sub:empty { display: none; }
+.term-estado-acao { display: inline-flex; align-items: center; gap: 8px; height: 28px; margin-top: 6px; padding: 0 10px 0 9px; border: 1px solid rgba(255, 255, 255, .085);
+  border-radius: 8px; background: rgba(255, 255, 255, .03); color: #e4e4e4; font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
+.term-estado-acao[hidden] { display: none; }
+.term-estado-acao:hover { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .13); color: #f0f0f0; }
+.term-estado-acao:active { transform: scale(.975); }
+.term-estado-acao:focus { outline: none; }
+.term-estado-acao:focus-visible { outline: 1px solid rgba(112, 184, 255, .7); outline-offset: 2px; }
+.term-estado-acao svg { width: 14px; height: 14px; color: #9a9a9a; }
+.term-estado-acao kbd, .term-mi kbd { flex: none; font: 400 11px/16px var(--mono, 'Geist Mono', ui-monospace, monospace); color: #5c5c5c; border: 1px solid rgba(255, 255, 255, .085);
+  border-radius: 5px; background: transparent; padding: 0 5px; min-width: 18px; text-align: center; }
+/* Carregando: três pontos que respiram em sequência. */
+.term-pontos { display: flex; gap: 5px; height: 40px; align-items: center; margin-bottom: 4px; }
+.term-pontos i { width: 5px; height: 5px; border-radius: 50%; background: #5c5c5c; animation: term-respira 1.2s ease-in-out infinite; }
+.term-pontos i:nth-child(2) { animation-delay: .15s; }
+.term-pontos i:nth-child(3) { animation-delay: .3s; }
+
+/* Faixa de reconexão (o terminal continua visível embaixo). */
+.term-faixa { position: absolute; z-index: 3; top: 8px; right: 14px; display: flex; align-items: center; gap: 7px; height: 24px; padding: 0 10px 0 9px;
+  border-radius: 999px; background: rgba(29, 29, 29, .92); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .085); color: #9a9a9a; font-size: 11.5px;
+  pointer-events: none; animation: term-aparece .24s cubic-bezier(.23, 1, .32, 1); }
+.term-faixa[hidden] { display: none; }
+.term-faixa i { width: 5px; height: 5px; border-radius: 50%; background: #6366f1; animation: term-respira 1.2s ease-in-out infinite; }
+
+/* Confirmação de fechar um terminal ocupado, no próprio painel. */
+.term-conf { position: absolute; z-index: 4; top: 10px; right: 14px; width: min(330px, calc(100% - 28px)); padding: 13px 14px 12px; border-radius: 12px;
+  background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .085); color: #f0f0f0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 16px 40px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35);
+  animation: term-entra .18s cubic-bezier(.23, 1, .32, 1); }
+.term-conf-tit { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.term-conf-txt { margin-top: 5px; font-size: 12px; line-height: 1.5; color: #9a9a9a; }
+.term-conf-acoes { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+.term-bt { height: 28px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .085); border-radius: 8px; background: transparent; color: #e4e4e4;
+  font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
+.term-bt:hover { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .13); color: #f0f0f0; }
+.term-bt:active { transform: scale(.975); }
+.term-bt:focus { outline: none; }
+.term-bt:focus-visible { box-shadow: 0 0 0 1px #1d1d1d, 0 0 0 3px rgba(112, 184, 255, .7); }
+.term-bt.primario { border-color: transparent; background: #6366f1; color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14); }
+.term-bt.primario:hover { background: #7072f3; color: #fff; }
+.term-bt.primario:focus-visible { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 0 0 1px #1d1d1d, 0 0 0 3px rgba(112, 184, 255, .7); }
+
+/* ── Menus (mesmo visual do .menu-flut do index.html) ── */
+.term-menu { position: fixed; z-index: 60; top: 0; left: 0; min-width: 232px; max-width: min(320px, calc(100vw - 24px)); max-height: min(380px, calc(100vh - 24px));
+  overflow-y: auto; padding: 5px; border-radius: 12px; background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .08); color: #f0f0f0;
+  font-family: var(--sans, 'Geist', system-ui, sans-serif); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4);
+  animation: term-entra .16s cubic-bezier(.23, 1, .32, 1); }
+.term-menu.acima { transform-origin: bottom; }
+@keyframes term-entra { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.term-menu.acima { animation-name: term-entra-cima; }
+@keyframes term-entra-cima { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+.term-menu-tit { padding: 8px 9px 6px; font-size: 11.5px; color: #6a6a6a; }
+.term-mi { width: 100%; height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 9px; border: 0; border-radius: 8px; background: none;
+  color: #e4e4e4; font: inherit; font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer; transition: background-color .12s ease, color .12s ease; }
+.term-mi-ic { flex: none; width: 16px; height: 16px; display: grid; place-items: center; color: #9a9a9a; transition: color .12s ease; }
+.term-mi-ic svg { width: 16px; height: 16px; }
+.term-mi-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.term-mi-dica { flex: none; font-size: 11.5px; color: #5c5c5c; }
+.term-mi:hover, .term-mi:focus-visible, .term-mi:focus { background: rgba(255, 255, 255, .06); color: #f0f0f0; outline: none; }
+.term-mi:hover .term-mi-ic, .term-mi:focus .term-mi-ic { color: #f0f0f0; }
+.term-mi[aria-disabled="true"], .term-mi[aria-disabled="true"]:hover { color: #5c5c5c; cursor: default; }
+.term-mi[aria-disabled="true"] .term-mi-ic { color: #4a4a4a; }
+.term-menu-sep { height: 1px; margin: 5px 4px; background: rgba(255, 255, 255, .06); }
+
+/* ── Indicador nos botões da lateral: ponto verde que pulsa devagar no canto do ícone ── */
+.term-ic { position: relative; flex: none; display: inline-grid; place-items: center; line-height: 0; }
+.term-ind { position: absolute; top: -2px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: #3ecf8e; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--lat-fundo, #1d1d1d); opacity: 0; transform: scale(.4); transition: opacity .2s ease, transform .28s cubic-bezier(.2, .8, .2, 1); }
+.term-rodando .term-ind { opacity: 1; transform: none; }
+.term-rodando .term-ind::after { content: ''; position: absolute; inset: 0; border-radius: 50%; animation: term-onda 2.6s ease-out infinite; }
+@keyframes term-onda { 0% { box-shadow: 0 0 0 0 rgba(62, 207, 142, .55); } 70%, 100% { box-shadow: 0 0 0 5px rgba(62, 207, 142, 0); } }
+
+/* ── Tela estreita: as abas rolam na horizontal e o chip encolhe ── */
+@media (max-width: 640px) {
+  .term-barra { padding-left: 2px; }
+  .term-aba { max-width: 150px; padding-left: 8px; }
+  .term-chip { max-width: 112px; }
+  .term-sep { display: none; }
+  .term-conf { right: 10px; width: calc(100% - 20px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-painel, .term-painel.aberto, .term-casca { transition: none !important; }
+  .term-casca { transform: none; }
+  .term-menu, .term-conf, .term-estado, .term-faixa, .term-chip.surge { animation: none; }
+  .term-aba, .term-aba::before, .term-aba-x, .term-btn, .term-chip, .term-chip-seta, .term-alca::before, .term-mi, .term-bt, .term-estado-acao, .term-ind { transition: none; }
+  .term-aba.ocupado .term-aba-ponto, .term-rodando .term-ind::after, .term-pontos i, .term-faixa i, .term-btn[aria-busy="true"] svg { animation: none; }
+  .term-aba:active:not(.arrastada), .term-chip:active, .term-bt:active, .term-estado-acao:active, .term-btn:active:not(:disabled) { transform: none; }
+}

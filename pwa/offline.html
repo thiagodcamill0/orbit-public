@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0a0a">
+<title>Orbit offline</title>
+<link rel="icon" href="/assets/pwa/icone-32.png">
+<!--
+  Orbit — tela "Orbit offline". O service worker (pwa/sw.js) guarda esta página no cache e a
+  entrega no lugar do erro do navegador quando o servidor local não responde. Ela pergunta pelo
+  /saude a cada 3 s e recarrega sozinha quando o servidor volta. O servidor troca os marcadores de pasta e porta
+  pelos valores reais ao servir o arquivo. Tudo o que ela usa (fonte e ícone) também fica no cache.
+-->
+<style>
+  @font-face { font-family: 'Geist'; src: url('/assets/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  :root {
+    --fundo: #0a0a0a; --casca: #111111; --cartao: #161616; --bloco: #1f1f1f; --bloco-2: #242424;
+    --fio: #252525; --fio-2: #2e2e2e; --fio-3: #3a3a3a;
+    --t1: #f0f0f0; --t2: #888888; --t3: #5c5c5c;
+    --perigo: #ef4444; --sucesso: #22c55e;
+    --sans: 'Geist', system-ui, sans-serif; --mono: ui-monospace, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--fundo); color: var(--t1);
+    font: 400 13px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
+    display: grid; place-items: center; padding: 24px;
+  }
+  .caixa {
+    width: min(440px, 100%); min-width: 0; padding: 28px; /* min-width 0: um caminho longo na .pasta não alarga a coluna além da tela */
+    background: var(--casca); border: 1px solid var(--fio); border-radius: 18px;
+  }
+  .topo { display: flex; align-items: center; gap: 14px; }
+  .topo img { width: 44px; height: 44px; flex: none; }
+  h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .estado { display: flex; align-items: center; gap: 8px; margin-top: 2px; color: var(--t2); font-size: 12px; }
+  .ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--perigo); flex: none; }
+  .estado.ok .ponto { background: var(--sucesso); }
+  p { margin: 18px 0 0; color: var(--t2); }
+  p b { color: var(--t1); font-weight: 500; }
+  .pasta {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 8px 8px 12px;
+    background: var(--cartao); border: 1px solid var(--fio); border-radius: 10px;
+  }
+  .pasta code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); color: var(--t1); }
+  .acoes { display: flex; gap: 8px; margin-top: 22px; }
+  .btn {
+    height: 32px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px solid var(--fio-2); border-radius: 8px; background: var(--bloco); color: var(--t1);
+    font: 500 13px var(--sans); white-space: nowrap; cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  .btn:hover { background: var(--bloco-2); border-color: var(--fio-3); }
+  .btn:focus-visible { outline: 2px solid #70b8ff; outline-offset: 2px; }
+  .btn.solido { background: #ededed; border-color: #ededed; color: #111112; }
+  .btn.solido:hover { background: #fff; border-color: #fff; }
+  .btn.p { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 7px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .estado:not(.ok) .ponto { animation: pulso 1.6s ease-in-out infinite; }
+    @keyframes pulso { 50% { opacity: .35; } }
+  }
+</style>
+</head>
+<body>
+<main class="caixa" aria-labelledby="titulo">
+  <div class="topo">
+    <img src="/assets/pwa/icone-192.png" alt="">
+    <div>
+      <h1 id="titulo">Orbit offline</h1>
+      <div id="estado" class="estado" role="status"><span class="ponto"></span><span id="estado-txt">Tentando de novo a cada 3 s</span></div>
+    </div>
+  </div>
+  <p>O servidor local do Orbit não respondeu em <b>127.0.0.1:__PORTA__</b>. As sessões do Claude Code continuam rodando normalmente.</p>
+  <p>Ele volta sozinho no próximo evento de qualquer sessão do Claude Code e <span id="logon">no logon do Windows</span>. Para subir agora, dê dois cliques em <b id="iniciar">iniciar.cmd</b>, nesta pasta:</p>
+  <div class="pasta"><code id="pasta" title="__PASTA__">__PASTA__</code><button id="copiar" class="btn p" type="button">Copiar</button></div>
+  <div class="acoes">
+    <button id="tentar" class="btn solido" type="button">Tentar agora</button>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  // No Mac (16/10): o Orbit sobe no login (LaunchAgent do logon.mjs) e pelo iniciar.command.
+  if (/Mac/i.test(navigator.platform || navigator.userAgent || '')) { $('logon').textContent = 'no login do Mac'; $('iniciar').textContent = 'iniciar.command'; }
+  let ocupado = false;
+  async function tentar() {
+    if (ocupado) return;
+    ocupado = true;
+    try {
+      const r = await fetch('/saude', { cache: 'no-store' });
+      if (r.ok) {
+        $('estado').classList.add('ok');
+        $('estado-txt').textContent = 'Servidor de volta. Abrindo o Orbit…';
+        setTimeout(() => location.reload(), 400);
+        return;
+      }
+    } catch {}
+    ocupado = false;
+  }
+  $('tentar').addEventListener('click', () => {
+    $('estado-txt').textContent = 'Tentando…';
+    tentar().finally(() => { if (!ocupado) $('estado-txt').textContent = 'Ainda fora do ar. Tentando de novo a cada 3 s'; });
+  });
+  $('copiar').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('pasta').textContent); $('copiar').textContent = 'Copiado'; }
+    catch { $('copiar').textContent = 'Não copiou'; }
+    setTimeout(() => { $('copiar').textContent = 'Copiar'; }, 1600);
+  });
+  setInterval(tentar, 3000);
+</script>
+</body>
+</html>

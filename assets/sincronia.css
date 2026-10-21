@@ -1,0 +1,195 @@
+/* Card "Sincronização" da Visão geral (assets/sincronia.js): o repositório do projeto escolhido no filtro.
+   Mesma paleta do perfil; o ponto colorido diz o estado (verde em dia, cinza não enviado, azul atrás, âmbar aviso,
+   vermelho conflito). Sem emoji; ícones no traço de 1,5 da página. */
+
+/* O ponto do estado de cada linha: vem do próprio data-tom. */
+.sc-ponto { position: relative; width: 7px; height: 7px; flex: none; border-radius: 50%; background: #5c5c5c; }
+.sc-ponto[data-tom="ok"] { background: var(--ok-t, #3dd68c); }
+.sc-ponto[data-tom="neutro"] { background: #9a9a9a; }
+.sc-ponto[data-tom="atras"] { background: #70b8ff; }
+.sc-ponto[data-tom="aviso"] { background: var(--agu-t, #ffca16); }
+.sc-ponto[data-tom="perigo"] { background: #ff6369; }
+
+.sc-arqs { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.sc-arqs li { display: flex; align-items: center; gap: 8px; min-width: 0; height: 22px; padding: 0 4px; border-radius: 5px; font-size: 11.5px; }
+.sc-arqs li:hover { background: rgba(255, 255, 255, .03); }
+.sc-arq { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); color: #b4b4b4; }
+.sc-tipo { flex: none; font-size: 10.5px; color: #6a6a6a; }
+.sc-tipo[data-tipo="conflito"] { color: #ff8b8f; }
+.sc-tipo[data-tipo="novo"] { color: var(--ok-t, #3dd68c); }
+.sc-tipo[data-tipo="apagado"] { color: #a3a3a3; }
+.sc-arqs .sc-mais { color: #6a6a6a; font-size: 11.5px; }
+
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* Card "Sincronização" da Visão geral (#sincronia-card, abaixo do Uso de contexto):
+   - topo: o rótulo e o estado geral numa pílula tingida (ponto + palavra), sem número grande;
+   - identidade num poço #1b1b1b: logo do GitHub num quadrado elevado, o repositório com o selo Privado/Público e,
+     embaixo, a conta conectada (avatar e usuário); à direita, abrir no GitHub;
+   - uma linha por repositório (código e cérebro), no ritmo das linhas do Uso de contexto: ponto, nome, branch e
+     "enviado há…"; a mensagem do último commit com o hash; os números que não são zero. O recuo de 15 px alinha
+     tudo com o nome (ponto 7 + vão 8);
+   - pé com "Buscado há…" e os botões Sincronizar e Enviar, com os estados sincronizando, concluído e erro.
+   O pé e o vazio vêm dos cartões de gráfico do index.html (.gu-pe, .gc-vazio). */
+.graf-sinc { container: gsinc / inline-size; }
+.graf-compacto.graf-sinc .gf-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; padding: 0; border: 0; min-height: 24px; }
+
+/* Estado geral: pílula tingida na cor do estado (--c), com o ponto; "ocupado" troca o ponto pelo anel que gira. */
+.gs-estado { --c: #9a9a9a; display: inline-flex; align-items: center; gap: 7px; flex: none; max-width: 70%; height: 24px; padding: 0 10px 0 9px; border-radius: 999px;
+  background: color-mix(in oklab, var(--c) 11%, #1d1d1d); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 24%, transparent);
+  color: color-mix(in oklab, var(--c) 72%, #f0f0f0); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; cursor: default; }
+.gs-estado span { overflow: hidden; text-overflow: ellipsis; }
+.gs-estado i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 18%, transparent); }
+.gs-estado[data-tom="ok"] { --c: var(--gf-verde); }
+.gs-estado[data-tom="atras"] { --c: #70b8ff; }
+.gs-estado[data-tom="quente"] { --c: var(--gf-laranja); }
+.gs-estado[data-tom="aviso"] { --c: var(--agu-t, #ffca16); }
+.gs-estado[data-tom="perigo"] { --c: #ff6369; }
+.gs-estado[data-tom="ocupado"] i { width: 9px; height: 9px; margin: 0 -1px; background: none; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, .16); border-top-color: #d4d4d4; animation: girar .8s linear infinite; }
+
+/* Identidade: repositório e conta */
+.gs-id { display: flex; align-items: center; gap: 12px; min-width: 0; margin: 0 0 4px; padding: 10px 8px 10px 10px; border-radius: 11px; background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05); }
+.gs-id:empty { display: none; }
+.gs-gh { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: #262626; color: #f0f0f0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 2px rgba(0, 0, 0, .45); }
+.gs-id-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.gs-id-repo { display: flex; align-items: center; min-width: 0; font-size: 14px; line-height: 18px; cursor: default; }
+.gs-id-repo b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t1); font-weight: 600; letter-spacing: -.01em; }
+.gs-dono { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t3); }
+.gs-vis { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 18px; margin-left: 8px; padding: 0 7px 0 6px; border-radius: 999px; background: #262626; color: #b4b4b4;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4); font-size: 10px; font-weight: 600; letter-spacing: .05em; line-height: 1; text-transform: uppercase; }
+.gs-vis svg { flex: none; color: #8a8a8a; }
+.gs-conta { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--t2); font-size: 12.5px; line-height: 16px; cursor: default; }
+.gs-av { flex: none; width: 16px; height: 16px; border-radius: 50%; object-fit: cover; background: #2d2d2d; box-shadow: 0 0 0 1px rgba(255, 255, 255, .1); }
+.gs-av-letra { display: grid; place-items: center; color: var(--t1); font-size: 9px; font-weight: 600; }
+.gs-login { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-conta-nota { flex: none; color: var(--gf-laranja); }
+.gs-conta.sem { color: var(--t3); }
+.gs-abrir { flex: none; align-self: center; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--t3); transition: background-color 150ms ease, color 150ms ease; }
+.gs-abrir:hover { background: rgba(255, 255, 255, .06); color: var(--t1); }
+.gs-abrir:focus-visible { outline: none; color: var(--t1); box-shadow: 0 0 0 2px #1b1b1b, 0 0 0 4px rgba(112, 184, 255, .7); }
+.gs-abrir svg { transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
+.gs-abrir:hover svg { transform: translate(1.5px, -1.5px); }
+
+/* Linhas: código e cérebro */
+.gs-repos { display: flex; flex-direction: column; gap: 0; margin: 0 -8px; }
+.gs-repo { min-width: 0; border-radius: 8px; transition: background-color 150ms ease; }
+.gs-repo.aberto { background: #1f1f1f; }
+.gs-alvo { display: flex; flex-direction: column; align-items: stretch; gap: 7px; width: 100%; min-width: 0; margin: 0; padding: 12px 8px 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; text-align: left; }
+button.gs-alvo { cursor: pointer; transition: background-color 150ms ease; }
+button.gs-alvo:hover { background: #1f1f1f; }
+.gs-repo.aberto button.gs-alvo:hover { background: #232323; }
+button.gs-alvo:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(112, 184, 255, .7); }
+.gs-cab { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; line-height: 19px; }
+.gs-nome { flex: none; font-weight: 500; color: var(--t1); letter-spacing: -.005em; }
+.gs-branch { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 19px; padding: 0 7px 0 5px; border-radius: 6px; background: rgba(255, 255, 255, .04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); color: #9a9a9a; font: 11.5px/1 var(--mono); }
+.gs-branch svg { flex: none; color: var(--t3); }
+.gs-envio { flex: 1 1 auto; min-width: 0; margin-left: auto; text-align: right; color: var(--t3); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.gs-envio.quente { color: var(--gf-laranja); }
+.gs-seta { flex: none; display: inline-flex; margin: 0 -2px 0 -4px; color: var(--t3); transition: transform 180ms cubic-bezier(.23, 1, .32, 1), color 150ms ease; }
+button.gs-alvo:hover .gs-seta { color: var(--t1); }
+.gs-repo.aberto .gs-seta { transform: rotate(90deg); }
+/* Último commit: mensagem apagada (cortada com reticências), hash em mono e há quanto tempo. */
+.gs-commit { display: flex; align-items: center; gap: 7px; min-width: 0; padding-left: 15px; color: var(--t2); font-size: 12.5px; line-height: 17px; }
+.gs-commit > svg { flex: none; margin-left: -1px; color: var(--t3); }
+.gs-commit-msg { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-hash { flex: none; color: var(--t3); font: 11.5px/1 var(--mono); }
+.gs-commit-quando { flex: none; color: var(--t3); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-commit-quando::before { content: "·"; margin-right: 7px; color: #4a4a4f; }
+/* Números: o número em negrito, o rótulo apagado, separados por um ponto médio; os tons pintam só o número. */
+.gs-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; min-width: 0; padding-left: 15px; }
+.gs-chip { display: inline-flex; align-items: center; gap: 4px; height: 18px; color: var(--t3); font-size: 12.5px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-chip + .gs-chip::before { content: "·"; margin: 0 8px; color: #4a4a4f; }
+.gs-chip b { color: var(--t1); font-weight: 600; }
+.gs-chip svg { flex: none; }
+.gs-chip.quente b { color: var(--gf-laranja); }
+.gs-chip.atras b, .gs-chip.atras svg { color: #70b8ff; }
+.gs-chip.ok { color: var(--t2); }
+.gs-chip.ok svg { color: var(--gf-verde); }
+.gs-arqs { margin: -2px 8px 0 23px; padding-bottom: 8px; }
+.gs-emdia { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 2px; font-size: 12.5px; line-height: 1.4; color: var(--t3); }
+.gs-emdia > svg { flex: none; color: var(--gf-verde); }
+.gs-emdia-rot { margin-right: 2px; }
+.gs-emdia-item { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 6px; background: rgba(255, 255, 255, .03); color: var(--t2); font: inherit; cursor: pointer; }
+.gs-emdia-item:hover:not(:disabled) { color: var(--t1); background: rgba(255, 255, 255, .07); }
+.gs-emdia-item:disabled { opacity: .55; cursor: default; }
+.gs-emdia-item code { color: var(--t3); font: 11px/1 var(--mono); }
+.gs-arqs li { padding: 0 6px; }
+.gs-aviso { display: flex; align-items: flex-start; gap: 7px; margin: -2px 8px 12px 23px; font-size: 12.5px; line-height: 1.45; color: var(--t2); overflow-wrap: anywhere; }
+.gs-aviso svg { flex: none; margin-top: 2px; }
+.gs-aviso span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gs-aviso[data-tom="perigo"] { color: #fca5a5; }
+.gs-aviso[data-tom="aviso"] { color: var(--agu-t, #ffca16); }
+.gs-msg { margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; animation: gs-entra .18s cubic-bezier(.23, 1, .32, 1); }
+.gs-msg:empty { display: none; }
+.gs-msg.erro { color: #fca5a5; }
+.gs-msg.ok { color: var(--ok-t, #3dd68c); }
+@keyframes gs-entra { from { opacity: 0; transform: translateY(-2px); } }
+
+/* Pé: "Buscado há…" e os dois botões. Estado no botão: girando durante a ação; ✓ verde ao concluir; ⚠ vermelho
+   no erro (a mensagem fica embaixo da lista). */
+.graf-sinc .gs-pe { margin-top: 10px; }
+.gs-acoes { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.btn.gs-botao { flex: none; height: 30px; padding: 0 12px 0 10px; gap: 7px; font-size: 13px; font-weight: 500; border-radius: 8px; transition: background-color .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease, transform .16s var(--ease-press, ease); }
+.btn.gs-botao[hidden] { display: none; }
+.btn.gs-botao[disabled] { opacity: .5; cursor: default; }
+.btn.gs-botao[aria-busy="true"] { opacity: 1; }
+.btn.gs-botao:active:not([disabled]) { transform: scale(.97); }
+.btn.gs-botao:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bloco, #1a1a1a), 0 0 0 4px rgba(112, 184, 255, .7); }
+.btn.gs-botao.gs-girando svg { animation: girar .8s linear infinite; }
+.btn.gs-botao[data-tom="ok"] { opacity: 1; }
+.btn.gs-botao[data-tom="ok"] svg { color: var(--gf-verde); }
+.btn.solido.gs-botao[data-tom="ok"] svg { color: #0e9f52; }
+.btn.gs-botao[data-tom="erro"] { opacity: 1; color: #fca5a5; border-color: rgba(255, 99, 105, .35); background: rgba(255, 99, 105, .08); }
+.btn.gs-botao[data-tom="erro"] svg { color: #ff8b8f; }
+/* Ações de cada linha do projeto filtrado (18/10): Salvar e enviar, Enviar, Receber, Juntar e o menu Branch. */
+.gs-linha-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 8px 12px 23px; }
+.btn.gs-mini { flex: none; height: 26px; padding: 0 9px 0 8px; gap: 6px; font-size: 12.5px; font-weight: 500; border-radius: 7px; transition: background-color .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease, transform .16s var(--ease-press, ease); }
+.btn.gs-mini svg { flex: none; }
+.btn.gs-mini:not(.solido) svg { color: var(--t3); }
+.btn.gs-mini[disabled] { opacity: .5; cursor: default; }
+.btn.gs-mini[aria-busy="true"] { opacity: 1; }
+.btn.gs-mini:active:not([disabled]) { transform: scale(.97); }
+.btn.gs-mini:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bloco, #1a1a1a), 0 0 0 4px rgba(112, 184, 255, .7); }
+.btn.gs-mini.gs-girando svg { animation: girar .8s linear infinite; }
+.gs-menu { position: fixed; z-index: 61; top: 0; left: 0; width: 260px; max-width: calc(100vw - 16px); padding: 6px; border-radius: 11px; background: #1f1f1f;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 14px 36px rgba(0, 0, 0, .5); animation: gs-entra .14s cubic-bezier(.23, 1, .32, 1); }
+.gs-menu-tit { margin: 2px 6px 6px; color: var(--t3); font-size: 11.5px; font-weight: 500; letter-spacing: .02em; }
+.gs-menu-corpo { max-height: 300px; overflow: auto; display: flex; flex-direction: column; gap: 1px; }
+.gs-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 0 8px 0 6px; border: 0; border-radius: 7px; background: transparent; color: var(--t1);
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color .12s ease; }
+.gs-menu-item:hover, .gs-menu-item:focus-visible { outline: none; background: rgba(255, 255, 255, .07); }
+.gs-menu-marca { flex: none; width: 14px; display: inline-flex; justify-content: center; color: var(--gf-verde); }
+.gs-menu-novo .gs-menu-marca { color: var(--t2); }
+.gs-menu-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+.gs-menu-novo .gs-menu-nome { font-family: inherit; font-size: 13px; color: var(--t2); }
+.gs-menu-item.atual .gs-menu-nome { font-weight: 600; }
+.gs-menu-info { flex: none; color: var(--t3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.gs-menu-sec { margin: 8px 6px 4px; color: var(--t3); font-size: 11.5px; }
+.gs-menu-sep { height: 1px; margin: 5px 4px; background: rgba(255, 255, 255, .07); }
+.gs-menu-nota { margin: 6px; color: var(--t3); font-size: 12.5px; line-height: 1.4; }
+.gs-menu-nota.erro { color: #fca5a5; }
+@media (prefers-reduced-motion: reduce) { .gs-menu { animation: none; } .btn.gs-mini:active { transform: none; } .btn.gs-mini.gs-girando svg { animation-duration: 2.4s; } }
+/* Card estreito: os dois botões dividem o pé; a hora da última busca fica na dica do estado, no topo. */
+@container gsinc (max-width: 400px) {
+  .graf-sinc .gs-pe .gu-lido { display: none; }
+  .gs-acoes { flex: 1 1 auto; }
+  .btn.gs-botao { flex: 1 1 auto; justify-content: center; min-width: 0; }
+  .btn.gs-botao span { overflow: hidden; text-overflow: ellipsis; }
+}
+@container gsinc (max-width: 340px) { .gs-hash { display: none; } .gs-id { gap: 10px; } .gs-gh { width: 32px; height: 32px; } }
+/* Card largo (a linha toda abaixo dos outros dois com 616–1080 px, ou uma vaga larga do pé, 19/10): código e
+   cofre dividem a largura. Medido no próprio card, para valer em qualquer vaga do modo de edição (assets/widgets.js). */
+@container principal (min-width: 616px) {
+  @container gsinc (min-width: 480px) {
+    .gs-repos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: start; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gs-repo, .gs-alvo, .gs-seta, .gs-abrir, .gs-abrir svg { transition: none; }
+  .gs-abrir:hover svg { transform: none; }
+  .gs-msg { animation: none; }
+  .btn.gs-botao:active { transform: none; }
+  .btn.gs-botao.gs-girando svg, .gs-estado[data-tom="ocupado"] i { animation-duration: 2.4s; }
+}

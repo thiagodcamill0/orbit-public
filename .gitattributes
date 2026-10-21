@@ -1,0 +1,5 @@
+# Finais de linha: os scripts do Windows precisam de CRLF; os do Mac, de LF (senão o bash falha no \r).
+*.cmd text eol=crlf
+*.command text eol=lf
+*.sh text eol=lf
+*.plist text eol=lf

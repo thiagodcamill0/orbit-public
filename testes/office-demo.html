@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Office · demonstração</title>
+<link rel="icon" href="data:,">
+<style>
+  /* Mesmas fontes da página principal (locais). */
+  @font-face { font-family: 'Geist'; src: url('/assets/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Geist Mono'; src: url('/assets/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; background: #0a0a0a; color: #f0f0f0; font: 400 13px/1.45 'Geist', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  .lateral { width: 220px; flex: none; background: #111; border-right: 1px solid #252525; padding: 18px 10px; }
+  .lateral h1 { margin: 6px 0 14px; font-size: 14px; font-weight: 600; text-align: center; }
+  .rot { padding: 16px 10px 6px; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #555; }
+  .item { height: 34px; display: flex; align-items: center; padding: 0 10px; border-radius: 8px; color: #888; font-size: 13.5px; }
+  .item.ativo { color: #f0f0f0; background: radial-gradient(ellipse 110% 120% at 112% 50%, rgba(118, 60, 210, .38) 0%, rgba(108, 65, 200, .18) 32%, transparent 90%), rgba(99, 102, 241, .08); }
+  main { flex: 1; min-width: 0; display: flex; }
+  #office { flex: 1; min-width: 0; height: 100vh; }
+  @media (max-width: 1100px) { .lateral { display: none; } }
+</style>
+</head>
+<body>
+<nav class="lateral">
+  <h1>Instâncias</h1>
+  <div class="rot">Principal</div>
+  <div class="item">Visão geral</div>
+  <div class="item ativo">Visão de Office</div>
+  <div class="item">Histórico</div>
+</nav>
+<main><section id="office"></section></main>
+<script>
+// API falsa no formato da rodada 4. ?vazio=1 → sem sessões (cai no modo demonstração).
+(function () {
+  const q = new URLSearchParams(location.search);
+  const vazio = q.get('vazio') === '1';
+  const ouvintes = {};
+  const emitir = (tipo, dado) => (ouvintes[tipo] || []).slice().forEach((fn) => fn(dado));
+  const T0 = Date.now();
+  const MAE = 'mae-0001';
+  const mapa = new Map();
+  const copia = (o) => JSON.parse(JSON.stringify(o));
+  function sessao(o) {
+    return Object.assign({ id: '', status: 'nova', desde: T0, titulo: '', apelido: '', projeto: 'Gerenciador', cwd: 'D:\\Dev\\Projetos\\Gerenciador',
+      tarefa: '', primeira: '', detalhe: '', ferramenta: null, agentes: [], subagentes: 0, pai: null, vivo: true, atividade: T0, nome: '' }, o);
+  }
+  const ag = (id, tipo, descricao, status, ferramenta) => ({ id, tipo, descricao, status, inicio: Date.now(), fim: null, ferramenta: ferramenta || null, ferramentas: 0, atividade: Date.now() });
+
+  if (!vazio) {
+    mapa.set(MAE, sessao({ id: MAE, status: 'trabalhando', nome: 'gerenciador-mestre', titulo: 'Rodada 4 do gerenciador',
+      tarefa: 'Implemente a Visão de Office', ferramenta: { nome: 'Agent', alvo: 'Frontend e Pesquisa em paralelo', desde: T0 },
+      agentes: [
+        ag('a-front', 'general-purpose', 'Frontend: barra lateral e aba Office', 'trabalhando', { nome: 'Edit', alvo: 'D:\\Dev\\Projetos\\Gerenciador\\index.html' }),
+        ag('a-pesq', 'Explore', 'Pesquisar referências de mapas de escritório', 'trabalhando', { nome: 'WebSearch', alvo: 'pixel art office map' }),
+      ] }));
+    mapa.set('outra-0002', sessao({ id: 'outra-0002', status: 'concluida', nome: 'app-exemplo-f4', titulo: 'Ajustes da Home' }));
+    // Etapa 4/5: dependente que é instância do Orbit dormindo → robô parado com zZ (robot-sleep-sheet.png).
+    mapa.set('dep-dorme', sessao({ id: 'dep-dorme', pai: MAE, status: 'concluida', nome: 'gerenciador-relatorio', titulo: 'Relatório da rodada',
+      controle: { modo: 'orbit', processo: 'dormindo', dormiu: { motivo: 'ocioso', em: new Date(T0 - 12 * 60e3).toISOString() } } }));
+  }
+  const S = () => mapa.get(MAE);
+  const agente = (id) => S().agentes.find((a) => a.id === id);
+  const tocar = (s) => { s.atividade = Date.now(); emitir('sessao', copia(s)); };
+
+  // Roteiro (repete a cada 120 s): delegar, entregar, referências, aguardando, erro, falhas do Tester.
+  const roteiro = [
+    [4000, () => { S().agentes.push(ag('a-back', 'general-purpose', 'Backend: rota POST /uso no servidor', 'trabalhando', { nome: 'Edit', alvo: 'D:\\Dev\\Projetos\\Gerenciador\\servidor.mjs' })); tocar(S()); }],
+    [9000, () => { agente('a-pesq').status = 'concluido'; agente('a-pesq').ferramenta = null; tocar(S()); }],
+    [14000, () => { S().status = 'aguardando'; S().detalhe = 'Aprovar Bash: node testes/office.test.mjs'; tocar(S()); }],
+    [21000, () => { agente('a-front').ferramenta = { nome: 'Bash', alvo: 'node --check assets/office.js' }; tocar(S()); }],
+    [17000, () => { S().status = 'trabalhando'; S().detalhe = ''; tocar(S());
+      mapa.set('dep-tester', sessao({ id: 'dep-tester', pai: MAE, status: 'trabalhando', nome: 'gerenciador-tester', titulo: 'Tester do gerenciador',
+        primeira: 'Você é o agente TESTER do time: rode a fumaça.', ferramenta: { nome: 'Bash', alvo: 'node testes/fumaca.mjs' } }));
+      tocar(mapa.get('dep-tester')); }],
+    [24000, () => { agente('a-back').status = 'erro'; agente('a-back').ferramenta = null; tocar(S()); }],
+    [30000, () => { const t = mapa.get('dep-tester'); t.status = 'concluida'; t.ferramenta = null; tocar(t); }],
+    [32000, () => { S().agentes.push(ag('a-front2', 'general-purpose', 'Corrigir o layout da interface em 1024 px', 'trabalhando', { nome: 'Edit', alvo: 'D:\\Dev\\Projetos\\Gerenciador\\assets\\office.css' })); tocar(S()); }],
+    [38000, () => { agente('a-front').status = 'concluido'; agente('a-front').ferramenta = null; tocar(S()); }],
+    [42000, () => { const b = agente('a-back'); S().agentes = S().agentes.filter((a) => a !== b); tocar(S()); }],
+    [44000, () => { uso.cincoHoras.pct = Math.min(99, uso.cincoHoras.pct + 31); uso.atualizado = Date.now(); emitir('uso', copia(uso)); }],
+    [100000, () => { agente('a-front2').status = 'concluido'; agente('a-front2').ferramenta = null; tocar(S()); }],
+    [118000, () => { // reinício do ciclo
+      const s = S(); s.agentes = [
+        ag('a-front', 'general-purpose', 'Frontend: barra lateral e aba Office', 'trabalhando', { nome: 'Edit', alvo: 'D:\\Dev\\Projetos\\Gerenciador\\index.html' }),
+        ag('a-pesq', 'Explore', 'Pesquisar referências de mapas de escritório', 'trabalhando', { nome: 'WebSearch', alvo: 'pixel art office map' }),
+      ];
+      mapa.delete('dep-tester'); emitir('remover', { id: 'dep-tester' }); tocar(s);
+    }],
+  ];
+  const uso = { cincoHoras: { pct: 46, renova: Date.now() + 2 * 3600e3 + 17 * 60e3 }, semanal: { pct: 71, renova: Date.now() + 2 * 86400e3 }, atualizado: Date.now() };
+  if (!vazio) {
+    const ciclo = () => { for (const [t, fn] of roteiro) setTimeout(fn, t); setTimeout(ciclo, 120000); };
+    ciclo();
+  }
+
+  window.GerenciadorAPI = {
+    sessoes: () => [...mapa.values()].map(copia),
+    sessao: (id) => (mapa.has(id) ? copia(mapa.get(id)) : null),
+    eventos: async (id) => ({ sessao: mapa.get(id) || null, eventos: [] }),
+    uso: () => (vazio ? null : copia(uso)),
+    config: () => ({}),
+    on: (tipo, fn) => { (ouvintes[tipo] = ouvintes[tipo] || []).push(fn); return () => { ouvintes[tipo] = ouvintes[tipo].filter((f) => f !== fn); }; },
+    abrirVSCode: (id) => { window.__abriuVSCode = id; }, // etapa 5: só por pedido explícito
+    abrirSessao: (id) => { window.__abriu = id; window.__abriuConversa = id; }, // etapa 5: o cartão abre a Conversa
+    selecionada: () => null,
+  };
+
+  // Carregamento lazy, como o index.html faz ao abrir a aba.
+  const css = document.createElement('link');
+  css.rel = 'stylesheet'; css.href = '/assets/office.css';
+  document.head.appendChild(css);
+  const js = document.createElement('script');
+  js.src = '/assets/office.js';
+  js.onload = () => { css.sheet ? montar() : css.addEventListener('load', montar); };
+  document.head.appendChild(js);
+  function montar() { window.Office.montar(document.getElementById('office'), window.GerenciadorAPI); }
+})();
+</script>
+</body>
+</html>
+

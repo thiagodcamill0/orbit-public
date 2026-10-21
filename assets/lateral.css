@@ -1,0 +1,86 @@
+/* Orbit — grupos da lateral (17/10): Principal, Ferramentas, Conhecimento, Projetos e Sistema.
+   Recolher cada grupo e arrastar itens e grupos (assets/lateral.js), no vocabulário das abas (assets/abas.css):
+   fantasma erguido preso ao cursor, vizinhos deslizam, lugar marcado com o cinza do indicador de inserção. */
+
+.lat-grupos, .lat-grupo { position: relative; display: flex; flex-direction: column; }
+.lat-grupos { gap: 12px; }
+.lat-grupo .nav { position: relative; gap: 2px; }
+
+/* ── Título do grupo: menor e mais calmo que os itens; a seta só aparece no hover (ou com o grupo recolhido) ── */
+.rot-sec.lat-cab { position: relative; display: flex; align-items: center; padding: 0; margin: 0 0 2px; }
+.lat-grupo:first-child .lat-cab { margin-top: 2px; }
+.lat-alt { flex: 1 1 auto; min-width: 0; height: 26px; display: flex; align-items: center; gap: 5px; padding: 0 12px; border: 0; border-radius: 7px;
+  background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer;
+  transition: color .15s ease, background-color .15s ease; }
+.lat-alt:hover { color: #8a8a8a; }
+.lat-alt:focus { outline: none; }
+.lat-alt:focus-visible { box-shadow: 0 0 0 2px var(--lat-fundo, #1d1d1d), 0 0 0 4px rgba(112, 184, 255, .7); }
+.lat-tit { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lat-seta { flex: none; display: inline-grid; place-items: center; width: 12px; height: 12px; opacity: 0; transform: rotate(90deg);
+  transition: opacity .15s ease, transform .22s var(--ease-press, cubic-bezier(.23, 1, .32, 1)); }
+.lat-seta svg { width: 11px; height: 11px; stroke-width: 1.8; }
+.lat-alt:hover .lat-seta, .lat-alt:focus-visible .lat-seta { opacity: .8; }
+.lat-grupo.recolhido .lat-seta { opacity: .55; transform: none; }
+/* Grupo recolhido com o item ativo dentro: o título fica um tom acima, para não "sumir" com a página atual. */
+.lat-grupo.recolhido:has(.nav-item[aria-current="page"], .nav-item[aria-pressed="true"], .proj-item[aria-pressed="true"]) .lat-alt { color: #8a8a8a; }
+
+/* ── Contadores: discretos, na mesma coluna à direita (itens, título de Projetos e projetos) ── */
+.nav-item .n, .lat-cab #proj-n { margin-left: auto; min-width: 18px; text-align: right; font-size: 11.5px; font-weight: 400; line-height: 1;
+  letter-spacing: 0; color: #5f5f5f; font-variant-numeric: tabular-nums; transition: color .15s ease, opacity .15s ease; }
+.nav-item:hover .n, .nav-item[aria-current="page"] .n { color: #8a8a8a; }
+.nav-item .n:empty, .lat-cab #proj-n:empty { display: none; }
+/* O "+" de Projetos mora no lugar do contador e só aparece no hover; o número sai para dar lugar. */
+.rot-sec.lat-cab .proj-add.btn-icone { position: absolute; top: 50%; right: 7px; margin: 0; translate: 0 -50%; opacity: 0; }
+.rot-sec.lat-cab:hover .proj-add.btn-icone, .lateral:has(#projetos:hover) .rot-sec.lat-cab .proj-add.btn-icone, .rot-sec.lat-cab .proj-add.btn-icone:focus-visible { opacity: 1; }
+.lat-cab:has(.proj-add:not([hidden])):hover #proj-n, .lateral:has(#projetos:hover) .lat-cab:has(.proj-add:not([hidden])) #proj-n,
+.lat-cab:has(.proj-add:focus-visible) #proj-n { opacity: 0; }
+
+/* ── Recolher: a altura anima pelo grid (1fr → 0fr); o conteúdo some antes e sai da ordem do Tab ── */
+@media (min-width: 1100px) {
+  .lat-corpo { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .24s var(--ease-press, cubic-bezier(.23, 1, .32, 1)); }
+  .lat-dentro { min-height: 0; overflow: clip; overflow-clip-margin: 4px; transition: opacity .2s ease .04s, visibility 0s; }
+  .lat-grupo.recolhido .lat-corpo { grid-template-rows: 0fr; }
+  .lat-grupo.recolhido .lat-dentro { opacity: 0; visibility: hidden; transition: opacity .12s ease, visibility 0s .24s; }
+  .lat-grupos.sem-anim .lat-corpo, .lat-grupos.sem-anim .lat-dentro, .lat-grupos.sem-anim .lat-seta { transition: none; }
+  /* Barra recolhida (só ícones): os grupos aparecem sempre abertos, separados por um fio. */
+  body.lat-recolhida .lat-grupos { gap: 0; }
+  body.lat-recolhida .lat-grupo.recolhido .lat-corpo { grid-template-rows: 1fr; }
+  body.lat-recolhida .lat-grupo.recolhido .lat-dentro { opacity: 1; visibility: visible; }
+}
+/* Faixa estreita (topo): só os projetos aparecem, como antes; os invólucros saem do caminho. */
+@media (max-width: 1099px) {
+  .lat-grupos, .lat-grupo, .lat-corpo, .lat-dentro { display: contents; }
+}
+
+/* ── Arrastar ── */
+.lat-grupos.arrastando, .lat-grupos.arrastando * { cursor: grabbing; user-select: none; }
+.lat-grupos.arrastando .nav-item:hover, .lat-grupos.arrastando .proj-item:hover { background: transparent; color: var(--lat-t, #9a9a9a); }
+.lat-grupos.arrastando .nav-item:hover svg { transform: none; }
+.lat-grupos.arrastando .lat-alt:hover { color: inherit; }
+.lat-grupos.arrastando .lat-alt:hover .lat-seta { opacity: 0; }
+.lat-grupos.arrastando .lat-grupo.recolhido .lat-alt .lat-seta { opacity: .55; }
+/* Grupo vazio durante o arraste: um vão para receber o item. */
+.lat-grupos.arrastando .nav:not(:has(> .nav-item:not([hidden]))) { min-height: 38px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); }
+/* O lugar de onde o item saiu (e para onde vai): o cinza do indicador de inserção das abas. */
+.nav-item.lat-arrastado, .lat-grupo.lat-arrastado > .lat-cab .lat-alt { background: rgba(120, 124, 132, .16) !important; box-shadow: inset 0 0 0 1px rgba(170, 174, 182, .3); }
+.nav-item.lat-arrastado > *, .nav-item.lat-arrastado::before, .lat-grupo.lat-arrastado > .lat-cab .lat-alt > *, .lat-grupo.lat-arrastado .proj-add { visibility: hidden; }
+.nav-item.lat-arrastado::before { opacity: 0 !important; }
+.lat-grupo.lat-arrastado > .lat-corpo { display: none; }
+
+/* Fantasma: o próprio item (ou o título do grupo), levemente erguido. */
+.lat-fantasma { position: fixed; z-index: 70; top: 0; left: 0; pointer-events: none; box-sizing: border-box; display: flex; align-items: center; gap: 12px;
+  padding: 0 12px; border-radius: 10px; background: #252525; border: 1px solid rgba(255, 255, 255, .085); color: #f0f0f0; font-size: 14px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; cursor: grabbing; will-change: transform; scale: 1.03;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 14px 36px rgba(0, 0, 0, .5), 0 3px 10px rgba(0, 0, 0, .35);
+  animation: lat-ergue .2s cubic-bezier(.2, .8, .2, 1); }
+.lat-fantasma svg { flex: none; width: 16px; height: 16px; }
+.lat-fantasma .n { margin-left: auto; font-size: 11.5px; font-weight: 400; color: #8a8a8a; font-variant-numeric: tabular-nums; }
+.lat-fantasma.grupo { gap: 5px; border-radius: 7px; font-size: var(--rot-fs, 10px); font-weight: var(--rot-fw, 600); letter-spacing: var(--rot-ls-estr, .08em);
+  text-transform: uppercase; font-feature-settings: "case" 1; color: #9a9a9a; }
+.lat-fantasma.grupo .lat-seta { opacity: .55; }
+@keyframes lat-ergue { from { scale: 1; background-color: #1d1d1d; border-color: transparent; box-shadow: 0 0 0 rgba(0, 0, 0, 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .lat-alt, .lat-seta, .lat-corpo, .lat-dentro, .nav-item .n, .lat-cab #proj-n { transition: none !important; }
+  .lat-fantasma { animation: none; scale: none; }
+}

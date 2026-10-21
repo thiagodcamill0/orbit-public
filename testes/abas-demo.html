@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit — demonstração das abas</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../assets/abas.css">
+<style>
+  /* Demo das abas (rodada 9): 3 tipos falsos — vista (única), arquivo, conversa (com selo). */
+  @font-face { font-family: 'Geist'; src: url('../assets/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Geist Mono'; src: url('../assets/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  html, body { height: 100%; margin: 0; }
+  body { background: #0a0a0a; color: #f0f0f0; font: 400 12.5px/1.45 Geist, system-ui, sans-serif; display: grid; grid-template-columns: 220px minmax(0, 1fr); overflow: hidden; }
+  .lat { min-height: 0; overflow: auto; padding: 12px 8px; background: #111; border-right: 1px solid rgba(255, 255, 255, .06); }
+  .lat-tit { padding: 10px 8px 4px; font-size: 11px; color: #5c5c5c; }
+  .lat button { display: block; width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: #9a9a9a;
+    font: inherit; text-align: left; cursor: pointer; }
+  .lat button:hover { background: rgba(255, 255, 255, .05); color: #f0f0f0; }
+  main#principal { min-width: 0; min-height: 0; height: 100vh; }
+  @media (max-width: 600px) { body { grid-template-columns: minmax(0, 1fr); } .lat { display: none; } }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px; background: #1d1d1d;
+    border: 1px solid rgba(255, 255, 255, .08); color: #f0f0f0; font-size: 12.5px; z-index: 80; }
+  /* Conteúdos falsos */
+  .dv { height: 100%; display: grid; place-items: center; text-align: center; color: #9a9a9a; }
+  .dv h1 { margin: 0 0 6px; font-size: 20px; font-weight: 500; color: #f0f0f0; }
+  .da { margin: 0; padding: 16px 20px; font: 12px/1.6 'Geist Mono', ui-monospace, monospace; color: #c8c8c8; white-space: pre; }
+  .dc { height: 100%; display: flex; flex-direction: column; max-width: 860px; margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
+  .dc-lista { flex: 1; min-height: 0; overflow: auto; padding: 16px 0; color: #c8c8c8; }
+  .dc-lista p { margin: 0 0 10px; }
+  .dc textarea { flex: none; margin: 0 0 16px; height: 64px; resize: none; padding: 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .085);
+    background: #161616; color: #f0f0f0; font: inherit; }
+  @container principal (max-width: 480px) { .dv h1 { font-size: 16px; } }
+</style>
+</head>
+<body>
+<nav class="lat" aria-label="Demonstração">
+  <div class="lat-tit">Vistas</div>
+  <button type="button" data-vista="geral">Visão geral</button>
+  <button type="button" data-vista="historico">Histórico</button>
+  <button type="button" data-vista="repos">Repositórios</button>
+  <div class="lat-tit">Arquivos (clique: prévia · duplo: fixa)</div>
+  <button type="button" data-arq="src/app.js">app.js</button>
+  <button type="button" data-arq="src/estilo.css">estilo.css</button>
+  <button type="button" data-arq="LEIAME.md">LEIAME.md</button>
+  <button type="button" data-arq="dados/config.json">config.json</button>
+  <div class="lat-tit">Conversas</div>
+  <button type="button" data-conv="s1">Refatorar o motor</button>
+  <button type="button" data-conv="s2">Corrigir testes</button>
+  <button type="button" data-conv="s3">Revisar contrato</button>
+</nav>
+<main id="principal"></main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="../assets/abas.js"></script>
+<script>
+(() => {
+  const D = window.__demo = { criar: { vista: 0, arquivo: 0, conversa: 0 }, esconder: 0, mostrar: 0, destruir: 0, toasts: [], focos: [], mudou: 0, modal: false, meioPrevenido: [] };
+  const NS = 'http://www.w3.org/2000/svg';
+  const ic = (cor, forma) => {
+    const s = document.createElementNS(NS, 'svg'); s.setAttribute('width', 16); s.setAttribute('height', 16); s.setAttribute('viewBox', '0 0 16 16');
+    const p = document.createElementNS(NS, forma === 'q' ? 'rect' : 'circle');
+    if (forma === 'q') { p.setAttribute('x', 3); p.setAttribute('y', 3); p.setAttribute('width', 10); p.setAttribute('height', 10); p.setAttribute('rx', 2); }
+    else { p.setAttribute('cx', 8); p.setAttribute('cy', 8); p.setAttribute('r', 4.5); }
+    p.setAttribute('fill', 'none'); p.setAttribute('stroke', cor); p.setAttribute('stroke-width', 1.4); s.appendChild(p); return s;
+  };
+  const inst = (painel, extra = {}) => ({ esconder() { D.esconder++; }, mostrar() { D.mostrar++; }, destruir() { D.destruir++; painel.replaceChildren(); }, ...extra });
+  const NOMES = { geral: 'Visão geral', historico: 'Histórico', repos: 'Repositórios' };
+  const CONVS = { s1: 'Refatorar o motor', s2: 'Corrigir testes', s3: 'Revisar contrato' };
+  const cores = { js: '#e8c547', css: '#6aa9ff', md: '#9a9a9a', json: '#f5a524' };
+  const tipos = {
+    vista: {
+      unica: true,
+      titulo: (a) => NOMES[a.dados?.vista] || 'Vista',
+      icone: () => ic('#9a9a9a', 'q'),
+      criar(a, painel) {
+        D.criar.vista++;
+        const d = document.createElement('div'); d.className = 'dv';
+        const w = document.createElement('div'); const h = document.createElement('h1'); h.textContent = NOMES[a.dados?.vista] || 'Vista';
+        const p = document.createElement('div'); p.textContent = 'Conteúdo com height: 100%'; w.append(h, p); d.appendChild(w); painel.appendChild(d);
+        return inst(painel);
+      },
+    },
+    arquivo: {
+      titulo: (a) => a.dados.caminho.split('/').pop(),
+      dica: (a) => a.dados.proj + '/' + a.dados.caminho,
+      caminho: (a) => 'D:\\Projetos\\' + a.dados.proj + '\\' + a.dados.caminho.replace(/\//g, '\\'),
+      icone: (a) => ic(cores[a.dados.caminho.split('.').pop()] || '#9a9a9a', 'c'),
+      criar(a, painel) {
+        D.criar.arquivo++;
+        const pre = document.createElement('pre'); pre.className = 'da';
+        pre.textContent = Array.from({ length: 160 }, (_, i) => String(i + 1).padStart(3, ' ') + '  // ' + a.dados.caminho + ' — linha de exemplo ' + (i + 1)).join('\n');
+        painel.appendChild(pre);
+        return inst(painel);
+      },
+    },
+    conversa: {
+      titulo: (a) => a.dados.nome,
+      icone: () => ic('#6366f1', 'c'),
+      criar(a, painel) {
+        D.criar.conversa++;
+        const d = document.createElement('div'); d.className = 'dc';
+        const l = document.createElement('div'); l.className = 'dc-lista';
+        for (let i = 0; i < 6; i++) { const p = document.createElement('p'); p.textContent = (i % 2 ? 'Claude: ' : 'Você: ') + 'mensagem ' + (i + 1) + ' de ' + a.dados.nome; l.appendChild(p); }
+        const t = document.createElement('textarea'); t.placeholder = 'Mensagem…'; t.setAttribute('aria-label', 'Mensagem');
+        d.append(l, t); painel.appendChild(d);
+        return inst(painel, { focar() { t.focus(); } });
+      },
+    },
+  };
+  let tt;
+  const toast = (t) => { D.toasts.push(t); const e = document.getElementById('toast'); e.textContent = t; e.hidden = false; clearTimeout(tt); tt = setTimeout(() => { e.hidden = true; }, 1600); };
+  Abas.montar(document.getElementById('principal'), {
+    tipos,
+    ganchos: { mudou: () => { D.mudou++; }, focoMudou: (a) => D.focos.push(a ? a.chave : null), toast, bloqueado: () => D.modal },
+  });
+  D.vista = (v) => Abas.abrir({ tipo: 'vista', chave: 'vista:' + v, dados: { vista: v } });
+  D.arq = (c, previa = true, o = {}) => Abas.abrir({ tipo: 'arquivo', chave: 'arquivo:Gerenciador|' + c, dados: { proj: 'Gerenciador', caminho: c }, previa, ...o });
+  D.conv = (s, o = {}) => Abas.abrir({ tipo: 'conversa', chave: 'conversa:' + s, dados: { id: s, nome: CONVS[s] }, ...o });
+  document.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => D.vista(b.dataset.vista)));
+  document.querySelectorAll('[data-arq]').forEach((b) => {
+    b.addEventListener('click', () => D.arq(b.dataset.arq, true));
+    b.addEventListener('dblclick', () => D.arq(b.dataset.arq, false));
+  });
+  document.querySelectorAll('[data-conv]').forEach((b) => b.addEventListener('click', () => D.conv(b.dataset.conv)));
+  // Para o teste: o mousedown do meio na aba tem de chegar aqui já com preventDefault (sem auto-rolagem).
+  document.addEventListener('mousedown', (e) => { if (e.button === 1) D.meioPrevenido.push(e.defaultPrevented); });
+})();
+</script>
+</body>
+</html>

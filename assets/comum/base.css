@@ -1,0 +1,154 @@
+/* Orbit — base visual comum ao PC (index.html) e ao celular (mobile/index.html).
+   Só tokens e peças sem layout: quem carrega decide a página. O index.html carrega este arquivo ANTES do seu <style>
+   (a ordem da cascata é a mesma de quando isto morava no topo dele); o celular, antes do mobile/mobile.css.
+   Não ponha aqui reset de elementos (body, button, svg...) nem .btn/.link/.card: o celular tem os seus. */
+
+/* ===== Tipografia: Geist + Geist Mono (locais, em assets/) ===== */
+@font-face { font-family: 'Geist'; src: url('../Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('../GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+
+/* ===== Tokens ===== */
+:root {
+  color-scheme: dark;
+
+  /* Neutros (valores finais das rodadas 1, 3 e da lateral de 14/10) */
+  --fundo: #0a0a0a;
+  --casca: #111111;
+  --lat-fundo: #1d1d1d;          /* superfície dos cartões e da lateral */
+  --lat-hover: #252525;
+  --lat-pilula: #2d2d2d;          /* item selecionado ("pílula" elevada) */
+  --lat-fio: rgba(255, 255, 255, .06);
+  --lat-t: #9a9a9a;
+  --lat-pilula-sombra: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .25);
+  --sup: var(--lat-fundo);        /* cartão / superfície */
+  --sup-h: #222222;               /* cartão em hover */
+  --cartao: var(--sup);
+  --bg: var(--sup);
+  --poco: #171717;                /* poço: campo, bloco interno */
+  --poco-sombra: inset 0 1px 2px rgba(0, 0, 0, .35);
+  --bloco: #262626;
+  --bloco-2: #2e2e2e;
+  --fio: rgba(255, 255, 255, .06);
+  --fio-2: rgba(255, 255, 255, .085);
+  --fio-3: rgba(255, 255, 255, .13);
+  --fio-l2: rgba(255, 255, 255, .1);
+  --t1: #f0f0f0;
+  --t2: #888888;
+  --t3: #5c5c5c;
+  --foco: #70b8ff;
+  --anel: rgba(112, 184, 255, .7);
+  --acento: #6366f1;
+  --acento-suave: rgba(99, 102, 241, .08);
+  --sucesso: #22c55e;
+  --aviso: #f59e0b;
+  --perigo: #ef4444;
+  --sombra: 0 0 0 1px rgba(255, 255, 255, .035), 0 2px 12px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .35);
+  --luz-topo: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4);
+  --luz-topo-h: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .2);
+
+  /* Status: cor do ponto / cor do texto (as mesmas de OrbitBase.COR_STATUS) */
+  --trab: #0090ff;   --trab-t: #70b8ff;
+  --agu: #ffc53d;    --agu-t: #ffca16;
+  --ok: #30a46c;     --ok-t: #3dd68c;
+  --erro: #e5484d;   --erro-t: #ff9592;
+  --int: #6e56cf;    --int-t: #baa7ff;
+  --enc: #696e77;
+
+  /* Escala das barras de uso/contexto: verde até 45%, amarelo em 50%, vermelho em 75%, roxo em 100%
+     (OrbitBase.ESCALA_USO); azul e laranja completam a paleta dos gráficos (.graf/.peek usam estes valores). */
+  --uso-verde: #1fd67a;
+  --uso-amarelo: #ffc61a;
+  --uso-vermelho: #ff4757;
+  --uso-roxo: #a78bfa;
+  --uso-azul: #2e8bff;
+  --uso-laranja: #ff9a1f;
+
+  /* Tipografia */
+  --sans: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, monospace;
+  --peso-texto: 400;
+  --rot-fs: 10px; --rot-fw: 600; --rot-ls-estr: .08em; --rot-ls-selo: .04em;
+
+  /* Movimento */
+  --ease: ease;
+  --ease-press: cubic-bezier(.23, 1, .32, 1);
+  --dur-1: .15s; --dur-2: .2s;
+}
+
+/* ===== Utilitários ===== */
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: 11px; }
+.espaco { flex: 1; }
+
+/* ===== Peças ===== */
+/* Ladrilho de ícone */
+.quad {
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--fio); border-radius: 8px; background: var(--bloco); color: var(--lat-t);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+.quad.p { width: 28px; height: 28px; border-radius: 7px; }
+
+/* Chip (rótulo pequeno; em <button>, clicável) */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; max-width: 100%;
+  border: 1px solid var(--fio); border-radius: 6px; background: var(--bloco);
+  font: var(--peso-texto) 11px/1 var(--mono); color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.chip.sans { font-family: var(--sans); font-size: 12px; }
+button.chip { cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+button.chip:hover { background: var(--bloco-2); border-color: var(--fio-l2); color: var(--t1); }
+
+/* Selo de status: chip sólido e neutro, em caixa alta pequena; a cor do estado fica só no ponto
+   (OrbitBase.pontoStatus / OrbitBase.pilula). data-s = status da sessão. */
+.pilula {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px 0 7px;
+  border-radius: 999px; background: var(--bloco); color: var(--t2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4);
+  font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-selo); line-height: 1;
+  text-transform: uppercase; font-feature-settings: "case" 1; white-space: nowrap; flex: none;
+}
+.pilula.p { height: 20px; font-size: var(--rot-fs); padding: 0 8px 0 6px; gap: 5px; font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-selo); line-height: 1; }
+.pilula[data-s="fantasma"] { color: var(--t3); }
+
+/* Ponto "trabalhando" gira (o SVG do pontoStatus recebe .girando) */
+.girando { animation: girar 1.2s linear infinite; transform-origin: 50% 50%; }
+@keyframes girar { to { transform: rotate(360deg); } }
+body.oculta .girando { animation-play-state: paused; }
+
+/* Avatar do agente (sprite por estado, OrbitBase.SPRITE/estadoSprite): <span class="av-robo" data-s="status"><img class="spr"
+   data-gif="sprites/sprite-work" src="/assets/sprites/sprite-work.gif"><span class="av-selo">!</span></span>.
+   Tamanhos (.p, .g) e a troca animada ficam com a página. */
+.av-robo {
+  width: 37px; height: 37px; flex: none; display: grid; place-items: center; position: relative; overflow: visible;
+  border: 1px solid var(--fio-2); border-radius: 10px; background: var(--bloco);
+}
+.av-robo img { width: 35px; height: 35px; object-fit: cover; image-rendering: pixelated; border-radius: 8px; }
+.av-robo > img { grid-area: 1 / 1; }
+.av-robo img.spr { image-rendering: auto; }
+/* O cook vem desenhado um pouco menor que os outros: um zoom leve iguala (scale soma com o transform da troca). */
+.av-robo img.spr[data-gif="sprites/sprite-cook"] { scale: 1.12; }
+.av-robo[data-s="encerrada"] img.spr, .av-robo[data-s="interrompida"] img.spr { opacity: .72; }
+.av-robo[data-s="aguardando"], .av-robo[data-s="erro"] { border-color: rgba(245, 158, 11, .35); }
+.av-robo[data-s="erro"] { border-color: rgba(239, 68, 68, .4); }
+.av-selo {
+  position: absolute; right: -4px; bottom: -4px; width: 14px; height: 14px; border-radius: 50%;
+  display: none; place-items: center; border: 2px solid var(--bg);
+  font: 800 9px/1 var(--sans); color: #111;
+}
+.av-selo svg { stroke-width: 3; }
+.av-robo[data-s="aguardando"] .av-selo { display: grid; background: var(--aviso); }
+.av-robo[data-s="erro"] .av-selo { display: grid; background: #ef4444; color: #fff; }
+.av-robo[data-s="concluida"] .av-selo, .av-robo[data-s="concluido"] .av-selo { display: grid; background: #22c55e; color: #0b2a16; }
+
+/* Barra de uso (contexto): <div class="ctx-l [medio|alto]"><span class="ctx-b"><i style="width:N%"></i></span><span>N%</span></div>
+   (OrbitBase.barraUso monta; a faixa vem de OrbitBase.faixaUso). */
+.ctx-l { display: flex; align-items: center; gap: 8px; }
+.ctx-b { flex: 1; height: 4px; max-width: 48px; border-radius: 999px; background: var(--fio-2); overflow: hidden; }
+.ctx-b i { display: block; height: 100%; width: 0; background: var(--t2); border-radius: 999px; }
+.ctx-l span { font: var(--peso-texto) 11px var(--mono); color: var(--t3); }
+.ctx-l.medio .ctx-b i { background: var(--aviso); }
+.ctx-l.medio span { color: #f5b13d; }
+.ctx-l.alto .ctx-b i { background: #ef4444; }
+.ctx-l.alto span { color: #f87171; }

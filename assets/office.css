@@ -1,0 +1,600 @@
+/* Visão de Office — estilos próprios (prefixo of-), identidade Orbit do gerenciador.
+   Tipografia: Geist / Geist Mono (as @font-face ficam na página principal). */
+
+.of-raiz {
+  --of-sup: #1d1d1d;
+  --of-elev: #181818;
+  --of-fio: rgba(255, 255, 255, .06);
+  --of-fio2: rgba(255, 255, 255, .085);
+  --of-t1: #f0f0f0;
+  --of-t2: #9a9a9a;
+  --of-t3: #555555;
+  --of-acento: #6366f1;
+  --of-acento-glow: rgba(99, 102, 241, .15);
+  --of-ok: #22c55e;
+  --of-aviso: #f59e0b;
+  --of-perigo: #ef4444;
+  --of-trab: #0090ff;
+  --of-trab-t: #70b8ff;
+  --of-sombra: 0 2px 12px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .35);
+  --of-sans: 'Geist', system-ui, sans-serif;
+  --of-mono: 'Geist Mono', ui-monospace, monospace;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  overflow: hidden;
+  box-sizing: border-box;
+  background-color: #111111;
+  background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--of-t1);
+  font: var(--peso-texto, 400) 13px/1.45 var(--of-sans);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.of-raiz *, .of-raiz *::before, .of-raiz *::after { box-sizing: border-box; }
+.of-raiz [hidden] { display: none !important; }
+.of-raiz button { font: inherit; color: inherit; }
+.of-raiz :focus { outline: none; }
+.of-raiz :focus-visible { outline: 2px solid var(--of-acento); outline-offset: 2px; }
+.of-num { font-variant-numeric: tabular-nums; }
+
+/* Tela cheia nativa e o modo por CSS (sem a Fullscreen API) */
+.of-raiz:fullscreen { width: 100vw !important; height: 100vh !important; min-height: 0; }
+.of-raiz.of-cheia {
+  position: fixed !important; inset: 0 !important; width: auto !important; height: auto !important;
+  z-index: 2147483000;
+}
+
+/* ───────── Cabeçalho ───────── */
+/* Título à esquerda; à direita, um grupo só: o cartão de uso e o botão de tela cheia, centrados na mesma linha. */
+.of-topo {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  padding: 16px 20px 8px;
+  pointer-events: none;
+}
+.of-topo > * { pointer-events: auto; }
+.of-tit { min-width: 0; flex: 1 1 240px; }
+.of-tit-linha { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.of-tit h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.02em; line-height: 26px; white-space: nowrap; }
+.of-sub { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--of-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Indicador de demonstração: a pílula sólida do app (bloco #262626 + luz de 1 px); a cor fica só no ponto. */
+.of-selo {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px 0 8px; flex: none;
+  border-radius: 999px; background: #262626; color: #b4b4b4; cursor: default;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4);
+  font-size: 10px; font-weight: 600; letter-spacing: .04em; line-height: 1; text-transform: uppercase; white-space: nowrap;
+}
+.of-selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none; background: #ffc61a; box-shadow: 0 0 6px rgba(255, 198, 26, .5); }
+.of-topo-dir { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; }
+
+/* Uso do plano: um cartão com duas colunas separadas por um fio; rótulo e % em cima, barra, renovação embaixo. */
+.of-uso {
+  display: flex; align-items: stretch; min-width: 0; padding: 10px 0 9px;
+  background: var(--of-sup); border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .035), var(--of-sombra);
+}
+.of-uso-item { width: 184px; min-width: 0; padding: 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.of-uso-item + .of-uso-item { border-left: 1px solid var(--of-fio); }
+.of-uso-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.of-uso-cab span { font-size: 10px; font-weight: 600; line-height: 16px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.of-uso-cab b { flex: none; font-size: 15px; font-weight: 600; line-height: 16px; letter-spacing: -.01em; color: var(--of-t1); transition: color .3s ease; }
+.of-uso-item[data-n="vazio"] .of-uso-cab b { color: var(--of-t3); }
+/* Trilho e barra como os do gráfico de contexto: a barra é um degradê da escala (degradeUso), verde → cor do seu %. */
+.of-barra { height: 6px; border-radius: 999px; background: #262626; overflow: hidden; }
+.of-barra i { display: block; height: 100%; width: 0; border-radius: inherit; background-color: #1fd67a; transition: width .5s cubic-bezier(.23, 1, .32, 1); }
+.of-uso-item small { font-size: 11.5px; line-height: 14px; color: var(--of-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.of-uso-item[data-n="vazio"] small { color: var(--of-t3); }
+
+/* Tela cheia: o botão do app (32 px, bloco #262626, fio 6%, luz de 1 px). */
+.of-topo .of-btn-cheia { height: 32px; padding: 0 12px; flex: none; }
+.of-topo .of-btn-cheia:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .2); }
+
+/* Responsivo pela largura da própria Visão (ela pode estar ao lado da lateral do app). */
+.of-raiz { container: of-raiz / inline-size; }
+@container of-raiz (max-width: 940px) {
+  .of-topo { gap: 12px; }
+  .of-topo-dir { flex: 1 1 100%; margin-left: 0; }
+  .of-uso { flex: 1 1 auto; }
+  .of-uso-item { flex: 1 1 0; width: auto; }
+}
+@container of-raiz (max-width: 480px) {
+  .of-topo { padding: 12px 12px 6px; }
+  .of-uso-item { padding: 0 12px; }
+  .of-topo .of-btn-cheia { padding: 0 10px; }
+}
+/* Bem estreita: o botão fica só com o ícone (o nome segue no aria-label) e sobra espaço para os rótulos do uso. */
+@container of-raiz (max-width: 400px) {
+  .of-topo .of-btn-cheia { width: 32px; padding: 0; justify-content: center; }
+  .of-topo .of-btn-cheia span { display: none; }
+  .of-uso-item { padding: 0 10px; }
+  .of-uso-cab b { font-size: 14px; }
+}
+
+.of-btn {
+  height: 34px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--of-fio); border-radius: 8px; background: #262626; color: var(--of-t1);
+  font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4);
+  transition: background-color .15s ease, border-color .15s ease, transform .15s cubic-bezier(.23, 1, .32, 1);
+}
+/* Mesmo botão da lateral: hover clareia, clique afunda, ligado = a "pílula" */
+.of-btn:hover { background: #2e2e2e; border-color: rgba(255, 255, 255, .1); }
+.of-btn:active { transform: scale(.975); transition-duration: .06s; }
+.of-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px #111, 0 0 0 4px rgba(112, 184, 255, .7); }
+.of-btn svg { color: var(--of-t2); transition: color .15s ease; }
+.of-btn:hover svg { color: var(--of-t1); }
+.of-btn[aria-pressed="true"] { border-color: transparent; background: #2d2d2d; color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .25); }
+.of-btn[aria-pressed="true"] svg { color: #fff; }
+.of-btn-p { height: 30px; font-size: 12.5px; }
+
+/* ───────── Palco (mapa) ───────── */
+.of-palco { position: absolute; left: 0; top: 0; --of-s: 40px; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
+.of-planta { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
+.of-planta rect, .of-planta circle, .of-planta line, .of-planta path { vector-effect: non-scaling-stroke; }
+.of-camada { position: absolute; inset: 0; pointer-events: none; }
+
+.of-corredor { fill: #141414; stroke: none; }
+.of-trilha { fill: #2c2c2c; }
+.of-seta { fill: none; stroke: #4b4b4b; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.of-sala { fill: #161616; stroke: #2e2e2e; stroke-width: 1; }
+.of-sala-desc { fill: #151515; }
+.of-sala-pont { stroke: none; }
+.of-fio-cor { stroke-width: 2; stroke-linecap: round; opacity: .9; }
+.of-porta { fill: #141414; stroke: none; }
+.of-batente { fill: #4a4a4a; stroke: none; }
+
+.of-mesa { fill: #1d1d1d; stroke: #343434; stroke-width: 1; }
+.of-mesa-mestre { stroke: rgba(99, 102, 241, .45); }
+.of-cadeira { fill: #1a1a1a; stroke: #2c2c2c; stroke-width: 1; }
+.of-teclado { fill: #2a2a2a; stroke: none; }
+.of-tela .of-vidro { fill: #0c0c0c; stroke: #3a3a3a; stroke-width: 1; transition: fill .3s ease, stroke .3s ease; }
+.of-tela .of-halo { fill: var(--of-acento); opacity: 0; transition: opacity .3s ease; }
+.of-tela .of-cod { fill: #8b93ff; opacity: 0; transition: opacity .3s ease; }
+.of-tela .of-alerta { fill: #ef4444; opacity: 0; }
+.of-tela[data-e="ativa"] .of-vidro { fill: #161c3d; stroke: #6366f1; }
+.of-tela[data-e="ativa"] .of-halo { opacity: .16; }
+.of-tela[data-e="ativa"] .of-cod { opacity: 1; animation: of-digita 1.6s steps(4) infinite; }
+.of-tela[data-e="ativa"] .of-cod:nth-of-type(4n) { animation-delay: -.5s; }
+.of-tela[data-e="ativa"] .of-cod:nth-of-type(4n+1) { animation-delay: -1.1s; }
+.of-tela[data-e="espera"] .of-vidro { fill: #2a1d06; stroke: #f59e0b; }
+.of-tela[data-e="espera"] .of-halo { fill: #f59e0b; opacity: .2; animation: of-pulsa 1.4s ease-in-out infinite; }
+.of-tela[data-e="espera"] .of-cod { fill: #fbbf24; opacity: .55; }
+.of-tela[data-e="erro"] .of-vidro { fill: #2b0d0d; stroke: #ef4444; }
+.of-tela[data-e="erro"] .of-halo { fill: #ef4444; opacity: .22; animation: of-pulsa 1s ease-in-out infinite; }
+.of-tela[data-e="erro"] .of-alerta { opacity: 1; animation: of-pisca 1s steps(2) infinite; }
+@keyframes of-digita { 0% { transform: scaleX(.55); } 100% { transform: scaleX(1); } }
+.of-tela .of-cod { transform-box: fill-box; transform-origin: left center; }
+@keyframes of-pulsa { 0%, 100% { opacity: .1; } 50% { opacity: .32; } }
+@keyframes of-pisca { 0% { opacity: 1; } 100% { opacity: .25; } }
+
+.of-vaso { fill: #171717; stroke: #2e2e2e; stroke-width: 1; }
+.of-folha { fill: #1c3b2a; stroke: #2c6345; stroke-width: 1; }
+.of-folha-c { fill: #2f6b47; }
+.of-lousa { fill: #1b1b1b; stroke: #3a3a3a; stroke-width: 1; }
+.of-rabisco { stroke: rgba(129, 140, 248, .55); stroke-width: 1.5; stroke-linecap: round; }
+.of-rack { fill: #131313; stroke: #353535; stroke-width: 1; }
+.of-slot { stroke: #262626; stroke-width: 1; }
+.of-led { fill: #22c55e; animation: of-pisca 1.8s steps(2) infinite; }
+.of-led-b { fill: #6366f1; animation-duration: 2.6s; }
+.of-led-c { fill: #22c55e; animation-duration: 1.1s; }
+.of-led-r { fill: #ef4444; animation: none; }
+.of-estante { fill: #171717; stroke: #353535; stroke-width: 1; }
+.of-aparelho { fill: #111; stroke: #3f3f46; stroke-width: 1; }
+.of-sofa { fill: rgba(99, 102, 241, .1); stroke: rgba(99, 102, 241, .38); stroke-width: 1; }
+.of-encosto { fill: rgba(99, 102, 241, .22); stroke: none; }
+.of-costura { stroke: rgba(99, 102, 241, .22); stroke-width: 1; }
+.of-mesinha { fill: #1b1b1b; stroke: #353535; stroke-width: 1; }
+.of-xicara { fill: none; stroke: #5a5a5a; stroke-width: 1; }
+.of-maquina { fill: #232323; stroke: #444; stroke-width: 1; }
+.of-ping { fill: #11231a; stroke: #2a5a3e; stroke-width: 1; }
+.of-rede { stroke: #9ca3af; stroke-width: 1.5; }
+.of-ping-l { stroke: #2a5a3e; stroke-width: 1; }
+.of-bola { fill: #f0f0f0; }
+.of-puff { fill: rgba(45, 212, 191, .1); stroke: rgba(45, 212, 191, .4); stroke-width: 1; }
+.of-tapete { fill: rgba(255, 255, 255, .018); stroke: #252525; stroke-width: 1; }
+
+/* Placa da sala: chip escuro sobre o piso, ponto de cor da sala, nome > descrição. */
+.of-area-rot {
+  position: absolute; display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  height: clamp(15px, calc(var(--of-cel, 25px) * .8), 20px); padding: 0 8px 0 7px; border-radius: 5px;
+  background: rgba(13, 13, 13, .84); border: 1px solid rgba(255, 255, 255, .07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), 0 1px 0 rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+  font-size: 10px; line-height: 1; color: var(--of-t2);
+  transition: opacity .2s ease;
+}
+.of-area-rot i {
+  width: 6px; height: 6px; border-radius: 1.5px; flex: none; background: var(--cor);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cor) 20%, transparent);
+}
+.of-area-rot b { font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: #e2e2e2; }
+.of-area-rot small { display: flex; align-items: center; gap: 7px; font-size: 10.5px; color: #7a7a7a; }
+.of-area-rot small::before { content: ''; width: 1px; height: 10px; background: rgba(255, 255, 255, .1); }
+.of-area-rot.of-sob { opacity: .2; }
+.of-compacto .of-area-rot { gap: 5px; padding: 0 6px 0 5px; border-radius: 4px; }
+.of-compacto .of-area-rot small { display: none; }
+.of-area-rot.of-entrada { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.of-entrada small { letter-spacing: .08em; text-transform: uppercase; font-size: 9.5px; font-weight: 600; color: #4b4b4b; }
+.of-entrada small::before { content: none; }
+
+/* ───────── Robôs ───────── */
+.of-atores { pointer-events: none; }
+.of-ator {
+  position: absolute; left: 0; top: 0; width: var(--of-s); height: var(--of-s);
+  margin: 0; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+.of-ator.of-entrando { animation: of-entra .45s ease both; }
+@keyframes of-entra { from { opacity: 0; } to { opacity: 1; } }
+/* Rótulos e seleção no estilo da lateral: superfície #1d1d1d, fios brancos 6–8 %, luz de 1 px no topo,
+   selecionado = a "pílula" neutra, foco = o anel azul. Cor só no que informa estado; sem brilho borrado. */
+.of-raiz {
+  --of-r-sup: #1d1d1d;
+  --of-r-hover: #252525;
+  --of-r-pilula: #2d2d2d;
+  --of-r-fio: rgba(255, 255, 255, .07);
+  --of-r-fio2: rgba(255, 255, 255, .2);
+  --of-r-luz: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --of-r-sombra: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .25);
+  --of-r-anel: rgba(112, 184, 255, .7);
+  --of-s-trab: #0090ff;  --of-s-trab-t: #70b8ff;
+  --of-s-agu: #ffc53d;   --of-s-agu-t: #ffca16;
+  --of-s-erro: #e5484d;  --of-s-erro-t: #ff9592;
+  --of-s-troca: #8b8ff8; --of-s-troca-t: #b4b7ff;
+  --of-s-ocioso: #6e6e73;
+  --of-ease: cubic-bezier(.23, 1, .32, 1);
+}
+
+.of-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  image-rendering: pixelated; pointer-events: none;
+  transform-origin: 50% 100%;
+  transition: filter .18s ease, scale .16s var(--of-ease);
+}
+/* sombra de contato: elipse esfumada, sem borda dura */
+.of-sombra {
+  position: absolute; left: 22%; right: 22%; bottom: 0; height: 12%;
+  border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .55), rgba(0, 0, 0, .3) 60%, transparent);
+}
+/* luz de piso só para quem pede atenção (aguardando/erro): baixa, sem pulsar */
+.of-ator::before {
+  content: ''; position: absolute; left: 6%; right: 6%; bottom: -8%; height: 30%;
+  border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(closest-side, var(--of-piso, transparent), transparent);
+  transition: opacity .3s ease;
+}
+.of-ator[data-e="aguardando"] { --of-piso: rgba(255, 197, 61, .2); }
+.of-ator[data-e="erro"] { --of-piso: rgba(229, 72, 77, .22); }
+.of-ator[data-e="aguardando"]::before, .of-ator[data-e="erro"]::before { opacity: 1; }
+/* anel de seleção: elipse fina e neutra nos pés; no hover aparece como prévia */
+.of-anel {
+  position: absolute; left: 16%; right: 16%; bottom: -4%; height: 17%;
+  border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .7);
+  background: rgba(255, 255, 255, .05);
+  opacity: 0; scale: .82;
+  transition: opacity .18s ease, scale .24s var(--of-ease), border-color .18s ease;
+}
+.of-ator:hover .of-img { filter: brightness(1.08); }
+.of-ator:hover .of-anel { opacity: .3; scale: .94; }
+.of-ator:active .of-img { scale: .95; transition-duration: .08s; }
+.of-ator.of-sel .of-anel { opacity: 1; scale: 1; }
+.of-ator.of-sel .of-img { filter: brightness(1.06); }
+.of-ator:focus-visible { outline: none; }
+.of-ator:focus-visible .of-anel { opacity: 1; scale: 1; border-color: var(--of-r-anel); }
+
+/* ───────── Crachás e balões ───────── */
+.of-rotulos { z-index: 1000; }
+/* Crachá: etiqueta escura arredondada embaixo dos pés (como os balões), texto nítido sem halo.
+   Altura fixa de 18 px (o JS posiciona pela medida). */
+.of-cracha {
+  position: absolute; left: 0; top: 0;
+  display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 7px 0 6px;
+  background: rgba(16, 16, 18, .86); border-radius: 9px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), 0 2px 6px rgba(0, 0, 0, .45);
+  font-size: 11px; font-weight: 550; line-height: 1; letter-spacing: .003em; white-space: nowrap; color: #ededf0;
+  -webkit-font-smoothing: antialiased;
+  pointer-events: auto; cursor: pointer; will-change: transform; z-index: 3;
+  transition: color .15s ease, background-color .15s ease, scale .16s var(--of-ease);
+}
+.of-cracha:hover { color: #fff; background: rgba(28, 28, 32, .94); }
+.of-cracha:active { scale: .96; transition-duration: .08s; }
+/* parado: nome recua um degrau, quem trabalha ou pede algo lê primeiro */
+.of-cracha[data-e="ocioso"] { color: #a3a3a6; font-weight: 500; }
+.of-cracha[data-e="ocioso"]:hover { color: #e8e8e8; }
+/* selecionado: branco, mais pesado e com contorno mais claro */
+.of-cracha.of-sel { color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22), 0 2px 6px rgba(0, 0, 0, .45); }
+/* haste: sobe do crachá até os pés quando ele foi empurrado para baixo */
+.of-cracha::after {
+  content: ''; position: absolute; left: 50%; bottom: 100%; width: 1px; height: var(--hs, 4px);
+  background: rgba(255, 255, 255, .14); opacity: 0;
+}
+.of-cracha.of-haste-on::after { opacity: 1; }
+
+/* Ponto de status: 6 px + halo fino, forma além da cor (parado = vazado). */
+.of-ponto {
+  --c: var(--of-s-ocioso);
+  position: relative; width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--c); box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--c) 18%, transparent);
+}
+.of-cracha[data-e="trabalhando"] .of-ponto { --c: var(--of-s-trab); }
+.of-cracha[data-e="aguardando"] .of-ponto { --c: var(--of-s-agu); }
+.of-cracha[data-e="erro"] .of-ponto { --c: var(--of-s-erro); }
+.of-cracha[data-e="ocioso"] .of-ponto { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+/* trabalhando: uma onda lenta e fraca, o único movimento do crachá */
+.of-cracha[data-e="trabalhando"] .of-ponto::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--c);
+  animation: of-onda 2.2s cubic-bezier(.2, .8, .2, 1) infinite;
+}
+@keyframes of-onda { from { transform: scale(1); opacity: .55; } to { transform: scale(2.4); opacity: 0; } }
+
+/* Balão em pixel art: sem moldura, quinas arredondadas,
+   sombra dura de 4 px embaixo e ponta em degraus. Cores sólidas, para a moldura não somar com a sombra.
+   --bf fundo, --bb moldura (também na ponta e no fio), --bt texto do selo, --bc fundo do selo,
+   --bp quadradinho do selo. O tipo de mensagem vem no selo e no tom da moldura; numa conversa,
+   os dois balões da dupla usam o mesmo tom.
+   A posição vem do JS em `transform`; a entrada usa `scale` e a flutuação usa `translate`, que compõem com ele. */
+.of-balao {
+  --bf: #222225; --bb: #3d3d43; --bt: #c4c4ca; --bc: rgba(255, 255, 255, .07); --bp: #9a9aa2;
+  position: absolute; left: 0; top: 0; max-width: 214px; width: max-content;
+  padding: 7px 10px 8px;
+  background: var(--bf); border-radius: 10px;
+  box-shadow:
+    inset 0 2px 0 0 rgba(255, 255, 255, .045),
+    0 6px 0 0 rgba(0, 0, 0, .34),
+    0 12px 22px -8px rgba(0, 0, 0, .6);
+  font-size: 12px; font-weight: 450; line-height: 1.38; color: #f1f1f3; letter-spacing: -.004em;
+  overflow-wrap: anywhere; text-wrap: pretty;
+  transform-origin: var(--cx, 50%) calc(100% + 10px);
+  opacity: 0; visibility: hidden; scale: .55;
+  transition: opacity .16s ease, scale .2s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .2s;
+  animation: of-flutua 3.6s ease-in-out infinite, none .4s ease;
+  animation-delay: var(--fd, 0s), 0s;
+  pointer-events: none; will-change: transform;
+}
+.of-balao.of-vis {
+  opacity: 1; visibility: visible; scale: 1;
+  transition: opacity .18s ease-out, scale .46s cubic-bezier(.34, 1.56, .64, 1);
+}
+/* conteúdo trocou com o balão aberto: um "pulinho" em vez de um salto seco */
+.of-balao.of-muda { animation-name: of-flutua, of-muda; }
+@keyframes of-flutua { 0%, 100% { translate: 0 0; } 50% { translate: 0 -2px; } }
+@keyframes of-muda { 0% { scale: .93; } 55% { scale: 1.03; } 100% { scale: 1; } }
+
+/* Ponta em degraus de 2 px, na cor do fundo (sem moldura, como o balão). */
+.of-b-ponta {
+  position: absolute; top: 100%; left: calc(var(--cx, 50%) - 7px); width: 14px; height: 10px;
+}
+.of-b-ponta::before, .of-b-ponta::after { content: ''; position: absolute; inset: 0; }
+.of-b-ponta::before {
+  background: var(--bf);
+  clip-path: polygon(0 0, 14px 0, 14px 4px, 12px 4px, 12px 6px, 10px 6px, 10px 8px, 8px 8px, 8px 10px, 6px 10px, 6px 8px, 4px 8px, 4px 6px, 2px 6px, 2px 4px, 0 4px);
+}
+.of-b-ponta::after {
+  background: var(--bf);
+  clip-path: polygon(2px 0, 12px 0, 12px 4px, 10px 4px, 10px 6px, 8px 6px, 8px 8px, 6px 8px, 6px 6px, 4px 6px, 4px 4px, 2px 4px);
+}
+/* sem espaço em cima: o balão desce para baixo dos pés e a ponta vira para cima */
+.of-balao.of-baixo { transform-origin: var(--cx, 50%) -10px; }
+.of-balao.of-baixo .of-b-ponta { top: auto; bottom: 100%; transform: scaleY(-1); }
+
+/* Cabeçalho: selo do tipo (quadradinho + caixa alta) e, na fala que abre a conversa, "→ destinatário". */
+.of-b-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin: 0 0 5px; white-space: nowrap; }
+.of-b-tit {
+  display: inline-flex; align-items: center; gap: 5px; height: 17px; padding: 0 7px 0 6px; border-radius: 999px;
+  background: var(--bc); color: var(--bt);
+  font-size: 9.5px; font-weight: 650; line-height: 1; letter-spacing: .075em; text-transform: uppercase;
+  font-feature-settings: "case" 1;
+}
+.of-b-tit::before { content: ''; width: 5px; height: 5px; flex: none; background: var(--bp); }
+.of-b-para { display: inline-flex; align-items: baseline; gap: 4px; font-size: 11px; font-weight: 500; color: #8e8e96; }
+.of-b-para b { font-weight: 600; color: var(--pc, #e8e8e8); }
+
+/* Texto: as palavras entram em cascata, rápido (a frase inteira em menos de meio segundo). */
+.of-b-txt { display: block; }
+.of-pl {
+  display: inline-block; max-width: 100%;
+  animation: of-palavra .34s cubic-bezier(.2, .7, .2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms + 60ms);
+}
+@keyframes of-palavra { from { opacity: 0; translate: 0 3px; filter: blur(1.5px); } }
+/* resposta ainda sendo "digitada": três pixels pulando */
+.of-b-dig { display: flex; align-items: center; gap: 4px; height: 17px; padding: 0 2px; }
+.of-b-dig i { width: 4px; height: 4px; background: var(--bt); animation: of-pula 1s ease-in-out infinite; }
+.of-b-dig i:nth-child(2) { animation-delay: .15s; }
+.of-b-dig i:nth-child(3) { animation-delay: .3s; }
+@keyframes of-pula { 0%, 60%, 100% { translate: 0 0; opacity: .45; } 30% { translate: 0 -3px; opacity: 1; } }
+
+/* fio pontilhado até o crachá: só quando o balão subiu para fugir de outro rótulo */
+.of-haste {
+  position: absolute; top: calc(100% + 10px); left: calc(var(--cx, 50%) - 1px); width: 2px;
+  height: max(0px, calc(var(--hs, 12px) - 10px));
+  background: repeating-linear-gradient(to bottom, var(--bb) 0 2px, transparent 2px 4px);
+  opacity: 0; transition: opacity .18s ease;
+}
+.of-balao.of-longe .of-haste { opacity: .9; }
+
+/* trabalho: o mais comum, então o mais calmo */
+.of-balao[data-k="trabalho"] { --bf: #1f1f22; --bb: #36363c; color: #d8d8dc; }
+.of-balao[data-k="espera"] { --bf: #2a2416; --bb: #7e6427; --bt: #ffd35c; --bc: rgba(255, 197, 61, .15); --bp: #ffc53d; }
+.of-balao[data-k="erro"] { --bf: #2c1a1b; --bb: #84373b; --bt: #ffa19e; --bc: rgba(229, 72, 77, .17); --bp: #e5484d; }
+.of-balao[data-t="delegar"] { --bf: #212233; --bb: #4d5099; --bt: #c5c7ff; --bc: rgba(139, 143, 248, .18); --bp: #8b8ff8; }
+.of-balao[data-t="entregar"] { --bf: #1b2620; --bb: #2e744a; --bt: #86e8ae; --bc: rgba(61, 214, 140, .15); --bp: #3dd68c; }
+.of-balao[data-t="falhas"] { --bf: #2b1c24; --bb: #87395c; --bt: #ffabcc; --bc: rgba(244, 114, 182, .16); --bp: #f472b6; }
+.of-balao[data-t="referencias"] { --bf: #1a2827; --bb: #2a7068; --bt: #85ecdc; --bc: rgba(45, 212, 191, .15); --bp: #2dd4bf; }
+/* aguardando: o quadradinho do selo pisca devagar */
+.of-balao[data-k="espera"] .of-b-tit::before { animation: of-respira 1.6s steps(2, jump-none) infinite; }
+@keyframes of-respira { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .of-balao, .of-balao.of-vis { scale: 1; translate: none; transition: opacity .16s ease, visibility 0s linear .16s; }
+  .of-ator:active .of-img, .of-cracha:active { scale: 1; }
+}
+
+/* ───────── Cartão do agente ───────── */
+.of-cartao {
+  position: absolute; right: 18px; top: 90px; z-index: 40; width: 290px;
+  padding: 16px; border-radius: 14px; background: var(--of-sup); box-shadow: var(--of-sombra), 0 0 0 1px rgba(255, 255, 255, .06);
+  user-select: text; -webkit-user-select: text;
+  animation: of-cartao .18s ease both;
+}
+@keyframes of-cartao { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.of-c-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.of-c-av {
+  width: 44px; height: 44px; flex: none; border-radius: 10px; display: grid; place-items: center;
+  background: #262626; border: 1px solid rgba(99, 102, 241, .45); box-shadow: 0 0 14px rgba(99, 102, 241, .25);
+}
+.of-c-av img { width: 40px; height: 40px; image-rendering: pixelated; }
+.of-c-tit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.of-c-tit b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.of-c-tit small { font-size: 12px; color: var(--of-t2); }
+.of-c-fechar {
+  width: 28px; height: 28px; flex: none; display: grid; place-items: center; align-self: flex-start;
+  border: 0; border-radius: 7px; background: none; color: var(--of-t2); cursor: pointer;
+}
+.of-c-fechar:hover { background: #252525; color: var(--of-t1); }
+.of-c-fechar:active { transform: scale(.94); }
+.of-c-dl { display: grid; grid-template-columns: 64px 1fr; gap: 9px 12px; margin: 0; font-size: 12.5px; }
+.of-c-dl dt { color: var(--of-t3); }
+.of-c-dl dd { margin: 0; color: var(--of-t1); min-width: 0; overflow-wrap: anywhere; }
+.of-c-abrir { margin-top: 14px; width: 100%; justify-content: center; }
+/* Selo sólido e neutro, como os chips do app; a cor do estado fica só no ponto. */
+.of-pilula {
+  --c: var(--of-t2);
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px 0 7px; border-radius: 999px;
+  background: #1f1f1f; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4);
+  color: var(--of-t2); font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+}
+.of-pilula::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--c); }
+.of-pilula[data-e="trabalhando"] { --c: var(--of-trab-t); }
+.of-pilula[data-e="aguardando"] { --c: #fbbf24; }
+.of-pilula[data-e="erro"] { --c: #f87171; }
+.of-pilula[data-e="ocioso"] { --c: #a3a3a3; }
+
+/* ───────── TV da sala do Mestre e painel do time ───────── */
+/* Área clicável sobre o desenho da TV: invisível; no hover, um contorno índigo fraco (o tom do Mestre). */
+.of-tv {
+  position: absolute; z-index: 1; margin: 0; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color .2s ease, box-shadow .2s ease;
+}
+.of-tv:hover, .of-tv.of-tv-on {
+  background: rgba(129, 140, 248, .07);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, .38), 0 0 18px rgba(129, 140, 248, .2);
+}
+.of-tv:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--of-r-anel); }
+
+/* Painel: mesma superfície do cartão do agente. A posição e o transform-origin (centro da TV) vêm do JS. */
+.of-tv-pop {
+  position: absolute; z-index: 1100; display: flex; flex-direction: column;
+  padding: 14px 14px 8px; border-radius: 14px; background: var(--of-sup);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 2px 12px rgba(0, 0, 0, .45), 0 24px 48px -16px rgba(0, 0, 0, .75);
+  user-select: text; -webkit-user-select: text;
+}
+.of-tp-seta {
+  position: absolute; top: -5px; left: calc(var(--tp-cx, 50%) - 6px); width: 12px; height: 12px;
+  background: var(--of-sup); border-radius: 2px; transform: rotate(45deg);
+  box-shadow: -1px -1px 0 0 rgba(255, 255, 255, .07);
+}
+.of-tp-sem-seta .of-tp-seta { display: none; }
+.of-tp-cab { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding-left: 2px; }
+.of-tp-tit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.of-tp-tit b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.of-tp-tit small { font-size: 12px; color: var(--of-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.of-tp-modo { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--of-t2); white-space: nowrap; }
+.of-tp-modo::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--of-ok); box-shadow: 0 0 6px rgba(34, 197, 94, .6); }
+.of-tp-modo[data-m="demo"]::before { background: var(--of-aviso); box-shadow: 0 0 6px rgba(245, 158, 11, .6); }
+.of-tp-modo[data-m="caiu"]::before { background: var(--of-perigo); box-shadow: none; }
+
+/* Resumo: quantos em cada estado; zero recua para o cinza. */
+.of-tp-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.of-tp-res {
+  --c: var(--of-s-ocioso);
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 7px; border-radius: 10px;
+  background: #181818; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+.of-tp-res b { display: flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
+.of-tp-res b::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--c); }
+.of-tp-res span { font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--of-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.of-tp-res[data-e="trabalhando"] { --c: var(--of-s-trab); }
+.of-tp-res[data-e="aguardando"] { --c: var(--of-s-agu); }
+.of-tp-res[data-e="erro"] { --c: var(--of-s-erro); }
+.of-tp-res.of-zero b { color: var(--of-t3); }
+.of-tp-res.of-zero b::before { opacity: .35; }
+
+/* Lista: uma linha por agente — nome e estado, o que faz agora, métricas e as últimas ações. */
+.of-tp-lista {
+  list-style: none; margin: 0 -6px; padding: 0 6px; min-height: 0; flex: 1 1 auto; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #333 transparent;
+}
+.of-tp-ag { position: relative; padding: 10px 8px; border-radius: 10px; transition: background-color .15s ease; }
+.of-tp-ag + .of-tp-ag::before { content: ''; position: absolute; top: 0; left: 8px; right: 8px; height: 1px; background: var(--of-fio); }
+.of-tp-ag.of-tp-link { cursor: pointer; }
+.of-tp-ag.of-tp-link:hover { background: #222; }
+.of-tp-ag.of-tp-link:hover::before, .of-tp-ag.of-tp-link:hover + .of-tp-ag::before { opacity: 0; }
+.of-tp-novo { animation: of-tp-entra .34s var(--of-ease) backwards; animation-delay: calc(var(--i, 0) * 32ms + 90ms); }
+@keyframes of-tp-entra { from { opacity: 0; translate: 0 4px; } }
+.of-tp-l1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.of-tp-cor {
+  width: 8px; height: 8px; border-radius: 2px; flex: none; background: var(--cor);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cor) 20%, transparent);
+}
+.of-tp-nome { flex: none; font-size: 13px; font-weight: 600; letter-spacing: -.005em; }
+.of-tp-desc { flex: 1; min-width: 0; font-size: 11.5px; color: var(--of-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.of-tp-l1 .of-pilula { flex: none; }
+.of-pilula[data-e="concluido"] { --c: #3dd68c; }
+.of-tp-agora { margin: 4px 0 0 16px; font-size: 12px; color: var(--of-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.of-tp-ag[data-e="aguardando"] .of-tp-agora { color: #ffd35c; }
+.of-tp-ag[data-e="erro"] .of-tp-agora { color: #ff9592; }
+.of-tp-l3 { display: flex; align-items: center; gap: 12px; margin: 6px 0 0 16px; font-size: 11px; color: var(--of-t3); white-space: nowrap; overflow: hidden; }
+.of-tp-met b { font-weight: 600; color: #cfcfcf; }
+.of-tp-falha b { color: #ff9592; }
+.of-tp-acoes { display: inline-flex; gap: 2px; flex: none; }
+.of-tp-acoes i { width: 4px; height: 10px; border-radius: 1px; background: #262626; }
+.of-tp-acoes i[data-s="ok"] { background: rgba(61, 214, 140, .55); }
+.of-tp-acoes i[data-s="erro"] { background: var(--of-s-erro); }
+.of-tp-acoes i[data-s="aberta"] { background: var(--of-s-trab); animation: of-respira 1.6s steps(2, jump-none) infinite; }
+.of-tp-vazio { margin: 16px 0 14px; text-align: center; font-size: 12.5px; color: var(--of-t3); }
+
+@media (max-width: 520px) {
+  .of-tp-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .of-tp-ctx, .of-tp-desc { display: none; }
+}
+
+/* ───────── Rodapé ───────── */
+.of-rodape {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 30; height: 34px;
+  display: flex; align-items: center; gap: 12px; padding: 0 20px;
+  border-top: 1px solid #1f1f1f; background: rgba(12, 12, 12, .82);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  font-size: 12px; color: var(--of-t2); white-space: nowrap; overflow: hidden;
+}
+.of-espaco { flex: 1; }
+.of-r-ponto { width: 7px; height: 7px; border-radius: 50%; background: var(--of-ok); flex: none; box-shadow: 0 0 6px rgba(34, 197, 94, .6); }
+.of-r-ponto[data-m="demo"] { background: var(--of-aviso); box-shadow: 0 0 6px rgba(245, 158, 11, .6); }
+.of-r-ponto[data-m="caiu"] { background: var(--of-perigo); box-shadow: none; }
+.of-r-modo { color: var(--of-t1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.of-r-cont { color: var(--of-t3); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.of-r-atual { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .of-r-cont { display: none; }
+  .of-cartao { left: 12px; right: 12px; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .of-raiz *, .of-raiz *::before, .of-raiz *::after { animation: none !important; transition: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .of-btn:active, .of-c-fechar:active { transform: none; }
+}
+
+/* Etapa 4: instância do Orbit dormindo — folha de 4 quadros (robot-sleep-sheet.png), parada no lugar, com zZ. */
+.of-img.of-dorme { object-fit: cover; object-position: 0 0; animation: of-dormir 3.2s steps(4, jump-none) infinite; }
+@keyframes of-dormir { to { object-position: 100% 0; } }
+@media (prefers-reduced-motion: reduce) { .of-img.of-dorme { animation: none; object-position: 66.667% 0; } }

@@ -1,0 +1,144 @@
+/* Instâncias — popover "Nova instância" do Orbit (prefixo ni-). Mesma família do popover
+   "Personalizar projeto" (.pj-pop): superfície --sup, campos em poço, rótulos em caixa alta. */
+
+.ni-pop { position: fixed; z-index: 46; top: 0; left: 0; width: 368px; max-width: calc(100vw - 24px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 14px; border-radius: 14px; background: var(--sup, #1d1d1d); border: 1px solid rgba(255, 255, 255, .08); color: var(--t1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4);
+  animation: ni-entra .16s var(--ease-press, ease); }
+@keyframes ni-entra { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.ni-pop::-webkit-scrollbar { width: 4px; }
+.ni-pop::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+/* cabeçalho */
+.ni-cab { display: flex; align-items: center; gap: 12px; }
+.ni-marca { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--bloco, #1f1f1f); color: #e5e5e5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4); }
+.ni-cab-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ni-cab-txt b { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.ni-cab-txt small { font-size: 11.5px; color: #6a6a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ni-x { width: 28px; height: 28px; align-self: flex-start; }
+
+/* campos */
+.ni-form { display: flex; flex-direction: column; }
+.ni-rot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 14px 2px 6px; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase; color: #5c5c5c; }
+.ni-rot span { font-size: 11px; font-weight: var(--peso-texto, 400); letter-spacing: 0; text-transform: none; color: #555; }
+.ni-campo { display: block; width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--lat-fio, rgba(255, 255, 255, .06)); border-radius: 9px;
+  background: var(--poco, #171717); box-shadow: var(--poco-sombra, inset 0 1px 2px rgba(0, 0, 0, .35)); color: var(--t1); font: 13px var(--sans); outline: none;
+  transition: border-color .15s ease, box-shadow .2s ease; }
+.ni-campo::placeholder { color: #5c5c5c; }
+.ni-campo:hover:not(:disabled) { border-color: rgba(255, 255, 255, .1); }
+.ni-campo:focus { border-color: rgba(255, 255, 255, .16); box-shadow: var(--poco-sombra, none), 0 0 0 3px rgba(255, 255, 255, .05); }
+.ni-campo:focus-visible { box-shadow: var(--poco-sombra, none), 0 0 0 2px var(--anel, #818cf8); }
+/* Campos de texto: sem o anel azul ao digitar (o navegador sempre aplica :focus-visible neles). */
+input.ni-campo:focus-visible, textarea.ni-campo:focus-visible { box-shadow: var(--poco-sombra, none), 0 0 0 3px rgba(255, 255, 255, .05); }
+.ni-campo:disabled { opacity: .5; cursor: not-allowed; }
+.ni-sel { appearance: none; -webkit-appearance: none; padding-right: 28px; cursor: pointer; text-overflow: ellipsis; white-space: nowrap;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 16 16' fill='none' stroke='%23888' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; }
+.ni-sel option { background: #1d1d1d; color: #ededed; }
+
+/* Pasta, Modelo e Esforço: a lista abre no jeito do menu flutuante (como nas Configurações), não na nativa do Windows.
+   Sem suporte a base-select, fica o select nativo com a seta acima. */
+@supports (appearance: base-select) {
+  .ni-sel, .ni-sel::picker(select) { appearance: base-select; }
+  .ni-sel { display: flex; align-items: center; gap: 10px; padding: 0 8px 0 10px; background-image: none; }
+  .ni-sel::picker-icon { content: ""; flex: none; width: 14px; height: 14px; margin-left: auto; background: currentColor; color: var(--t3, #6a6a6a);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.2 6.2 8 10l3.8-3.8'/%3E%3C/svg%3E") center / 14px no-repeat;
+    transition: rotate .2s var(--ease-press, ease), color .15s ease; }
+  .ni-sel:hover:not(:disabled)::picker-icon, .ni-sel:open::picker-icon { color: var(--t1); }
+  .ni-sel:open::picker-icon { rotate: 180deg; }
+  .ni-sel:open { border-color: rgba(255, 255, 255, .16); background-color: #151515; color: var(--t1); }
+  .ni-sel::picker(select) { margin-block: 6px; padding: 5px; min-width: anchor-size(width); max-width: min(340px, calc(100vw - 24px)); max-height: min(320px, calc(100vh - 24px));
+    overflow-y: auto; border-radius: 12px; background: var(--sup, #1d1d1d); border: 1px solid rgba(255, 255, 255, .08); color: var(--t1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4);
+    opacity: 0; translate: 0 -4px; scale: .98;
+    transition: opacity .16s var(--ease-press, ease), translate .16s var(--ease-press, ease), scale .16s var(--ease-press, ease), display .16s allow-discrete, overlay .16s allow-discrete; }
+  /* select:open, não ::picker(select):popover-open: o Safari abre a lista mas não casa :popover-open, e ela ficava invisível */
+  .ni-sel:open::picker(select) { opacity: 1; translate: 0; scale: 1; }
+  @starting-style { .ni-sel:open::picker(select) { opacity: 0; translate: 0 -4px; scale: .98; } }
+  .ni-sel::picker(select)::-webkit-scrollbar { width: 4px; }
+  .ni-sel::picker(select)::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  .ni-sel option { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 0 9px; border-radius: 8px; background: none; color: #e4e4e4; font: 13px var(--sans);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: background-color .12s ease, color .12s ease; }
+  .ni-sel option:hover, .ni-sel option:focus-visible { background: rgba(255, 255, 255, .06); color: var(--t1); outline: none; }
+  .ni-sel option:checked { color: var(--t1); font-weight: 500; }
+  .ni-sel option::checkmark { order: 1; flex: none; margin-left: auto; content: ""; width: 14px; height: 14px; background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E") center / 14px no-repeat; }
+  .ni-sel option:not(:checked)::checkmark { visibility: hidden; }
+  /* "Outra pasta…" fica separada das pastas conhecidas */
+  .ni-sel option.ni-op-outra { position: relative; margin-top: 7px; overflow: visible; color: var(--lat-t, #9a9a9a); }
+  .ni-sel option.ni-op-outra::before { content: ""; position: absolute; left: 4px; right: 4px; top: -4px; height: 1px; background: rgba(255, 255, 255, .07); }
+  .ni-sel option.ni-op-outra:hover, .ni-sel option.ni-op-outra:checked { color: var(--t1); }
+  .ni-sel option.ni-op-outra:first-child { margin-top: 0; }
+  .ni-sel option.ni-op-outra:first-child::before { display: none; }
+  @media (prefers-reduced-motion: reduce) { .ni-sel::picker(select), .ni-sel::picker-icon, .ni-sel option { transition: none; } }
+}
+#ni-outra { margin-top: 0; font-family: var(--mono); font-size: 12px; }
+.ni-caminho { margin: 6px 2px 0; font: 11px var(--mono); color: #6a6a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ni-texto { height: auto; min-height: 64px; max-height: 180px; padding: 8px 10px; line-height: 1.45; resize: vertical; }
+.ni-par { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 8px; }
+.ni-col { min-width: 0; display: flex; flex-direction: column; }
+.ni-nota { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 4px 8px; margin: 6px 2px 0; font-size: 11.5px; line-height: 1.45; color: #6a6a6a; }
+.ni-nota svg { flex: none; margin-top: 2px; color: #888; }
+.ni-nota span { flex: 1 1 200px; min-width: 0; }
+.ni-nota .link { padding: 0; font-size: 11.5px; }
+
+/* permissão: controle segmentado */
+.ni-seg { display: grid; grid-template-columns: repeat(4, minmax(0, auto)); gap: 3px; padding: 3px; border-radius: 10px; background: var(--poco, #171717);
+  box-shadow: var(--poco-sombra, inset 0 1px 2px rgba(0, 0, 0, .35)); border: 1px solid var(--lat-fio, rgba(255, 255, 255, .06)); }
+.ni-seg button { min-width: 0; height: 26px; padding: 0 6px; border: 0; border-radius: 7px; background: none; color: var(--lat-t, #9a9a9a); font: 500 12px var(--sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  transition: background-color .15s var(--ease-press, ease), color .15s var(--ease-press, ease), transform .16s var(--ease-press, ease); }
+.ni-seg button:hover:not(:disabled) { color: var(--t1); background: rgba(255, 255, 255, .04); }
+.ni-seg button:active:not(:disabled) { transform: scale(.975); }
+.ni-seg button[aria-checked="true"] { background: var(--lat-pilula, #2d2d2d); color: #f5f5f5; box-shadow: var(--lat-pilula-sombra, 0 1px 2px rgba(0, 0, 0, .5)); }
+.ni-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel, #818cf8); }
+.ni-seg button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* erro e rodapé */
+.ni-erro { margin: 12px 0 0; padding: 8px 10px; border: 1px solid rgba(239, 68, 68, .3); border-radius: 8px; background: rgba(239, 68, 68, .06);
+  color: #fca5a5; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.ni-pe { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--lat-fio, rgba(255, 255, 255, .06)); }
+.ni-vscode { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ni-vscode svg { flex: none; }
+.ni-vscode[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.ni-vscode[aria-disabled="true"]:hover { color: var(--t3); }
+.ni-criar { flex: none; height: 32px; padding: 0 12px 0 10px; gap: 7px; background: #f0f0f0; border-color: #f0f0f0; color: #111; font-weight: 600; }
+.ni-criar svg { color: #111; }
+.ni-criar:hover { background: #fff; border-color: #fff; }
+.ni-criar:active { transform: scale(.975); }
+.ni-criar:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--sup, #1d1d1d), 0 0 0 4px var(--anel, #818cf8); }
+.ni-criar.ni-ocupado { cursor: progress; opacity: .85; }
+.ni-gira { width: 13px; height: 13px; margin: 0 1px; border-radius: 50%; border: 1.6px solid rgba(17, 17, 18, .22); border-top-color: #111112; animation: ni-girar .8s linear infinite; }
+@keyframes ni-girar { to { transform: rotate(360deg); } }
+
+@media (max-width: 480px) {
+  .ni-pop { padding: 12px; }
+  .ni-cab-txt small { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ni-pop { animation: none; }
+  .ni-seg button, .ni-campo { transition: none; }
+  .ni-gira { animation-duration: 2.4s; }
+}
+
+/* imagens da 1ª mensagem (assets/anexos.css): botão com rótulo e as miniaturas ao lado */
+.ni-anexos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; }
+.ni-anexos .ax-botao { display: inline-flex; align-items: center; gap: 6px; width: auto; height: 26px; padding: 0 9px 0 7px; border-radius: 7px; font: 500 12px var(--sans); }
+.ni-anexos .ax-faixa { padding-top: 6px; }
+
+/* Skills da instância (17/10): resumo + lista para desmarcar (assets/instancias.js, GET /skills) */
+.ni-sk { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 2px; font-size: 12.5px; color: #a3a3a3; }
+.ni-sk-resumo { min-width: 0; overflow-wrap: anywhere; }
+.ni-sk .link { flex: none; padding: 0; font-size: 12px; }
+.ni-sk-lista { display: flex; flex-direction: column; gap: 1px; max-height: 200px; overflow-y: auto; margin-top: 8px; padding: 6px; border-radius: 10px; background: var(--poco, #171717); box-shadow: var(--poco-sombra); }
+.ni-sk-lista[hidden] { display: none; }
+.ni-sk-topo { display: flex; gap: 12px; padding: 2px 6px 6px; }
+.ni-sk-topo .link { padding: 0; font-size: 11.5px; }
+.ni-sk-item { display: flex; align-items: center; gap: 8px; min-height: 26px; padding: 0 6px; border-radius: 6px; font-size: 12.5px; color: var(--t1); cursor: pointer; }
+.ni-sk-item:hover { background: rgba(255, 255, 255, .04); }
+.ni-sk-item input { flex: none; margin: 0; accent-color: #d4d4d4; }
+.ni-sk-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+.ni-sk-org { flex: none; font-size: 11px; color: #5c5c5c; }
+.ni-sk-lista .ni-nota { margin: 6px 6px 2px; }

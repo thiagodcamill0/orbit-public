@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Projetos e arquivos · demonstração</title>
+<link rel="icon" href="data:,">
+<!-- Demonstração da lateral de projetos/arquivos (assets/arquivos.*) com fetch e SSE falsos que implementam as rotas da
+     rodada 8 sobre um disco fictício em memória. Nada sai do navegador.
+     Query: ?semrota=1 (GET /projetos → 404: projetos() fica null e a lista antiga aparece) · ?lento=1 · ?recolhida=1 -->
+<style>
+  @font-face { font-family: 'Geist'; src: url('../assets/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Geist Mono'; src: url('../assets/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  /* Subconjunto do index.html (valores finais da cascata), só o que a lateral e a vista usam. */
+  :root {
+    --fundo: #0a0a0a; --casca: #111111; --t1: #f0f0f0; --t2: #888888; --t3: #5c5c5c; --foco: #70b8ff; --agu: #ffc53d;
+    --sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace;
+    --ease: ease; --ease-press: cubic-bezier(.23, 1, .32, 1); --dur-1: .15s;
+    --lat-fundo: #1d1d1d; --lat-hover: #252525; --lat-pilula: #2d2d2d; --lat-fio: rgba(255, 255, 255, .06); --lat-t: #9a9a9a;
+    --lat-pilula-sombra: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .25);
+    --sup: var(--lat-fundo); --poco: #171717; --poco-sombra: inset 0 1px 2px rgba(0, 0, 0, .35);
+    --bloco: #262626; --bloco-2: #2e2e2e; --fio: rgba(255, 255, 255, .06); --fio-2: rgba(255, 255, 255, .085); --fio-3: rgba(255, 255, 255, .13);
+    --anel: rgba(112, 184, 255, .7);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--fundo); color: var(--t1); font: 400 13.5px/1.45 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; flex: none; }
+  [hidden] { display: none !important; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--foco); outline-offset: 1px; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .btn-icone { width: 32px; height: 32px; flex: none; display: inline-grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--lat-t); padding: 0; }
+  .btn-icone:hover { background: var(--lat-hover); color: var(--t1); }
+
+  .casca { position: fixed; inset: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); background: var(--casca); }
+  .lateral { display: flex; flex-direction: column; gap: 3px; min-height: 0; overflow-y: auto; padding: 20px 10px 0; background: var(--lat-fundo); border-right: 1px solid var(--lat-fio); }
+  .marca { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px 10px; font-weight: 600; font-size: 14px; }
+  .rot-sec { display: flex; align-items: center; justify-content: space-between; padding: 18px 12px 6px; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #5c5c5c; }
+  .rot-sec .num { letter-spacing: 0; }
+  .nav-item { height: 38px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 0; border-radius: 10px; background: none; color: var(--lat-t); font-size: 14px; text-align: left; }
+  .nav-item:hover { background: var(--lat-hover); color: var(--t1); }
+  .projetos { display: flex; flex-direction: column; gap: 1px; }
+  .proj-item { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 6px 0 10px; min-width: 0;
+    border: 0; border-radius: 10px; background: none; color: var(--lat-t); text-align: left; font-size: 13.5px;
+    transition: background-color .15s var(--ease-press), color .15s var(--ease-press), transform .16s var(--ease-press); }
+  .proj-item::before { content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none; opacity: 0;
+    background: var(--lat-pilula); box-shadow: var(--lat-pilula-sombra); transform: scale(.96); transition: opacity 120ms var(--ease-press), transform 220ms var(--ease-press); }
+  .proj-item:hover { background: var(--lat-hover); color: var(--t1); }
+  .proj-item:active { transform: scale(.975); }
+  .proj-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--lat-fundo), 0 0 0 4px rgba(112, 184, 255, .7); }
+  .proj-item[aria-pressed="true"], .proj-item[aria-pressed="true"]:hover { background: transparent; color: #f5f5f5; font-weight: 500; }
+  .proj-item[aria-pressed="true"]::before { opacity: 1; transform: none; }
+  .proj-item .av { position: relative; width: 22px; height: 22px; flex: none; border-radius: 7px; display: grid; place-items: center; background: #262626; border: 1px solid var(--lat-fio);
+    color: var(--lat-t); font-size: 11px; font-weight: 600; transition: background-color .15s ease, color .15s ease; --tag-anel: var(--lat-fundo); }
+  .proj-item:hover .av { background: #2e2e2e; color: var(--t1); --tag-anel: var(--lat-hover); }
+  .proj-item[aria-pressed="true"] .av { background: #3a3a3a; color: #fff; border-color: rgba(255, 255, 255, .1); --tag-anel: var(--lat-pilula); }
+  .pj-tag { position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--tag); box-shadow: 0 0 0 2px var(--tag-anel, var(--lat-fundo)); pointer-events: none; }
+  .proj-item .nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proj-item .n { color: #6a6a6a; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .proj-item[aria-pressed="true"] .n { color: var(--t2); }
+  .proj-item .alerta-p { width: 6px; height: 6px; border-radius: 50%; background: var(--agu); flex: none; }
+  .principal { min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; background-color: var(--casca); background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px); background-size: 24px 24px; }
+  .conteudo { max-width: 1180px; margin: 0 auto; padding: 22px 28px 64px; }
+  .conteudo h1 { margin: 0 0 6px; font-size: 20px; font-weight: 500; }
+  .conteudo p { color: var(--t2); margin: 0 0 12px; }
+  #demo-log { font: 11px/1.5 var(--mono); color: #6a6a6a; white-space: pre-wrap; }
+  /* ?abas=1: dois painéis lado a lado, como os grupos de assets/abas.js (rolagem própria, contêiner "principal"). */
+  body.abas .principal { overflow: hidden; }
+  .abas-demo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); height: 100%; }
+  .aba-painel { min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: principal; }
+  .aba-painel + .aba-painel { border-left: 1px solid var(--fio); }
+  .aba-painel[data-foco] { box-shadow: inset 0 1px 0 #6366f1; }
+
+  @media (min-width: 1100px) {
+    body.lat-recolhida .casca { grid-template-columns: 64px minmax(0, 1fr); }
+    body.lat-recolhida .rot-sec, body.lat-recolhida .nl, body.lat-recolhida .proj-item .nome, body.lat-recolhida .proj-item .n, body.lat-recolhida .proj-item .alerta-p, body.lat-recolhida .marca b { display: none; }
+    body.lat-recolhida .lateral { padding-left: 8px; padding-right: 8px; }
+    body.lat-recolhida .nav-item, body.lat-recolhida .proj-item { justify-content: center; padding: 0; }
+    body.lat-recolhida .projetos { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--fio); }
+  }
+  @media (max-width: 1099px) {
+    .casca { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+    .lateral { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 6px; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--fio); overflow: visible; }
+    .marca { padding: 0; margin-right: auto; }
+    .rot-sec, .nav, #recolher { display: none; }
+    .projetos { order: 6; flex: 1 1 100%; flex-direction: row; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; padding-right: 28px;
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+    .projetos::-webkit-scrollbar { display: none; }
+    .proj-item { flex: none; height: 28px; padding: 0 10px 0 4px; border-radius: 8px; font-size: 13px; gap: 8px; border: 1px solid var(--lat-fio); }
+    .proj-item .av { width: 20px; height: 20px; border-radius: 6px; }
+  }
+</style>
+<link rel="stylesheet" href="../assets/arquivos.css">
+</head>
+<body>
+<div class="casca">
+  <aside class="lateral" aria-label="Barra lateral">
+    <div class="marca"><b>Orbit · demo</b><button id="recolher" class="btn-icone" type="button" title="Recolher a barra" aria-label="Recolher a barra">«</button></div>
+    <div class="rot-sec">Principal</div>
+    <nav class="nav"><button class="nav-item" type="button" id="nav-geral"><span class="nl">Visão geral</span></button></nav>
+    <div class="rot-sec">Projetos <span id="proj-n" class="num"></span><button id="proj-add" class="btn-icone proj-add" type="button" title="Adicionar projeto" aria-label="Adicionar projeto" hidden></button></div>
+    <div id="projetos" class="projetos" role="group" aria-label="Filtrar por projeto"></div>
+    <div class="rot-sec">Sistema</div>
+    <nav class="nav"><button class="nav-item" type="button"><span class="nl">Configurações</span></button></nav>
+  </aside>
+  <main class="principal" id="rolar">
+    <div class="conteudo">
+      <h1>Visão geral</h1>
+      <p id="demo-filtro">Sem filtro de projeto.</p>
+      <div id="demo-log"></div>
+    </div>
+    <section id="arquivo" class="arq-vista" aria-label="Arquivo" hidden></section>
+    <div id="abas-demo" class="abas-demo" hidden>
+      <section id="aba-1" class="aba-painel" role="tabpanel" aria-label="Aba 1"></section>
+      <section id="aba-2" class="aba-painel" role="tabpanel" aria-label="Aba 2"></section>
+    </div>
+  </main>
+</div>
+<script>
+(() => {
+  const P = new URLSearchParams(location.search);
+  const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+  const demo = window.demo = { log: [], lixeira: [], revelados: [], area: '', posts: [] };
+
+  // ── Disco fictício ──
+  const raiz = { tipo: 'pasta', filhos: new Map() };
+  const partes = (abs) => String(abs).replace(/[\\/]+$/, '').split(/[\\/]+/).filter(Boolean);
+  function filho(n, nome) { for (const [k, v] of n.filhos) if (k.toLowerCase() === nome.toLowerCase()) return [k, v]; return null; }
+  function no(abs) { let n = raiz; for (const p of partes(abs)) { if (!n || n.tipo !== 'pasta') return null; const f = filho(n, p); if (!f) return null; n = f[1]; } return n; }
+  function criar(abs, conteudo, extra) {
+    const ps = partes(abs); let n = raiz;
+    ps.forEach((p, i) => {
+      const f = filho(n, p);
+      if (f) { n = f[1]; return; }
+      const novo = i === ps.length - 1 && conteudo !== undefined ? { tipo: 'arquivo', conteudo, mtime: Date.now(), ...(extra || {}) } : { tipo: 'pasta', filhos: new Map() };
+      n.filhos.set(p, novo); n = novo;
+    });
+    return n;
+  }
+  const absDe = (ps) => (ps.length === 1 ? ps[0] + '\\' : ps.join('\\'));
+  const G = 'D:\\Dev\\Projetos\\Gerenciador';
+  const linhasServidor = ['// Orbit — servidor local', "import http from 'node:http';", "import fs from 'node:fs';", '', 'const PORTA = 47821;', ''];
+  for (let i = 0; i < 120; i++) linhasServidor.push(i % 10 === 0 ? 'function rota' + i + '(req, res) {' : i % 10 === 9 ? '}' : '  const valor' + i + ' = calcular(' + i + ', "texto com uma linha bem comprida para testar a quebra de linha e a rolagem horizontal da prévia do arquivo");');
+  linhasServidor.push('', 'export default function iniciar() { return http.createServer(); }', '');
+  const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="26" fill="#6366f1"/><path d="M20 34l8 8 16-18" stroke="#fff" stroke-width="5" fill="none"/></svg>';
+  const arquivos = {
+    [G + '\\.git\\config']: '[core]',
+    [G + '\\assets\\arquivos.js']: '// arquivos\nfunction montar() {}\n',
+    [G + '\\assets\\arquivos.css']: '.arq-no { height: 23px; }\n',
+    [G + '\\assets\\logo.png']: '<png>',
+    [G + '\\assets\\icone.svg']: SVG,
+    [G + '\\assets\\Geist-Variable.woff2']: '\u0000bin',
+    [G + '\\brain\\notas.md']: '# Notas\n\nfunction das notas\n',
+    [G + '\\node_modules\\pacote\\index.js']: 'module.exports = function () {};\n',
+    [G + '\\testes\\edge.mjs']: 'export async function fecharEdge() {}\n',
+    [G + '\\index.html']: '<!doctype html>\n<html lang="pt-BR">\n<head><title>Orbit</title></head>\n<body>\n  <aside class="lateral"></aside>\n</body>\n</html>\n',
+    [G + '\\servidor.mjs']: linhasServidor.join('\n'),
+    [G + '\\package.json']: '{\n  "name": "gerenciador",\n  "type": "module"\n}\n',
+    [G + '\\package-lock.json']: '{}\n',
+    [G + '\\README.md']: '# Orbit\n\nPainel local.\n',
+    [G + '\\.gitignore']: 'node_modules\n',
+    [G + '\\.env']: 'PORTA=47821\n',
+    [G + '\\config.json']: '{}\n',
+    [G + '\\dados.zip']: '\u0000zip',
+    [G + '\\manual.pdf']: '\u0000pdf',
+    [G + '\\log.txt']: 'linha 1\nlinha 2\n',
+    [G + '\\grande.log']: 'x',
+    [G + '\\script.py']: 'def main():\n    print("oi")\n',
+    [G + '\\tipos.ts']: 'export type Id = string;\n',
+    [G + '\\estilo.css']: 'body { margin: 0; }\n',
+    [G + '\\sem-lixeira.txt']: 'a Lixeira desta unidade está desligada\n',
+    'D:\\Projetos\\loja-api\\src\\app.js': "import express from 'express';\nfunction app() {}\n",
+    'D:\\Projetos\\loja-api\\src\\rotas\\pedidos.js': 'export function pedidos() {}\n',
+    'D:\\Projetos\\loja-api\\package.json': '{ "name": "loja-api" }\n',
+    'C:\\Users\\usuario\\site-exemplo\\index.html': '<h1>Oi</h1>\n',
+  };
+  for (const [abs, c] of Object.entries(arquivos)) criar(abs, c, abs.endsWith('grande.log') ? { tamanho: 3 * 1024 * 1024 } : null);
+  for (const d of ['C:\\Users\\usuario\\Desktop', 'C:\\Users\\usuario\\Documents', 'C:\\Users\\usuario\\AppData\\Local\\Temp\\claude-x', 'C:\\Windows', 'D:\\Projetos\\nova-ideia', 'D:\\Projetos\\outra', 'D:\\Musicas']) criar(d);
+  let projetos = [
+    { nome: 'Gerenciador', pasta: G }, { nome: 'loja-api', pasta: 'D:\\Projetos\\loja-api' },
+    { nome: 'site-exemplo', pasta: 'C:\\Users\\usuario\\site-exemplo' }, { nome: 'antigo', pasta: 'D:\\Projetos\\antigo' },
+  ];
+  const col = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true });
+  const listaProj = () => projetos.map((p) => ({ ...p, existe: !!no(p.pasta) })).sort((a, b) => col.compare(a.nome, b.nome));
+
+  // ── SSE falso (a mesma ponte do index.html: api.on) ──
+  const ouvintes = {};
+  function emitir(tipo, d) { for (const fn of ouvintes[tipo] || []) { try { fn(d); } catch (e) { console.warn(e); } } }
+  const api = Object.freeze({ on: (tipo, fn) => { (ouvintes[tipo] = ouvintes[tipo] || new Set()).add(fn); return () => ouvintes[tipo].delete(fn); } });
+  window.GerenciadorAPI = api;
+  const mudou = (projeto, pastas, arqs) => setTimeout(() => emitir('arquivos', { projeto, pastas: [...new Set(pastas)], arquivos: [...new Set(arqs)] }), 300);
+  demo.emitir = emitir;
+  demo.no = (abs) => { const n = no(abs); return n ? { tipo: n.tipo, conteudo: n.conteudo, filhos: n.filhos ? [...n.filhos.keys()] : null } : null; };
+  demo.escrever = (projeto, caminho, conteudo) => { const p = projetos.find((x) => x.nome === projeto); const n = criar(p.pasta + '\\' + caminho.replace(/\//g, '\\'), conteudo); n.conteudo = conteudo; n.mtime = Date.now(); mudou(projeto, [caminho.includes('/') ? caminho.slice(0, caminho.lastIndexOf('/')) : ''], [caminho]); };
+
+  // ── Rotas (rodada 8) ──
+  const ESCONDIDOS = ['.git', '.svn', '.hg', 'cvs', '.ds_store', 'thumbs.db'];
+  const IMG = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg'];
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const ext = (n) => (n.includes('.') ? n.slice(n.lastIndexOf('.') + 1).toLowerCase() : '');
+  const json = (status, d) => new Response(JSON.stringify(d), { status, headers: { 'content-type': 'application/json' } });
+  const erro = (status, texto, motivo) => json(status, motivo ? { erro: texto, motivo } : { erro: texto });
+  function nomeInvalido(n) {
+    return typeof n !== 'string' || !n || /[<>:"/\\|?*\u0000-\u001f]/.test(n) || /[. ]$/.test(n) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n);
+  }
+  function resolver(projeto, caminho) {
+    const p = projetos.find((x) => x.nome === projeto);
+    if (!p) return { r: erro(404, 'Esse projeto não está na lista.') };
+    caminho = String(caminho || '');
+    if (/(^|\/)\.\.(\/|$)/.test(caminho) || /^[\\/]|^[a-z]:/i.test(caminho) || caminho.includes('\\')) return { r: erro(403, 'Fora da pasta do projeto.') };
+    return { p, abs: caminho ? p.pasta + '\\' + caminho.replace(/\//g, '\\') : p.pasta, caminho };
+  }
+  const paiC = (c) => (c.includes('/') ? c.slice(0, c.lastIndexOf('/')) : '');
+  const baseC = (c) => c.slice(c.lastIndexOf('/') + 1);
+  const juntarC = (a, b) => (a ? a + '/' + b : b);
+  const clonar = (n) => (n.tipo === 'pasta' ? { tipo: 'pasta', filhos: new Map([...n.filhos].map(([k, v]) => [k, clonar(v)])) } : { ...n });
+  function nomeCopia(pasta, nome) {
+    if (!filho(pasta, nome)) return nome;
+    const i = nome.lastIndexOf('.'); const b = i > 0 ? nome.slice(0, i) : nome, e = i > 0 ? nome.slice(i) : '';
+    for (let k = 1; ; k++) { const n = b + ' copy' + (k > 1 ? ' ' + k : '') + e; if (!filho(pasta, n)) return n; }
+  }
+  async function servidor(url, init) {
+    await dormir(P.get('lento') ? 400 : 15);
+    const u = new URL(url, location.origin);
+    const rota = u.pathname, q = u.searchParams;
+    const post = init && init.method === 'POST';
+    let corpo = {};
+    if (post) {
+      if (!init.headers || init.headers['x-gerenciador'] !== '1') return erro(403, 'Falta o cabeçalho x-gerenciador.');
+      try { corpo = JSON.parse(init.body || '{}'); } catch { return erro(400, 'JSON inválido.'); }
+      demo.posts.push([rota, corpo]);
+    }
+    // Temas do VS Code: sem tema de ícones nem realce na demonstração (o módulo fica com os SVG próprios e o texto puro).
+    if (rota === '/temas/icones') return json(200, { ok: false });
+    if (rota === '/arquivos/realce') return json(200, { realce: null });
+    if (rota === '/projetos' && !post) return P.get('semrota') ? erro(404, 'não encontrado') : json(200, { projetos: listaProj() });
+    if (rota === '/projetos/adicionar') {
+      const pasta = String(corpo.pasta || '').replace(/[\\/]+$/, '');
+      if (/\\AppData\\Local\\Temp(\\|$)/i.test(pasta)) return erro(400, 'Pastas temporárias não entram como projeto.', 'temporaria');
+      const n = no(pasta);
+      if (!n || n.tipo !== 'pasta') return erro(404, 'Essa pasta não existe: ' + pasta);
+      const ps = partes(pasta), nome = ps[ps.length - 1];
+      const ja = projetos.find((p) => p.pasta.toLowerCase() === pasta.toLowerCase());
+      if (ja) return json(200, { ok: true, projeto: ja, projetos: listaProj() });
+      if (projetos.some((p) => p.nome.toLowerCase() === nome.toLowerCase())) return erro(409, 'Já existe um projeto chamado ' + nome + '.', 'nome');
+      const novo = { nome, pasta: absDe(ps) };
+      projetos.push(novo);
+      setTimeout(() => emitir('projetos', { projetos: listaProj() }), 50);
+      return json(201, { ok: true, projeto: novo, projetos: listaProj() });
+    }
+    if (rota === '/projetos/remover') {
+      projetos = projetos.filter((p) => p.nome !== corpo.nome);
+      setTimeout(() => emitir('projetos', { projetos: listaProj() }), 50);
+      return json(200, { ok: true, projetos: listaProj() });
+    }
+    if (rota === '/arquivos/pastas') {
+      const c = q.get('caminho');
+      if (!c) return json(200, {
+        unidades: [{ nome: 'C:', caminho: 'C:\\' }, { nome: 'D:', caminho: 'D:\\' }],
+        atalhos: [{ nome: 'usuario', caminho: 'C:\\Users\\usuario' }, { nome: 'Área de Trabalho', caminho: 'C:\\Users\\usuario\\Desktop' }, { nome: 'Documentos', caminho: 'C:\\Users\\usuario\\Documents' }],
+      });
+      const n = no(c);
+      if (!n || n.tipo !== 'pasta') return erro(404, 'Essa pasta não existe: ' + c);
+      const ps = partes(c), atual = absDe(ps);
+      const pastas = [...n.filhos].filter(([k, v]) => v.tipo === 'pasta' && !k.startsWith('.')).map(([k]) => ({ nome: k, caminho: (atual.endsWith('\\') ? atual : atual + '\\') + k })).sort((a, b) => col.compare(a.nome, b.nome));
+      return json(200, { caminho: atual, pai: ps.length > 1 ? absDe(ps.slice(0, -1)) : null, pastas });
+    }
+    if (rota.startsWith('/arquivos/') && !post) {
+      const rs = resolver(q.get('projeto'), q.get('caminho'));
+      if (rs.r) return rs.r;
+      const n = no(rs.abs);
+      if (rota === '/arquivos/lista') {
+        if (!n || n.tipo !== 'pasta') return erro(404, 'Essa pasta não existe mais.');
+        const itens = [...n.filhos].filter(([k]) => !ESCONDIDOS.includes(k.toLowerCase()))
+          .map(([k, v]) => ({ nome: k, tipo: v.tipo, tamanho: v.tipo === 'arquivo' ? (v.tamanho || v.conteudo.length) : 0, mtime: v.mtime || 0 }))
+          .sort((a, b) => (a.tipo === b.tipo ? col.compare(a.nome, b.nome) : a.tipo === 'pasta' ? -1 : 1));
+        return json(200, { projeto: rs.p.nome, caminho: rs.caminho, itens });
+      }
+      if (!n || n.tipo !== 'arquivo') return erro(404, 'Esse arquivo não existe mais.');
+      const e = ext(rs.caminho);
+      if (rota === '/arquivos/ler') {
+        const tamanho = n.tamanho || n.conteudo.length;
+        if (IMG.includes(e)) return json(200, { tipo: 'imagem', tamanho, mtime: n.mtime });
+        if (tamanho > 2 * 1024 * 1024) return json(200, { tipo: 'grande', tamanho, mtime: n.mtime });
+        if (n.conteudo.includes('\u0000')) return json(200, { tipo: 'binario', tamanho, mtime: n.mtime });
+        const ling = { js: 'javascript', mjs: 'javascript', ts: 'typescript', json: 'json', md: 'markdown', html: 'html', css: 'css', py: 'python' }[e];
+        return json(200, { tipo: 'texto', tamanho, mtime: n.mtime, conteudo: n.conteudo, linguagem: ling });
+      }
+      if (rota === '/arquivos/bruto') {
+        if (!IMG.includes(e)) return erro(415, 'Só imagens.');
+        if (e === 'svg') return new Response(new Blob([n.conteudo], { type: 'image/svg+xml' }), { status: 200, headers: { 'content-type': 'image/svg+xml', 'content-security-policy': 'sandbox' } });
+        const bin = Uint8Array.from(atob(PNG), (ch) => ch.charCodeAt(0));
+        return new Response(new Blob([bin], { type: 'image/png' }), { status: 200, headers: { 'content-type': 'image/png' } });
+      }
+    }
+    if (rota === '/arquivos/novo') {
+      const rs = resolver(corpo.projeto, corpo.pasta); if (rs.r) return rs.r;
+      const pasta = no(rs.abs);
+      if (!pasta || pasta.tipo !== 'pasta') return erro(404, 'Essa pasta não existe mais.');
+      if (nomeInvalido(corpo.nome)) return erro(400, 'Nome inválido no Windows: "' + corpo.nome + '".', 'nome');
+      if (filho(pasta, corpo.nome)) return erro(409, 'Já existe "' + corpo.nome + '" nesta pasta.', 'existe');
+      pasta.filhos.set(corpo.nome, corpo.tipo === 'pasta' ? { tipo: 'pasta', filhos: new Map() } : { tipo: 'arquivo', conteudo: '', mtime: Date.now() });
+      const c = juntarC(rs.caminho, corpo.nome);
+      mudou(corpo.projeto, [rs.caminho], [c]);
+      return json(201, { ok: true, caminho: c });
+    }
+    if (rota === '/arquivos/renomear') {
+      const rs = resolver(corpo.projeto, corpo.caminho); if (rs.r) return rs.r;
+      if (!rs.caminho) return erro(400, 'A raiz do projeto não pode ser renomeada.');
+      const pasta = no(rs.p.pasta + (paiC(rs.caminho) ? '\\' + paiC(rs.caminho).replace(/\//g, '\\') : ''));
+      const atual = pasta && filho(pasta, baseC(rs.caminho));
+      if (!atual) return erro(404, 'Esse item não existe mais.');
+      if (nomeInvalido(corpo.nome)) return erro(400, 'Nome inválido no Windows: "' + corpo.nome + '".', 'nome');
+      const outro = filho(pasta, corpo.nome);
+      if (outro && outro[1] !== atual[1]) return erro(409, 'Já existe "' + corpo.nome + '" nesta pasta.', 'existe');
+      const novos = new Map(); for (const [k, v] of pasta.filhos) novos.set(k === atual[0] ? corpo.nome : k, v);
+      pasta.filhos = novos;
+      const c = juntarC(paiC(rs.caminho), corpo.nome);
+      mudou(corpo.projeto, [paiC(rs.caminho)], [rs.caminho, c]);
+      return json(200, { ok: true, caminho: c });
+    }
+    if (rota === '/arquivos/colar') {
+      const rd = resolver(corpo.projeto, corpo.destino); if (rd.r) return rd.r;
+      const dest = no(rd.abs);
+      if (!dest || dest.tipo !== 'pasta') return erro(404, 'A pasta de destino não existe mais.');
+      const caminhos = [];
+      for (const it of corpo.itens || []) {
+        const ro = resolver(it.projeto, it.caminho); if (ro.r) return ro.r;
+        if (!ro.caminho) return erro(400, 'A raiz do projeto não pode ser movida nem copiada assim.');
+        const paiO = no(ro.p.pasta + (paiC(ro.caminho) ? '\\' + paiC(ro.caminho).replace(/\//g, '\\') : ''));
+        const orig = paiO && filho(paiO, baseC(ro.caminho));
+        if (!orig) return erro(404, 'Não existe mais: ' + ro.caminho);
+        if (orig[1].tipo === 'pasta' && it.projeto === corpo.projeto && (rd.caminho === ro.caminho || rd.caminho.startsWith(ro.caminho + '/'))) return erro(400, 'Não dá para pôr uma pasta dentro dela mesma.');
+        if (corpo.modo === 'mover') {
+          if (paiO === dest) { caminhos.push(juntarC(rd.caminho, orig[0])); continue; }
+          if (filho(dest, orig[0])) return erro(409, 'Já existe "' + orig[0] + '" no destino.', 'existe');
+          paiO.filhos.delete(orig[0]); dest.filhos.set(orig[0], orig[1]);
+          caminhos.push(juntarC(rd.caminho, orig[0]));
+          mudou(it.projeto, [paiC(ro.caminho)], [ro.caminho]);
+        } else {
+          const n = nomeCopia(dest, orig[0]);
+          dest.filhos.set(n, clonar(orig[1]));
+          caminhos.push(juntarC(rd.caminho, n));
+        }
+      }
+      mudou(corpo.projeto, [rd.caminho], caminhos);
+      return json(200, { ok: true, caminhos });
+    }
+    if (rota === '/arquivos/excluir') {
+      const cs = Array.isArray(corpo.caminhos) ? corpo.caminhos : [];
+      const alvos = [];
+      for (const c of cs) {
+        const rs = resolver(corpo.projeto, c); if (rs.r) return rs.r;
+        if (!rs.caminho) return erro(400, 'A raiz do projeto não pode ser excluída.');
+        if (/sem-lixeira/.test(c)) return erro(409, 'A Lixeira desta unidade está desligada: o Windows apagaria de vez. Nada foi excluído.', 'sem-lixeira');
+        const paiN = no(rs.p.pasta + (paiC(c) ? '\\' + paiC(c).replace(/\//g, '\\') : ''));
+        const f = paiN && filho(paiN, baseC(c));
+        if (!f) return erro(404, 'Não existe mais: ' + c);
+        alvos.push([paiN, f[0], c]);
+      }
+      for (const [paiN, k, c] of alvos) { demo.lixeira.push(corpo.projeto + '/' + c); paiN.filhos.delete(k); }
+      mudou(corpo.projeto, alvos.map((a) => paiC(a[2])), alvos.map((a) => a[2]));
+      return json(200, { ok: true, enviados: alvos.length });
+    }
+    if (rota === '/arquivos/buscar') {
+      const rs = resolver(corpo.projeto, corpo.caminho); if (rs.r) return rs.r;
+      const base = no(rs.abs);
+      if (!base || base.tipo !== 'pasta') return erro(404, 'Essa pasta não existe mais.');
+      let re;
+      try {
+        let fonte = corpo.regex ? corpo.texto : corpo.texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (corpo.palavra) fonte = '\\b' + fonte + '\\b';
+        re = new RegExp(fonte, 'g' + (corpo.maiusculas ? '' : 'i'));
+      } catch (e) { return erro(400, 'Expressão regular inválida: ' + e.message); }
+      const resultados = []; let ocorrencias = 0, lidos = 0;
+      const andar = (n, c) => {
+        for (const [k, v] of n.filhos) {
+          if (k === '.git' || k === 'node_modules') continue;
+          const cc = juntarC(c, k);
+          if (v.tipo === 'pasta') { andar(v, cc); continue; }
+          if (v.conteudo.includes('\u0000') || (v.tamanho || 0) > 1024 * 1024) continue;
+          lidos++;
+          const linhas = [];
+          v.conteudo.split(/\r?\n/).forEach((t, i) => { re.lastIndex = 0; let m; while ((m = re.exec(t))) { linhas.push({ n: i + 1, texto: t.slice(0, 300), ini: m.index, fim: m.index + m[0].length }); ocorrencias++; if (!m[0].length) re.lastIndex++; } });
+          if (linhas.length) resultados.push({ caminho: cc, linhas });
+        }
+      };
+      andar(base, rs.caminho);
+      return json(200, { resultados, arquivos: lidos, ocorrencias, truncado: false });
+    }
+    if (rota === '/arquivos/revelar') { demo.revelados.push(corpo.projeto + ':' + corpo.caminho); return json(200, { ok: true }); }
+    return erro(404, 'Rota desconhecida: ' + rota);
+  }
+  const fetchReal = window.fetch.bind(window);
+  // Registro das requisições (o teste confere que nada pede um arquivo ou pasta que sumiu: no servidor real, um 404 vira erro de console).
+  demo.reqs = [];
+  window.fetch = (url, init) => (/^\/(projetos|arquivos|temas)(\/|\?|$)/.test(String(url))
+    ? servidor(url, init).then((r) => { demo.reqs.push([(init && init.method) || 'GET', decodeURIComponent(String(url)), r.status]); return r; })
+    : fetchReal(url, init));
+  // Apagar por fora do Orbit (como o vigia do servidor: avisa a pasta-mãe e, se for pasta, ela mesma).
+  demo.apagar = (projeto, caminho) => {
+    const p = projetos.find((x) => x.nome === projeto);
+    const paiN = no(p.pasta + (paiC(caminho) ? '\\' + paiC(caminho).replace(/\//g, '\\') : ''));
+    const f = paiN && filho(paiN, baseC(caminho));
+    if (!f) return false;
+    paiN.filhos.delete(f[0]);
+    mudou(projeto, f[1].tipo === 'pasta' ? [paiC(caminho), caminho] : [paiC(caminho)], [caminho]);
+    return true;
+  };
+  // Área de transferência do sistema: registrada para o teste (a reserva com execCommand fica no módulo).
+  try { if (navigator.clipboard) navigator.clipboard.writeText = async (t) => { demo.area = t; }; } catch {}
+
+  // ── Imitação do index.html (ganchos, render, vista e atalhos da página) ──
+  const $ = (id) => document.getElementById(id);
+  const est = { ativo: '', vista: 'geral' };
+  const contagens = { Gerenciador: 3, 'loja-api': 1, 'Sem projeto': 2 };
+  const alertas = ['loja-api'];
+  const registrar = (...x) => { demo.log.push(x.length === 1 ? x[0] : x); $('demo-log').textContent = demo.log.slice(-12).map((l) => JSON.stringify(l)).join('\n'); };
+  function render() {
+    const lista = window.Arquivos && window.Arquivos.projetos();
+    if (Array.isArray(lista)) {
+      window.Arquivos.renderLateral({ contagens, alertas, ativo: est.ativo });
+      $('proj-n').textContent = String(lista.length);
+    } else {
+      // Lista antiga (servidor sem a rota): só as linhas de projeto das sessões.
+      $('projetos').replaceChildren(...Object.keys(contagens).map((p) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'proj-item'; b.dataset.proj = p; b.setAttribute('aria-pressed', String(est.ativo === p)); const av = document.createElement('span'); av.className = 'av'; av.textContent = p[0].toUpperCase(); const n = document.createElement('span'); n.className = 'nome'; n.textContent = p; b.append(av, n); return b; }));
+      $('proj-n').textContent = String(Object.keys(contagens).length);
+    }
+    $('demo-filtro').textContent = est.ativo ? 'Filtrando por ' + est.ativo + '.' : 'Sem filtro de projeto.';
+  }
+  function mostrarVista(v) {
+    const ant = est.vista;
+    est.vista = v;
+    document.querySelector('.conteudo').hidden = v === 'arquivo';
+    $('arquivo').hidden = v !== 'arquivo';
+    if (ant === 'arquivo' && v !== 'arquivo') window.Arquivos.pausar();
+    if (v === 'arquivo' && ant !== 'arquivo') window.Arquivos.retomar();
+  }
+  demo.est = est; demo.render = render; demo.mostrarVista = mostrarVista;
+  const digitando = (el) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+  document.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented || e.isComposing) return;
+    if (e.key === 'Escape') {
+      if (digitando(e.target)) { e.target.blur(); return; }
+      if (est.vista !== 'geral') { mostrarVista('geral'); return; }
+      if (est.ativo) { est.ativo = ''; render(); }
+      return;
+    }
+    if (digitando(e.target)) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') registrar('pagina-delete');
+    else if (!e.ctrlKey && !e.altKey && (e.key === 'j' || e.key === 'k' || e.key === 'ArrowDown' || e.key === 'ArrowUp')) registrar('pagina-' + e.key);
+  });
+  $('projetos').addEventListener('click', () => registrar('pagina-clique-projetos'));
+  $('recolher').addEventListener('click', () => document.body.classList.toggle('lat-recolhida'));
+  $('nav-geral').addEventListener('click', () => mostrarVista('geral'));
+  if (P.get('recolhida')) document.body.classList.add('lat-recolhida');
+  window.__demo_ganchos = {
+    editarProjeto: (nome, ancora) => registrar('editar', nome, !!(ancora && ancora.classList && ancora.classList.contains('proj-item'))),
+    filtrarProjeto: (nome) => { est.ativo = est.ativo === nome ? '' : nome; render(); },
+    pintarIcone: (el, nome, tam) => {
+      el.textContent = nome.slice(0, 1).toUpperCase();
+      el.style.fontSize = (tam - 2) + 'px';
+      if (nome === 'Gerenciador') { const t = document.createElement('span'); t.className = 'pj-tag'; t.style.setProperty('--tag', '#6366f1'); el.append(t); }
+    },
+    mostrarVista: () => { if (est.vista !== 'arquivo') mostrarVista('arquivo'); },
+    vistaFechada: () => { if (est.vista === 'arquivo') mostrarVista('geral'); },
+    listaMudou: () => render(),
+  };
+})();
+</script>
+<script src="../assets/arquivos.js"></script>
+<script>
+  // Como o montarArquivos() do index.html: montar, vista, mostrar o "+" e desenhar.
+  // ?abas=1 imita a rodada 9: uma vista criada ANTES do montar (aba restaurada no F5), montar, ganchos das abas
+  // acrescentados depois no MESMO objeto (como o index.html) e a segunda vista. abrirAba abre na vista do painel em foco.
+  (() => {
+    const demo = window.demo, A = window.Arquivos, g = window.__demo_ganchos;
+    const abas = new URLSearchParams(location.search).get('abas');
+    const criar = (i) => A.criarVista(document.getElementById('aba-' + (i + 1)), { emAba: true, fechar: () => demo.fechou.push(i) });
+    if (abas) {
+      document.body.classList.add('abas');
+      document.querySelector('.conteudo').hidden = true;
+      document.getElementById('abas-demo').hidden = false;
+      Object.assign(demo, { pedidos: [], ren: [], saiu: [], fechou: [], foco: 0, vistas: [] });
+      demo.vistas[0] = criar(0);
+    }
+    A.montar(window.GerenciadorAPI, g);
+    if (abas) {
+      Object.assign(g, {
+        abrirAba: (o) => {
+          demo.pedidos.push(o);
+          const v = demo.vistas[demo.foco];
+          if (!v) return;
+          if (o.tipo === 'arquivo') v.abrirArquivo(o.proj, o.caminho, { linha: o.linha }); else v.abrirBusca(o.proj, o.escopo);
+        },
+        renomeado: (o) => demo.ren.push(o),
+        projetoSaiu: (n) => demo.saiu.push(n),
+      });
+      demo.vistas[1] = criar(1);
+      demo.focar = (i) => { demo.foco = i; document.querySelectorAll('.aba-painel').forEach((p, j) => p.toggleAttribute('data-foco', j === i)); };
+      demo.criar = criar;
+      demo.focar(0);
+    } else A.montarVista(document.getElementById('arquivo'));
+    document.getElementById('proj-add').hidden = false;
+    demo.render();
+  })();
+</script>
+</body>
+</html>

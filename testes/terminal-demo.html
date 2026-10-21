@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit — terminal integrado (página de teste)</title>
+<!-- Página de teste do terminal integrado (assets/terminal.*). Servida pelo testes/terminal-ui.test.mjs, que também
+     responde /terminal/* com o terminal.mjs. Imita o encaixe do index.html: lateral com o item Terminal e o botão
+     estreito, <main class="principal com-abas com-terminal"> com #abas-raiz e #term-painel. -->
+<style>
+  @font-face { font-family: 'Geist'; src: url('/assets/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: 'Geist Mono'; src: url('/assets/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+  :root { --sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; --lat-fundo: #1d1d1d; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0a0a0a; color: #f0f0f0; font-family: var(--sans); font-size: 13px; }
+  button { font: inherit; cursor: pointer; }
+  .app { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 100vh; }
+  .lateral { display: flex; flex-direction: column; gap: 2px; padding: 12px 10px; background: #1d1d1d; border-right: 1px solid rgba(255, 255, 255, .06); }
+  .marca { padding: 4px 10px 14px; font-weight: 600; letter-spacing: -.01em; }
+  .nav-item { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: 8px;
+    background: none; color: #9a9a9a; font-size: 13.5px; text-align: left; transition: background-color .15s ease, color .15s ease, transform .2s ease; }
+  .nav-item:hover, .nav-item[aria-pressed="true"] { background: #252525; color: #f0f0f0; }
+  .nav-item:active { transform: scale(.975); }
+  .nav-item svg { width: 16px; height: 16px; }
+  .nav-item .n { margin-left: auto; color: #6a6a6a; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .estreita { display: flex; gap: 4px; margin-top: auto; }
+  .btn-icone { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 0; border-radius: 8px; background: none; color: #9a9a9a; }
+  .btn-icone:hover, .btn-icone[aria-pressed="true"] { background: #252525; color: #f0f0f0; }
+  .principal { min-width: 0; min-height: 0; background-color: #111; background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px); background-size: 24px 24px; }
+  .principal.com-abas { overflow: hidden; display: flex; flex-direction: column; background-image: none; }
+  #abas-raiz { display: flex; flex-direction: column; background-color: #111; background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px); background-size: 24px 24px; }
+  .falsa-barra { flex: none; height: 35px; background: #0c0c0c; box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .06); display: flex; align-items: flex-end; padding-left: 4px; }
+  .falsa-aba { height: 30px; display: flex; align-items: center; padding: 0 14px; border-radius: 8px 8px 0 0; background: #111; color: #f0f0f0; font-size: 12.5px;
+    box-shadow: inset 1px 0 0 rgba(255, 255, 255, .06), inset -1px 0 0 rgba(255, 255, 255, .06), inset 0 1px 0 rgba(255, 255, 255, .08); }
+  .falso-conteudo { padding: 28px 32px; color: #5c5c5c; }
+  .falso-conteudo h1 { margin: 0 0 6px; font-size: 20px; font-weight: 600; color: #f0f0f0; letter-spacing: -.02em; }
+  @media (max-width: 640px) { .app { grid-template-columns: minmax(0, 1fr); } .lateral { display: none; } }
+</style>
+<link rel="stylesheet" href="/assets/terminal.css">
+</head>
+<body>
+<div class="app">
+  <aside class="lateral">
+    <div class="marca">Orbit</div>
+    <button class="nav-item" type="button" data-terminal><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 6.5 7 8.2 5 9.9M8.5 10h2.5"/></svg><span class="nl">Terminal</span><span class="n"></span></button>
+    <div class="estreita">
+      <button class="btn-icone" type="button" data-terminal aria-label="Terminal"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 6.5 7 8.2 5 9.9M8.5 10h2.5"/></svg></button>
+    </div>
+  </aside>
+  <main class="principal com-abas com-terminal" id="rolar">
+    <div id="abas-raiz" class="abas-raiz">
+      <div class="falsa-barra"><div class="falsa-aba">Visão geral</div></div>
+      <div class="falso-conteudo"><h1>Visão geral</h1><p>Conteúdo da área principal (página de teste do terminal).</p></div>
+    </div>
+    <div id="term-painel"></div>
+  </main>
+</div>
+<script src="/assets/terminal.js"></script>
+<script>
+  // Imita as abas (assets/abas.js): atalhos em captura no window, registrados depois do terminal.js.
+  window.__abas = { fechou: 0, ciclou: 0 };
+  window.addEventListener('keydown', (e) => {
+    const ctrl = e.ctrlKey && !e.altKey && !e.metaKey, alt = e.altKey && !e.ctrlKey && !e.metaKey;
+    if (e.code === 'KeyW' && !e.shiftKey && (ctrl || alt)) { window.__abas.fechou++; e.preventDefault(); e.stopPropagation(); }
+    else if (ctrl && e.key === 'Tab') { window.__abas.ciclou++; e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  window.__urls = [];
+  window.__toasts = [];
+  OrbitTerminal.montar({
+    painel: document.getElementById('term-painel'),
+    botoes: [...document.querySelectorAll('[data-terminal]')],
+    projetoAtual: () => 'proj',
+    projetos: () => [{ nome: 'proj', pasta: 'proj' }, { nome: 'outro', pasta: 'outro' }],
+    abrirUrl: (u) => window.__urls.push(u),
+    toast: (t) => window.__toasts.push(t),
+    bloqueado: () => false,
+  });
+</script>
+</body>
+</html>

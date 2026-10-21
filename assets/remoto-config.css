@@ -1,0 +1,51 @@
+/* Configurações → Acesso pelo celular + aviso do pedido de pareamento (assets/remoto-config.js).
+   Só a paleta do Orbit: as linhas são as .cfg-linha das Configurações; poço #171717 para o endereço; verde só no que
+   está ligado, vermelho nos erros, âmbar no aviso do pedido. */
+.rm-vazio { margin: 0; padding: 8px 0; font-size: 12px; line-height: 1.5; color: var(--t3); }
+.rm-erro { margin: 0; padding: 4px 0 8px; font-size: 12px; line-height: 1.45; color: var(--erro-t, #ff9592); overflow-wrap: anywhere; }
+.cfg-linha small.rm-erro { padding: 4px 0 0; color: var(--erro-t, #ff9592); }
+
+.rm-ts .rot { display: flex; flex-direction: column; gap: 2px; }
+.rm-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rm-info .estado-perm { overflow-wrap: anywhere; }
+.rm-serve { color: var(--t3); }
+.rm-serve.ligado { color: var(--ok-t, #3dd68c); }
+.rm-ts .ctl .btn { gap: 6px; text-decoration: none; }
+
+.rm-end { min-width: 0; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+.rm-url {
+  min-width: 0; max-width: 100%; padding: 5px 9px; border-radius: 7px; background: var(--poco, #171717); box-shadow: var(--poco-sombra);
+  font: 12px/1.4 var(--mono); color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: all;
+}
+.rm-end .btn { gap: 6px; }
+
+.rm-aps { padding: 8px 0 4px; border-top: 1px solid var(--fio); }
+.rm-aps-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-height: 30px; }
+.rm-aps-tit { font-size: 13px; color: var(--t1); }
+.rm-lista { display: flex; flex-direction: column; margin: 4px 0 0; padding: 0; list-style: none; }
+.rm-ap { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--fio); }
+.rm-ap:first-child { border-top: 0; }
+.rm-ap-meio { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rm-ap-nome { font-size: 13px; font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-ap-det { font-size: 12px; line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; }
+.rm-rev { flex: none; gap: 5px; }
+.rm-aps .btn:disabled, .rm-ts .btn:disabled { opacity: .55; cursor: default; }
+
+.rm-passos { padding: 8px 0 10px; border-top: 1px solid var(--fio); }
+.rm-passos summary { cursor: pointer; font-size: 13px; color: var(--t1); min-height: 28px; display: flex; align-items: center; }
+.rm-passos ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }
+.rm-passos li::marker { color: var(--t3); }
+
+/* Aviso do pedido de pareamento: acima das Configurações (40) e do toast (50). */
+.rm-pedido { z-index: 60; }
+.rm-modal { width: 420px; }
+.rm-corpo { align-items: center; text-align: center; gap: 14px; padding: 20px 20px 22px; }
+.rm-desc { margin: 0; font-size: 13px; line-height: 1.5; color: var(--t2); }
+.rm-codigo {
+  padding: 14px 22px; border-radius: 12px; background: var(--poco, #171717); box-shadow: var(--poco-sombra);
+  font: 600 44px/1.1 var(--mono); letter-spacing: .28em; padding-left: calc(22px + .28em); color: var(--t1);
+  font-variant-numeric: tabular-nums; user-select: all;
+}
+.rm-resta { margin: 0; font-size: 12.5px; color: var(--agu-t, #ffca16); font-variant-numeric: tabular-nums; }
+.rm-ped-b { display: flex; justify-content: center; }
+@media (max-width: 480px) { .rm-codigo { font-size: 34px; } }
