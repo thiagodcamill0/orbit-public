@@ -1,4 +1,4 @@
-# Orbit Public
+# Orbit
 
 Painel local para acompanhar e controlar as suas sessões do Claude Code: lista das instâncias, conversa, permissões,
 uso do plano, terminal, arquivos, repositórios, música e, se você quiser, acesso pelo celular. Tudo roda no seu
