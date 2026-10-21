@@ -88,3 +88,12 @@ lista abaixo.
      faz o commit e o push (`--enviar`; nunca `--force`). Os termos ficam em `envio-termos.txt`, fora do git;
      `permitir: <texto>` aceita um texto exato só na identidade do git (o e-mail "noreply" do GitHub).
    - Testes: `enviar` (novo; repositório local numa pasta temporária, sem rede).
+12. **README com a marca do Orbit e imagens sem metadados:**
+   - `README.md` refeito com o mesmo conteúdo: banner claro e escuro (`<picture>`), selos, capturas e GIFs de uma instalação de teste com dados de exemplo (o mock dos testes e um terminal
+     numa pasta de demonstração), instalação em passos e seções longas recolhíveis. Imagens em `.github/assets/`
+     (PNG com paleta e GIF, sem metadados; ~1,7 MB no total).
+   - `ferramentas/enviar.mjs`: imagens (PNG, GIF, JPEG, WEBP) passam pela varredura; qualquer bloco de metadado
+     recusa (`metadadosImagem`, `conferirImagem`), e os bytes e o texto dos blocos passam pela busca de segredos e
+     termos. Teste `enviar` com imagens montadas byte a byte.
+   - `assets/robot-work-original.gif`: tirado o manifesto C2PA (ferramenta e data de criação), sem recodificar
+     (os quadros são idênticos).

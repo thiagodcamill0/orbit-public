@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lerTermos, varrerTexto } from '../ferramentas/enviar.mjs';
+import zlib from 'node:zlib';
+import { conferirImagem, lerTermos, metadadosImagem, varrerTexto } from '../ferramentas/enviar.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let oks = 0;
@@ -33,6 +34,44 @@ for (const [k, v] of Object.entries(FALSOS)) {
   conferir(a.length === 1 && !JSON.stringify(a).includes(v), `segredo achado e omitido (${k})`, JSON.stringify(a));
 }
 conferir(varrerTexto("placeholder: 'github_pat_…'", []).length === 0, 'o exemplo "github_pat_…" da tela não é segredo');
+
+// ---------- metadados de imagem (montadas aqui, byte a byte) ----------
+console.log('metadados de imagem');
+const B = (...p) => Buffer.concat(p.map((x) => (Buffer.isBuffer(x) ? x : typeof x === 'string' ? Buffer.from(x, 'latin1') : Buffer.from(x))));
+const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32BE(n); return b; };
+const pedaco = (tipo, dados) => B(u32(dados.length), tipo, dados, u32(0)); // o CRC não é conferido
+const png = (...extra) => B([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], pedaco('IHDR', Buffer.alloc(13)), ...extra, pedaco('IDAT', zlib.deflateSync(Buffer.alloc(4))), pedaco('IEND', Buffer.alloc(0)));
+const gif = (...ext) => B('GIF89a', [1, 0, 1, 0, 0x80, 0, 0], [0, 0, 0, 255, 255, 255], ...ext, [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x4c, 0x01, 0], [0x3b]);
+const ext = (rot, ...partes) => B([0x21, rot], ...partes.map((p) => B([Buffer.from(p, 'latin1').length], p)), [0]);
+const jpeg = (...seg) => B([0xff, 0xd8], ...seg, [0xff, 0xda, 0, 2], [0xff, 0xd9]);
+const seg = (m, dados) => { const d = Buffer.from(dados, 'latin1'); const b = Buffer.alloc(4); b.writeUInt16BE(0xff00 | m); b.writeUInt16BE(d.length + 2, 2); return B(b, d); };
+const riff = (tipo, dados) => { const d = Buffer.from(dados, 'latin1'); const b = Buffer.alloc(8); b.write(tipo, 0, 'latin1'); b.writeUInt32LE(d.length, 4); return B(b, d, d.length & 1 ? [0] : []); };
+const webp = (...ch) => { const corpo = B('WEBP', riff('VP8L', 'xxxx'), ...ch); const b = Buffer.alloc(8); b.write('RIFF', 0, 'latin1'); b.writeUInt32LE(corpo.length, 4); return B(b, corpo); };
+const ztxt = B('Comment', [0, 0], zlib.deflateSync(Buffer.from('foto do Fulano')));
+const itxt = B('Author', [0, 1, 0], 'pt', [0], [0], zlib.deflateSync(Buffer.from('Fulano')));
+const casos = [
+  ['PNG limpo', png(), [], ''],
+  ['PNG tEXt', png(pedaco('tEXt', B('Author', [0], 'Fulano'))), ['fulano'], /metadado tEXt \(com termo "fulano"\).*termo "fulano" nos bytes/],
+  ['PNG zTXt (comprimido)', png(pedaco('zTXt', ztxt)), ['fulano'], /metadado zTXt \(com termo "fulano"\)/],
+  ['PNG iTXt (comprimido)', png(pedaco('iTXt', itxt)), ['fulano'], /metadado iTXt \(com termo "fulano"\)/],
+  ['PNG eXIf e tIME', png(pedaco('eXIf', B('MM', [0, 42])), pedaco('tIME', Buffer.alloc(7))), [], /metadado eXIf.*metadado tIME/],
+  ['GIF só com repetição', gif(ext(0xff, 'NETSCAPE2.0', B([1, 0, 0]))), [], ''],
+  ['GIF comentário', gif(ext(0xfe, 'feito pelo Fulano')), ['fulano'], /metadado comentário \(com termo "fulano"\)/],
+  ['GIF extensão de aplicativo (C2PA)', gif(ext(0xff, 'C2PA_GIF   ', 'manifesto')), [], /metadado aplicativo C2PA_GIF/],
+  ['JPEG só JFIF', jpeg(seg(0xe0, 'JFIF\0')), [], ''],
+  ['JPEG EXIF', jpeg(seg(0xe0, 'JFIF\0'), seg(0xe1, 'Exif\0\0Fulano')), ['fulano'], /metadado APP1 \(com termo "fulano"\)/],
+  ['JPEG comentário', jpeg(seg(0xfe, 'oi')), [], /metadado comentário/],
+  ['WEBP limpo', webp(), [], ''],
+  ['WEBP XMP', webp(riff('XMP ', '<x:creator>Fulano</x:creator>')), ['fulano'], /metadado XMP \(com termo "fulano"\)/],
+  ['segredo nos bytes', png(pedaco('IDAT', Buffer.from(' ' + FALSOS.github + ' '))), [], /token do GitHub nos bytes/],
+  ['texto com extensão de imagem', Buffer.from('não sou imagem'), [], /não é PNG, GIF, JPEG nem WEBP/],
+];
+for (const [nome, buf, termos, esperado] of casos) {
+  const p = conferirImagem(buf, termos).join(' | ');
+  conferir(esperado ? esperado.test(p) : p === '', nome, p || '(sem problema)');
+}
+conferir(metadadosImagem(png(pedaco('tEXt', B('Author', [0], 'Fulano')))).blocos[0]?.texto === 'Author: Fulano', 'metadadosImagem devolve o texto do bloco');
+conferir(!conferirImagem(png(pedaco('tEXt', B('k', [0], FALSOS.github))), []).join(' ').includes(FALSOS.github), 'segredo em metadado não aparece na saída');
 
 // ---------- envio de verdade numa pasta temporária ----------
 console.log('envio para um repositório local');
@@ -72,6 +111,14 @@ try {
   r = enviar(...primeira);
   conferir(r.status === 1 && /claude\.exe: binário/.test(r.out), 'binário recusa', r.out);
   fs.rmSync(path.join(proj, 'claude.exe'));
+
+  fs.writeFileSync(path.join(proj, 'foto.png'), png(pedaco('tEXt', B('Software', [0], 'editor')))); // sem termo: o metadado basta
+  r = enviar(...primeira);
+  conferir(r.status === 1 && /foto\.png: metadado tEXt: tire antes de enviar/.test(r.out), 'imagem com metadado recusa', r.out);
+  fs.writeFileSync(path.join(proj, 'foto.png'), png());
+  r = enviar(...primeira);
+  conferir(!/foto\.png/.test(r.out), 'imagem sem metadado passa', r.out);
+  fs.rmSync(path.join(proj, 'foto.png'));
 
   r = enviar('--origem', remoto, '--nome', 'Fulano', '--email', 'f@exemplo.invalid');
   conferir(r.status === 1 && /identidade do git .*termo "fulano"/.test(r.out), 'identidade com termo pessoal recusa', r.out);

@@ -8,6 +8,9 @@
 // O que confere (qualquer problema recusa o envio):
 //   - arquivos que iriam (os do .gitignore ficam fora): binário executável, arquivo acima de 10 MB, segredos
 //     (tokens do GitHub, da Anthropic, da AWS, do Slack, chave privada) e os termos pessoais da lista local;
+//   - imagens (PNG, GIF, JPEG, WEBP): qualquer bloco de metadado recusa (PNG tEXt/zTXt/iTXt/eXIf/tIME/iCCP, GIF
+//     comentário/texto/extensão de aplicativo fora a de repetição, JPEG APP1–APP15 e comentário, WEBP EXIF/XMP),
+//     e os bytes do arquivo e o texto desses blocos passam pela mesma busca de segredos e termos;
 //   - identidade do git desta pasta (user.name e user.email): definida e sem termo pessoal;
 //   - commits que iriam: autor e quem fez o commit iguais à identidade (commit de outra pessoa recusa), e a
 //     mensagem sem segredo nem termo pessoal;
@@ -23,12 +26,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
 
 const PASTA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ARQ_TERMOS = path.join(PASTA, 'envio-termos.txt');
 const RAMO = 'main';
 const MAX_BYTES = 10 * 1024 * 1024;
 const PROIBIDAS = new Set(['.exe', '.dll', '.node', '.pdb', '.msi', '.zip', '.7z', '.rar', '.jar']);
+const IMAGENS = new Set(['.png', '.gif', '.jpg', '.jpeg', '.webp']);
 const SEM_TEXTO = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.mp3', '.mp4', '.wav', '.ogg', '.woff', '.woff2', '.ttf', '.otf']);
 export const SEGREDOS = [
   ['token do GitHub', /\bgh[pousr]_[A-Za-z0-9]{36,}\b/],
@@ -75,6 +80,87 @@ export function varrerTexto(texto, termos = []) {
   return achados;
 }
 
+// Blocos de metadado de uma imagem: [{ tipo, texto }] (vazio = só pixels, paleta e repetição). Formato que não é
+// PNG, GIF, JPEG nem WEBP devolve formato null. Arquivo truncado para no ponto em que quebrou.
+export function metadadosImagem(buf) {
+  const blocos = [];
+  const txt = (b) => b.toString('latin1');
+  const inflar = (b) => { try { return zlib.inflateSync(b); } catch { return Buffer.alloc(0); } };
+  if (buf.length >= 8 && buf.readUInt32BE(0) === 0x89504e47 && buf.readUInt32BE(4) === 0x0d0a1a0a) {
+    for (let i = 8; i + 8 <= buf.length;) {
+      const len = buf.readUInt32BE(i), tipo = txt(buf.subarray(i + 4, i + 8)), d = buf.subarray(i + 8, i + 8 + len);
+      const z = d.indexOf(0);
+      if (tipo === 'tEXt') blocos.push({ tipo, texto: txt(d).replace('\0', ': ') });
+      else if (tipo === 'zTXt') blocos.push({ tipo, texto: txt(d.subarray(0, z)) + ': ' + txt(inflar(d.subarray(z + 2))) });
+      else if (tipo === 'iTXt') {
+        let r = d.subarray(z + 3);
+        r = r.subarray(r.indexOf(0) + 1); // idioma
+        r = r.subarray(r.indexOf(0) + 1); // palavra-chave traduzida
+        blocos.push({ tipo, texto: txt(d.subarray(0, z)) + ': ' + (d[z + 1] ? inflar(r) : r).toString('utf8') });
+      } else if (tipo === 'eXIf' || tipo === 'tIME') blocos.push({ tipo, texto: txt(d) });
+      else if (tipo === 'iCCP') blocos.push({ tipo, texto: txt(d.subarray(0, z)) + ': ' + txt(inflar(d.subarray(z + 2))) });
+      if (tipo === 'IEND') break;
+      i += 12 + len;
+    }
+    return { formato: 'png', blocos };
+  }
+  if (txt(buf.subarray(0, 4)) === 'GIF8' && buf.length >= 13) {
+    const sub = (j) => { const p = []; while (j < buf.length && buf[j]) { p.push(buf.subarray(j + 1, j + 1 + buf[j])); j += buf[j] + 1; } return { d: Buffer.concat(p), fim: j + 1 }; };
+    let i = 13;
+    if (buf[10] & 0x80) i += 3 * (1 << ((buf[10] & 7) + 1));
+    while (i < buf.length && buf[i] !== 0x3b) {
+      if (buf[i] === 0x21) {
+        const rot = buf[i + 1];
+        const { d, fim } = sub(i + 2);
+        const app = txt(d.subarray(0, 11));
+        if (rot === 0xfe) blocos.push({ tipo: 'comentário', texto: txt(d) });
+        else if (rot === 0x01) blocos.push({ tipo: 'texto', texto: txt(d.subarray(12)) });
+        else if (rot === 0xff && app !== 'NETSCAPE2.0' && app !== 'ANIMEXTS1.0') blocos.push({ tipo: 'aplicativo ' + app.trim(), texto: txt(d.subarray(11)) });
+        i = fim;
+      } else if (buf[i] === 0x2c) {
+        const f = buf[i + 9];
+        i += 10;
+        if (f & 0x80) i += 3 * (1 << ((f & 7) + 1));
+        i = sub(i + 1).fim;
+      } else break;
+    }
+    return { formato: 'gif', blocos };
+  }
+  if (buf[0] === 0xff && buf[1] === 0xd8) {
+    for (let i = 2; i + 4 <= buf.length && buf[i] === 0xff;) {
+      const m = buf[i + 1];
+      if (m === 0xda || m === 0xd9) break;
+      const len = buf.readUInt16BE(i + 2), d = buf.subarray(i + 4, i + 2 + len);
+      if (m === 0xfe) blocos.push({ tipo: 'comentário', texto: txt(d) });
+      else if (m >= 0xe1 && m <= 0xef) blocos.push({ tipo: 'APP' + (m - 0xe0), texto: txt(d) });
+      i += 2 + len;
+    }
+    return { formato: 'jpeg', blocos };
+  }
+  if (txt(buf.subarray(0, 4)) === 'RIFF' && txt(buf.subarray(8, 12)) === 'WEBP') {
+    for (let i = 12; i + 8 <= buf.length;) {
+      const tipo = txt(buf.subarray(i, i + 4)), len = buf.readUInt32LE(i + 4);
+      if (tipo === 'EXIF' || tipo === 'XMP ') blocos.push({ tipo: tipo.trim(), texto: txt(buf.subarray(i + 8, i + 8 + len)) });
+      i += 8 + len + (len & 1);
+    }
+    return { formato: 'webp', blocos };
+  }
+  return { formato: null, blocos };
+}
+
+// Problemas de uma imagem: metadado presente, ou segredo/termo no texto dele ou nos bytes do arquivo.
+export function conferirImagem(buf, termos = []) {
+  const { formato, blocos } = metadadosImagem(buf);
+  if (!formato) return ['não é PNG, GIF, JPEG nem WEBP de verdade'];
+  const problemas = [];
+  for (const b of blocos) {
+    const achados = [...new Set(varrerTexto(b.texto, termos).map((a) => a.tipo))];
+    problemas.push(`metadado ${b.tipo}${achados.length ? ` (com ${achados.join(', ')})` : ''}: tire antes de enviar`);
+  }
+  for (const t of new Set(varrerTexto(buf.toString('latin1'), termos).map((a) => a.tipo))) problemas.push(`${t} nos bytes do arquivo`);
+  return problemas;
+}
+
 // Arquivos que iriam ao repositório (sem .git ainda: um git temporário só para ler o .gitignore).
 function arquivosQueIriam(temRepo) {
   if (temRepo) {
@@ -104,7 +190,12 @@ function conferirArquivos(lista, { termos, ignorar }) {
     let st;
     try { st = fs.statSync(abs); } catch { continue; }
     if (st.size > MAX_BYTES) problemas.push(`${rel}: ${(st.size / 1048576).toFixed(1)} MB (máximo 10 MB)`);
-    if (SEM_TEXTO.has(ext) || st.size > MAX_BYTES) continue;
+    if (st.size > MAX_BYTES) continue;
+    if (IMAGENS.has(ext)) {
+      for (const p of conferirImagem(fs.readFileSync(abs), ignorar.has(rel) ? [] : termos)) problemas.push(`${rel}: ${p}`);
+      continue;
+    }
+    if (SEM_TEXTO.has(ext)) continue;
     const texto = fs.readFileSync(abs, 'utf8');
     const achados = varrerTexto(texto, ignorar.has(rel) ? [] : termos);
     for (const a of achados) problemas.push(`${rel}:${a.linha}: ${a.tipo}: ${a.trecho}`);
