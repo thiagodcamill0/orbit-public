@@ -1,0 +1,48 @@
+/* Orbit no celular: tela Aprovações (onda 3). Só tokens de assets/comum/base.css e peças de componentes.css; os cartões
+   (.ct-*) ficam em cartoes.css. Sem nada inline: o JS só mexe em transform/opacity/height via WAAPI. */
+
+.ap { display: flex; flex-direction: column; min-width: 0; padding-bottom: var(--esp-4); }
+.ap-lista { position: relative; display: flex; flex-direction: column; min-width: 0; }
+
+/* grupo = uma sessão: cabeçalho (toque abre a conversa) + os pedidos dela */
+.ap-grupo { min-width: 0; padding-bottom: var(--esp-5); }
+.ap-grupo:last-child { padding-bottom: var(--esp-2); }
+.ap-cab {
+  display: flex; align-items: center; gap: var(--esp-3); min-width: 0; min-height: 56px;
+  margin: 0 calc(var(--esp-2) * -1) var(--esp-2); padding: var(--esp-1) var(--esp-2); border-radius: var(--r-3); color: var(--t1);
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease-press);
+}
+.ap-cab:active { background: var(--sup); transform: scale(.985); transition-duration: .06s; }
+.ap-cab:focus-visible { outline-offset: -2px; }
+.ap-spr { flex: none; display: grid; place-items: center; width: 44px; height: 44px; }
+.ap-spr img { display: block; width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; }
+.ap-txt { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ap-tit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 600; line-height: 1.3; }
+.ap-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t2); font-size: 13px; line-height: 1.3; }
+.ap-seta { flex: none; display: grid; place-items: center; color: var(--t3); }
+
+/* cada pedido: o invólucro dá o respiro e é o que anima (altura, opacidade) */
+.ap-itens { display: flex; flex-direction: column; min-width: 0; }
+.ap-item { min-width: 0; padding-bottom: var(--esp-3); }
+.ap-item:last-child { padding-bottom: 0; }
+.ap-saindo { overflow: hidden; pointer-events: none; }
+
+/* vazio e carregando */
+.ap-vazio {
+  display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); padding: var(--esp-6) var(--esp-4);
+  text-align: center; animation: ap-entra var(--dur-3) var(--ease-press);
+}
+.ap-vazio-spr { display: block; width: 96px; height: 96px; margin-bottom: var(--esp-2); object-fit: contain; image-rendering: pixelated; }
+.ap-vazio strong { font-size: 18px; font-weight: 600; line-height: 1.3; }
+.ap-vazio p { max-width: 28ch; color: var(--t2); font-size: 14px; line-height: 1.45; }
+.ap-carregando { display: flex; flex-direction: column; gap: var(--esp-3); padding-top: var(--esp-2); }
+.ap-carregando .esq { height: 56px; border-radius: var(--r-3); }
+.ap-carregando .esq:nth-child(2) { height: 168px; border-radius: var(--r-4); }
+@keyframes ap-entra { from { opacity: 0; transform: translateY(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-cab { transition: none; }
+  .ap-cab:active { transform: none; }
+  .ap-vazio { animation-name: ap-aparece; animation-duration: .12s; }
+  @keyframes ap-aparece { from { opacity: 0; } }
+}

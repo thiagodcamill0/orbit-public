@@ -1,0 +1,18 @@
+/* Aba Grafo: barra superior (fonte | modo | nota | contagem + recarregar). Reaproveita .btn.p, .seg e .btn-icone do app. */
+.gv-barra { display: flex; align-items: center; gap: 10px 14px; padding: 8px 12px; min-height: 48px; border-bottom: 1px solid var(--fio); flex: none; flex-wrap: wrap; box-sizing: border-box; }
+.gb-fonte { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
+.gb-pasta-btn { max-width: 240px; min-width: 0; gap: 7px; }
+.gb-pasta-btn .gb-ico { display: inline-flex; flex: none; color: var(--t2); }
+.gb-pasta-btn .gb-seta { color: var(--t3); }
+.gv-pasta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--t1); }
+.gb-caminho { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--peso-texto, 400) 11px var(--mono); color: var(--t3); max-width: 280px; }
+.gb-caminho:empty { display: none; }
+.gb-pasta-btn:focus-visible, .gv-seg button:focus-visible, .gb-recarregar:focus-visible { outline: 2px solid var(--anel, rgba(112, 184, 255, .7)); outline-offset: 1px; }
+.gv-nota { position: relative; }
+.gv-nota[hidden] { display: none; }
+.gv-nota .gv-campo { height: 28px; box-sizing: border-box; width: 220px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--fio-2); background: var(--poco, var(--bloco)); }
+.gb-dir { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.gv-aviso { margin: 0; font-size: 12px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.gb-recarregar .gb-ico { display: inline-flex; }
+@media (max-width: 1100px) { .gb-caminho { display: none; } }
+@media (max-width: 760px) { .gv-barra { padding: 8px; gap: 8px; } .gb-pasta-btn { max-width: 170px; } .gv-nota .gv-campo { width: 150px; } }

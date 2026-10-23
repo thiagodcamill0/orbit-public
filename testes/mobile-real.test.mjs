@@ -1,4 +1,4 @@
-// Interface /m contra o servidor.mjs de VERDADE (porta remota, pareamento, cookie, só nativas, conversa e permissões reais).
+// App novo do celular (/m: mobile/index.html + mobile/*.js) contra o servidor.mjs de VERDADE (porta remota, pareamento, cookie, só nativas, conversa e permissões reais).
 //   node testes/mobile-real.test.mjs [pasta-de-capturas]
 // Sobe um servidor próprio com dados temporários: a porta local (a "47821" de teste), a porta remota (config.remoto.porta) e um
 // proxy de teste saem de 47822–47826, conferidas livres (nunca a 47821). Tailscale e claude são falsos (ORBIT_TAILSCALE_FALSO,
@@ -6,8 +6,9 @@
 // HTTPS: o Edge abre http://orbit-teste.localhost:<porta-do-proxy>/m. O proxy faz o papel do `tailscale serve`: reescreve Host
 // para o host configurado e Origin para https://<host>. *.localhost conta como origem segura, então o cookie `__Host-orbit`
 // (Secure) é aceito de verdade pelo navegador. O que fica sem testar é o TLS em si (certificado, https:// real).
-// Confere: pareamento (código errado, expirado, bloqueado, certo), cookie, lista só com nativas, nova instância pela interface,
-// permissão, pergunta e plano reais, mensagem, uso, sair; sem erro de console nem violação de CSP.
+// Confere: pareamento (código errado, expirado, bloqueado, certo), cookie, lista só com nativas, Nova instância (projeto, modelo, 403 de
+// comando fora da lista), permissão, pergunta e plano reais, mensagem ("/help" 403), abrir por #s=<id>, sessão não nativa, Uso,
+// Este aparelho e Sair; sem erro de console (fora os 403 provocados) nem violação de CSP.
 
 import { spawn, execFileSync } from 'node:child_process';
 import http from 'node:http';
@@ -56,8 +57,9 @@ const ENV = {
 delete ENV.CLAUDE_CODE_HOST_SESSION_ID;
 delete ENV.CLAUDECODE;
 
+const rede = [];
 const checks = [];
-const conferir = (nome, ok, detalhe) => { checks.push({ nome, ok: !!ok, detalhe: ok ? undefined : detalhe }); };
+const conferir = (nome, ok, detalhe) => { checks.push({ nome, ok: !!ok, detalhe: ok ? undefined : { detalhe, rede: rede.slice(-3) } }); };
 const consoleErros = [];
 const violacoes = [];
 const esperados = [];
@@ -109,7 +111,7 @@ proxy.on('connection', (s) => { conexoesProxy.add(s); s.on('close', () => conexo
 // ───────── Edge + CDP ─────────
 const porta = 9800 + Math.floor(Math.random() * 150);
 const perfil = path.join(SAIDA, 'edge-' + porta);
-let edge = null, ws, seq = 0;
+let edge = null, ws, seq = 0, manter = null;
 const pend = new Map();
 async function conectar() {
   let alvo;
@@ -126,12 +128,16 @@ async function conectar() {
       const t = d.params.args.map((a) => a.value ?? a.description).join(' ');
       (t.startsWith('VIOLAÇÃO CSP') ? violacoes : consoleErros).push(t);
     }
+    if (d.method === 'Network.requestWillBeSent' && d.params.request.method === 'POST' && /\/(permissao|mensagem|sair)$|\/instancias$/.test(d.params.request.url)) rede.push({ id: d.params.requestId, rota: new URL(d.params.request.url).pathname.replace(/[0-9a-f-]{36}/, ':id'), corpo: (d.params.request.postData || '').slice(0, 300) });
+    if (d.method === 'Network.responseReceived') { const q = rede.find((x) => x.id === d.params.requestId); if (q) q.status = d.params.response.status; }
     if (d.method === 'Runtime.exceptionThrown') consoleErros.push('exceção: ' + (d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text));
     if (d.method === 'Log.entryAdded' && d.params.entry.level === 'error') {
       const e = d.params.entry;
       // Erros de rede esperados: 401 sem pareamento, código errado/expirado/bloqueado, a sessão do VS Code que o celular não pode abrir
       // e o 503 de /modelos (o servidor de teste roda com ORBIT_MODELOS=0, então nunca lê os modelos; no uso real é transitório).
-      if (e.source === 'network' && (/\/remoto\/(eu|parear\/)|\/sessao\/vscode-1/.test(e.url || '') || (/\/modelos$/.test(e.url || '') && /503/.test(e.text || '')))) esperados.push(e.url);
+      // 403 provocados de propósito (comando fora da lista): só POST /instancias e POST /sessao/<id>/mensagem, e só com status 403 no texto.
+      if (e.source === 'network' && /\b403\b/.test(e.text || '') && /^https?:\/\/[^/]+\/(instancias|sessao\/[^/]+\/mensagem)$/.test(e.url || '')) esperados.push(e.url);
+      else if (e.source === 'network' && (/\/remoto\/(eu|parear\/)|\/sessao\/vscode-1/.test(e.url || '') || (/\/modelos$/.test(e.url || '') && /503/.test(e.text || '')))) esperados.push(e.url);
       else if (/Content Security Policy|Refused to/i.test(e.text || '')) violacoes.push(e.text);
       else consoleErros.push(`${e.source}: ${e.text} ${e.url || ''}`);
     }
@@ -162,13 +168,16 @@ const INJETADO = `window.addEventListener('securitypolicyviolation', (e) => cons
 const codigoDoPc = async () => (await pedirLocal('GET', '/remoto/estado')).json.pedido?.codigo;
 const estadoRemoto = async () => (await pedirLocal('GET', '/remoto/estado')).json;
 
-async function pausaVolta() { // a volta da instância terminou (barra "Trabalhando…" some)
-  return esperar(`${Q('#cv-estado')}.hidden`, 20000);
+const SES = '.tela[data-tela="sessoes"]';
+const irPara = (hash) => avaliar(`(location.hash = ${JSON.stringify(hash)}, true)`);
+const submeter = (p) => avaliar(`(${Q(`.par-passo[data-p="${p}"] button[type=submit]`)}.click(), true)`);
+async function pausaVolta() { // a volta da instância terminou (a barra "Trabalhando…" some)
+  return esperar(`${Q('.cv-pensando')}.hidden`, 25000);
 }
 async function enviar(msg) {
-  await digitar('#cv-texto', msg);
-  await esperar(`!${Q('#cv-enviar')}.disabled`);
-  await clicar('#cv-enviar');
+  await digitar('.cp-texto', msg);
+  await esperar(`!${Q('.cp-enviar')}.disabled`);
+  await clicar('.cp-enviar');
 }
 
 try {
@@ -184,114 +193,149 @@ try {
   await cdp('Page.addScriptToEvaluateOnNewDocument', { source: INJETADO });
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await cdp('Emulation.setTouchEmulationEnabled', { enabled: true });
+  await cdp('Emulation.setFocusEmulationEnabled', { enabled: true }); // headless: a aba precisa parecer em foco, senão as animações do app não andam
+  await cdp('Page.bringToFront');
+  manter = setInterval(() => { cdp('Page.bringToFront').catch(() => {}); }, 1000);
   await cdp('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1' });
   const abrir = async (hash = '') => { await cdp('Page.navigate', { url: 'about:blank' }); await dormir(100); await cdp('Page.navigate', { url: URL_M + hash }); await esperar('document.readyState === "complete"'); await dormir(300); };
 
   // ═════════ pareamento ═════════
   await abrir();
-  conferir('GET /m do servidor real mostra o pareamento (401 em /remoto/eu)', await esperar(visivel('#v-parear')), await texto('#app'));
+  conferir('GET /m do servidor real mostra o pareamento (401 em /remoto/eu)', await esperar(`document.body.dataset.modo === 'parear' && !!${Q('#par-nome')}`), await texto('body'));
   await digitar('#par-nome', 'iPhone do teste');
-  await clicar('#par-pedir');
-  conferir('Parear → pede o código (POST /remoto/parear/pedir real)', await esperar(visivel('#par-f2')) && /Expira em \d:\d\d/.test(await texto('#par-expira')), await texto('#par-erro'));
+  await submeter(1);
+  conferir('Parear → pede o código (POST /remoto/parear/pedir real)', await esperar(`${Q('.par')}.dataset.passo === '2' && /^Expira em \\d:\\d\\d$/.test(${Q('#par-tempo')}.textContent)`), (await texto('#par-erro-1')) + ' | ' + (await texto('#par-tempo')));
   const certo = await codigoDoPc();
   conferir('o código aparece só no PC (GET /remoto/estado local)', /^\d{6}$/.test(certo || ''));
   const errado = certo === '123456' ? '654321' : '123456';
   await digitar('#par-codigo', errado);
-  conferir('código errado → "Código errado" (400 codigo_errado)', await esperar(`/errado/i.test(${Q('#par-erro')}.textContent)`), await texto('#par-erro'));
+  conferir('código errado → "Código errado" (400 codigo_errado)', await esperar(`!${Q('#par-erro-2')}.hidden && /errado/i.test(${Q('#par-erro-2')}.textContent)`), await texto('#par-erro-2'));
   await dormir(PEDIDO_MS + 500);
-  conferir('o prazo vence na tela ("expirou", Confirmar desabilitado); o servidor derrubou o pedido', await esperar(`/expirou/i.test(${Q('#par-expira')}.textContent) && ${Q('#par-confirmar')}.disabled`) && (await codigoDoPc()) === undefined, await texto('#par-expira'));
-  await clicar('#par-outro');
-  await clicar('#par-pedir');
-  await esperar(visivel('#par-f2'));
+  conferir('o prazo vence na tela ("expirou", campo desabilitado); o servidor derrubou o pedido', await esperar(`/expirou/i.test(${Q('#par-tempo')}.textContent) && ${Q('#par-codigo')}.disabled`) && (await codigoDoPc()) === undefined, await texto('#par-tempo'));
+  await clicarExato('.par-passo[data-p="2"] button', 'Pedir de novo');
+  conferir('"Pedir de novo" abre outro pedido no servidor real', await esperar(`${Q('.par')}.dataset.passo === '2' && /^Expira em/.test(${Q('#par-tempo')}.textContent) && !${Q('#par-codigo')}.disabled`) && /^\d{6}$/.test((await codigoDoPc()) || ''), await texto('#par-tempo'));
   const errado2 = (await codigoDoPc()) === '123456' ? '654321' : '123456';
-  for (let i = 0; i < 5; i++) { await digitar('#par-codigo', errado2); await dormir(500); if (await avaliar(`!${Q('#par-f1')}.hidden`)) break; }
-  conferir('5 códigos errados → bloqueado (429 bloqueado)', await esperar(`/10 minutos/.test(${Q('#par-erro')}.textContent) && !${Q('#par-f1')}.hidden`), await texto('#par-erro'));
+  for (let i = 0; i < 6; i++) {
+    await digitar('#par-codigo', errado2);
+    await esperar(`${Q('.par')}.getAttribute('aria-busy') !== 'true'`, 4000);
+    await dormir(250);
+    if ((await avaliar(`${Q('.par')}.dataset.passo`)) === '1') break;
+  }
+  conferir('5 códigos errados → bloqueado (429 bloqueado), volta ao nome', await esperar(`${Q('.par')}.dataset.passo === '1' && !${Q('#par-erro-1')}.hidden && /10 minutos/.test(${Q('#par-erro-1')}.textContent)`), await texto('#par-erro-1'));
   await dormir(BLOQUEIO_MS + 300);
-  await clicar('#par-pedir');
-  conferir('depois do prazo do bloqueio pede de novo', await esperar(visivel('#par-f2')), await texto('#par-erro'));
+  await submeter(1);
+  conferir('depois do prazo do bloqueio pede de novo', await esperar(`${Q('.par')}.dataset.passo === '2'`), await texto('#par-erro-1'));
   await digitar('#par-codigo', await codigoDoPc());
-  conferir('código certo → entra (cookie criado pelo servidor real)', await esperar(visivel('#v-principal')), await texto('#app'));
+  conferir('código certo → entra (cookie criado pelo servidor real)', await esperar(`document.body.dataset.modo === 'app' && OM.estado.conexao === 'vivo'`, 15000), await texto('body'));
   const ck = (await cdp('Network.getCookies', { urls: [URL_M] })).result.cookies.find((c) => c.name === '__Host-orbit');
   conferir('cookie __Host-orbit: HttpOnly, Secure, SameSite=Strict, Path=/ (aceito pelo navegador)', ck && ck.httpOnly && ck.secure && ck.sameSite === 'Strict' && ck.path === '/' && !ck.domain.startsWith('.'), JSON.stringify(ck));
   conferir('o servidor registrou o aparelho com o nome digitado', (await estadoRemoto()).aparelhos.map((a) => a.nome).join() === 'iPhone do teste');
+  conferir('depois de parear cai no início', await esperar(`OM.rotas.atual().nome === 'inicio'`), await avaliar('location.hash'));
+  await irPara('#sessoes');
+  await esperar(`OM.rotas.atual().nome === 'sessoes'`);
   await foto('1-lista-vazia');
 
   // ═════════ só nativas ═════════
   await pedirLocal('POST', '/evento', { session_id: 'vscode-1', hook_event_name: 'UserPromptSubmit', cwd: PROJ, prompt: 'sessão do VS Code', ts: Date.now() });
   await dormir(1200);
   conferir('(controle) a sessão do VS Code existe no PC, na porta local', ((await pedirLocal('GET', '/estado')).json?.sessoes || []).some((s) => s.id === 'vscode-1'));
-  conferir('sessão do VS Code não aparece no celular', (await contar('.card')) === 0 && (await avaliar(visivel('.vazio'))), await texto('#lista-sessoes'));
-  conferir('"Nova instância" disponível (criarInstancias do servidor)', await avaliar(visivel('#btn-nova')));
-  await clicar('#btn-nova');
-  conferir('Nova instância lista o projeto cadastrado (GET /remoto/projetos real)', await esperar(visivel('#v-nova') + ` && document.querySelectorAll('#nova-projeto option').length === 1 && !${Q('#nova-criar')}.disabled`), await texto('#v-nova'));
-  conferir('o modelo vem de GET /modelos (ou o padrão, se o servidor ainda não leu)', (await contar('#nova-modelo option')) >= 1);
-  await digitar('#nova-texto', 'PERMISSAO');
-  await clicar('#nova-criar');
-  conferir('criar instância pelo celular → abre a sessão nova (POST /instancias real)', await esperar(visivel('#v-sessao') + ` && /^#s=/.test(location.hash)`, 15000), await texto('#v-nova'));
-  const id = decodeURIComponent(await avaliar('location.hash.slice(3)'));
+  conferir('sessão do VS Code não aparece no celular', (await contar(`${SES} li.sx-linha`)) === 0 && (await esperar(`!${Q(SES + ' .sx-msg')}.hidden && /Nenhuma sessão/.test(${Q(SES + ' .sx-msg')}.textContent)`)), await texto(SES));
+  conferir('"Nova instância" disponível (criarInstancias do servidor)', await avaliar(`!${Q(SES + ' .sx-nova')}.hidden`));
+
+  // ═════════ nova instância ═════════
+  await clicar(`${SES} .sx-nova`);
+  conferir('Nova instância lista o projeto cadastrado (GET /remoto/projetos real)', await esperar(`OM.rotas.atual().nome === 'nova' && !${Q('.nv-form')}.hidden && document.querySelectorAll('select[aria-label=Projeto] option').length === 1 && ${Q('button.nv-criar')} && !${Q('button.nv-criar')}.disabled`), await texto('.nv'));
+  conferir('o modelo vem de GET /modelos (ou o padrão, se o servidor ainda não leu)', (await contar('select[aria-label=Modelo] option')) >= 1);
+  // comando com barra fora da lista: o servidor real recusa com 403 comando_nao_permitido, e a tela explica
+  const direto = await avaliar(`fetch('/instancias', { method: 'POST', headers: { 'content-type': 'application/json', 'x-gerenciador': '1' }, body: JSON.stringify({ pasta: ${JSON.stringify(PROJ)}, cwd: ${JSON.stringify(PROJ)}, texto: '/rm-tudo agora' }) }).then(async (r) => ({ status: r.status, corpo: await r.json().catch(() => null) }))`);
+  conferir('POST /instancias com "/rm-tudo": servidor real responde 403 comando_nao_permitido', direto.status === 403 && direto.corpo?.erro === 'comando_nao_permitido', JSON.stringify(direto));
+  await digitar('.nv-slot .cp-texto', '/rm-tudo agora');
+  await clicar('button.nv-criar');
+  conferir('na tela: comando com barra fora da lista é recusado e a tela continua em Nova', await esperar(`!!${Q('.nv-erro:not([hidden])')} && /comando com barra/.test(${Q('.nv-erro:not([hidden])')}.textContent)`, 8000) && (await avaliar(`OM.rotas.atual().nome`)) === 'nova' && (await contar(`${SES} li.sx-linha`)) === 0, await texto('.nv-erro:not([hidden])'));
+  conferir('(controle) o servidor não criou nenhuma instância com o comando recusado', !((await pedirLocal('GET', '/estado')).json?.sessoes || []).some((s) => s.id !== 'vscode-1'));
+  await digitar('.nv-slot .cp-texto', 'PERMISSAO');
+  await clicar('button.nv-criar');
+  conferir('criar instância pelo celular → abre a sessão nova (POST /instancias real)', await esperar(`/^#s=/.test(location.hash) && !!document.querySelector('.cv[data-fase="ok"]') && !!document.querySelector('.cp-texto')`, 20000), (await avaliar('location.hash')) + ' ' + (await texto('.nv-erro:not([hidden])')));
+  const id = decodeURIComponent((await avaliar('location.hash')).slice(3).split('/')[0]);
 
   // ═════════ permissão real ═════════
-  conferir('permissão real do Write chega ao cartão', await esperar(visivel('#cv-perm') + ` && /Write/.test(${Q('#cv-perm .perm-chip')}.textContent)`, 20000), await texto('#cv-perm'));
+  conferir('permissão real do Write chega ao cartão', await esperar(`!!document.querySelector('.cv-cartoes .ct-cartao') && /Write/.test(document.querySelector('.cv-cartoes .ct-cartao').textContent)`, 25000), await texto('.cv-cartoes'));
   await foto('3-permissao-real');
   conferir('sessão real: sem rolagem lateral', await semRolagemLateral());
-  await clicarExato('#cv-perm button', 'Permitir');
-  conferir('Permitir é aceito pelo servidor (cartão some, sem erro)', await esperar(`${Q('#cv-perm')}.hidden`) && !(await avaliar(visivel('.perm-erro'))), await texto('#cv-perm'));
-  conferir('a conversa real mostra a mensagem do usuário', await esperar(`document.querySelector('#cv-itens').textContent.includes('PERMISSAO')`, 15000), await texto('#cv-itens'));
-  conferir('a volta termina (barra de trabalho some)', await pausaVolta(), await texto('#cv-estado'));
+  await clicarExato('.ct-cartao .btn', 'Permitir');
+  conferir('Permitir é aceito pelo servidor (cartão some, sem erro)', await esperar(`document.querySelectorAll('.cv-cartoes .ct-cartao').length === 0`, 10000) && (await contar('.ct-erro:not([hidden])')) === 0, await texto('.cv-cartoes'));
+  conferir('a conversa real mostra a mensagem do usuário', await esperar(`[...document.querySelectorAll('.cv-usu .cv-bolha')].some((e) => e.textContent.includes('PERMISSAO'))`, 15000), await texto('.cv-lista'));
+  conferir('a volta termina (barra de trabalho some)', await pausaVolta(), await avaliar(`${Q('.cv-pensando')}.hidden`));
 
   // ═════════ pergunta real ═════════
   await enviar('PERGUNTA');
-  conferir('pergunta real (AskUserQuestion) com opções', await esperar(visivel('#cv-perm') + ` && document.querySelectorAll('#cv-perm .op').length >= 3`, 20000), await texto('#cv-perm'));
+  conferir('pergunta real (AskUserQuestion) com as duas perguntas e opções', await esperar(`!!document.querySelector('.ct-cartao[data-tipo="pergunta"]') && document.querySelectorAll('.ct-cartao .ct-q').length === 2 && document.querySelectorAll('.ct-cartao .ct-op-in').length >= 4`, 25000), await texto('.cv-cartoes'));
   await foto('3-pergunta-real');
-  const n = await contar('#cv-perm .q');
-  for (let q = 0; q < n; q++) await avaliar(`document.querySelectorAll('#cv-perm .q')[${q}].querySelector('.op').click()`);
-  await clicarExato('#cv-perm button', 'Responder');
-  conferir('Responder é aceito (cartão some, sem erro)', await esperar(`${Q('#cv-perm')}.hidden`) && !(await avaliar(visivel('.perm-erro'))), await texto('#cv-perm'));
+  const nq = await contar('.ct-cartao .ct-q');
+  for (let q = 0; q < nq; q++) await avaliar(`document.querySelectorAll('.ct-cartao .ct-q')[${q}].querySelector('.ct-op-in').click()`);
+  await clicarExato('.ct-cartao .btn', 'Responder');
+  conferir('Responder é aceito (cartão some, sem erro) e o agente recebe as respostas', await esperar(`document.querySelectorAll('.cv-cartoes .ct-cartao').length === 0`, 10000) && (await contar('.ct-erro:not([hidden])')) === 0 && await esperar(`/Obrigado pelas respostas/.test(document.querySelector('.cv-lista').textContent)`, 20000), await texto('.cv-cartoes'));
   await pausaVolta();
 
   // ═════════ plano real ═════════
   await enviar('PLANO');
-  conferir('plano real (ExitPlanMode) com texto e botões', await esperar(visivel('#cv-perm') + ` && /Aprovar/.test(${Q('#cv-perm')}.textContent) && !!document.querySelector('#cv-perm .perm-plano')`, 20000), await texto('#cv-perm'));
+  conferir('plano real (ExitPlanMode) com texto e botões', await esperar(`!!document.querySelector('.ct-cartao[data-tipo="plano"]') && !!document.querySelector('.ct-cartao .ct-plano') && [...document.querySelectorAll('.ct-cartao .btn')].some((b) => b.textContent.trim() === 'Aprovar')`, 25000), await texto('.cv-cartoes'));
   await foto('3-plano-real');
-  await clicarExato('#cv-perm button', 'Aprovar');
-  conferir('Aprovar é aceito (cartão some, sem erro)', await esperar(`${Q('#cv-perm')}.hidden`) && !(await avaliar(visivel('.perm-erro'))), await texto('#cv-perm'));
+  await clicarExato('.ct-cartao .btn', 'Aprovar');
+  conferir('Aprovar é aceito (cartão some, sem erro) e o agente segue', await esperar(`document.querySelectorAll('.cv-cartoes .ct-cartao').length === 0`, 10000) && (await contar('.ct-erro:not([hidden])')) === 0 && await esperar(`/Plano aprovado/.test(document.querySelector('.cv-lista').textContent)`, 20000), await texto('.cv-cartoes'));
   await pausaVolta();
 
-  // ═════════ mensagem, modelo ═════════
+  // ═════════ mensagem ═════════
   await enviar('olá do celular');
-  conferir('mensagem é entregue e aparece uma vez só', await esperar(`[...document.querySelectorAll('#cv-itens .it-usuario')].filter((e) => e.textContent.includes('olá do celular')).length === 1`, 15000), await texto('#cv-itens'));
-  conferir('a resposta do agente chega ao vivo pela conversa/fluxo real', await esperar(`document.querySelectorAll('#cv-itens .it-assist').length >= 1`, 20000));
+  conferir('mensagem é entregue e aparece uma vez só', await esperar(`[...document.querySelectorAll('.cv-usu .cv-bolha')].filter((e) => e.textContent === 'olá do celular').length === 1 && !document.querySelector('.cv-local')`, 15000), await texto('.cv-lista'));
+  conferir('a resposta do agente chega ao vivo pela conversa/fluxo real', await esperar(`[...document.querySelectorAll('.cv-assist')].some((e) => e.textContent.includes('Resposta: olá do celular'))`, 20000));
   await pausaVolta();
-  conferir('conversa: alvos de toque >= 44 px e sem rolagem lateral', await semRolagemLateral() && (await avaliar(`[...document.querySelectorAll('#v-sessao button, #v-sessao textarea')].filter((e) => e.getClientRects().length).every((e) => e.getBoundingClientRect().height >= 43.5)`)));
+  conferir('conversa: Enviar com alvo de toque >= 44 px e sem rolagem lateral', await semRolagemLateral() && (await avaliar(`${Q('.cp-enviar')}.getBoundingClientRect().height >= 43.5`)));
   await foto('3-conversa-real');
+  // comando com barra no composer: o servidor real recusa e o app explica
+  const cmd = await avaliar(`fetch('/sessao/' + encodeURIComponent(${JSON.stringify(id)}) + '/mensagem', { method: 'POST', headers: { 'content-type': 'application/json', 'x-gerenciador': '1' }, body: JSON.stringify({ texto: '/help' }) }).then(async (r) => ({ status: r.status, corpo: await r.json().catch(() => null) }))`);
+  conferir('POST /sessao/<id>/mensagem com "/help": servidor real responde 403 comando_nao_permitido', cmd.status === 403 && cmd.corpo?.erro === 'comando_nao_permitido', JSON.stringify(cmd));
+  await digitar('.cp-texto', '/help');
+  await esperar(`!${Q('.cp-enviar')}.disabled`);
+  await clicar('.cp-enviar');
+  conferir('no composer: "/help" vira bolha em erro com a explicação, e o texto volta ao campo', await esperar(`!!document.querySelector('.cv-local[data-estado="erro"]') && /Esse comando não pode ser usado pelo celular/.test(document.querySelector('.cv-local .cv-local-st').textContent)`, 8000) && (await avaliar(`${Q('.cp-texto')}.value`)) === '/help', await texto('.cv-lista'));
+  conferir('(controle) o servidor real não entregou o "/help" à instância', !(await avaliar(`document.querySelector('.cv-lista').textContent.includes('Resposta: /help')`)));
 
   // ═════════ lista só com a nativa, direto por #s ═════════
-  await clicar('#s-voltar');
-  conferir('lista: só a instância do Orbit (1 cartão), nada do VS Code', await esperar(visivel('#v-principal') + ` && document.querySelectorAll('.card').length === 1 && !/VS Code/.test(document.body.textContent)`), await texto('#lista-sessoes'));
+  await avaliar(`sessionStorage.clear()`); // sem rascunho do "/help" na volta
+  await irPara('#sessoes');
+  conferir('lista: só a instância do Orbit (1 linha), nada do VS Code', await esperar(`OM.rotas.atual().nome === 'sessoes' && document.querySelectorAll(${JSON.stringify(SES + ' li.sx-linha')}).length === 1 && !/VS Code/.test(${Q(SES)}.textContent)`), await texto(SES));
   await foto('2-lista-real');
   await abrir('#s=' + encodeURIComponent(id));
-  conferir('abre direto por #s=<id> (já pareado, cookie volta no reload)', await esperar(visivel('#v-sessao') + ` && document.querySelectorAll('#cv-itens > *').length >= 2`, 12000), await texto('#app'));
-  conferir('sessão que não é nativa (vscode-1) → indisponível', await (async () => { await abrir('#s=vscode-1'); return esperar(`/não está mais disponível/.test(${Q('#cv-vazio')}.textContent)`); })(), await texto('#cv-vazio'));
+  conferir('abre direto por #s=<id> (já pareado, cookie volta no reload)', await esperar(`!!document.querySelector('.cv[data-fase="ok"]') && document.querySelectorAll('.cv-lista > *').length >= 2`, 15000), await texto('.cv'));
+  await abrir('#s=vscode-1');
+  conferir('sessão que não é nativa (vscode-1) → "não existe mais"', await esperar(`document.querySelector('.cv') && document.querySelector('.cv').dataset.fase === '404' && /não existe mais/.test(document.querySelector('.cv').textContent)`, 10000), await texto('.cv'));
 
   // ═════════ uso ═════════
   // o POST /uso recebe o formato da status line do Claude (rate_limits), não o do GET
   await pedirLocal('POST', '/uso', { rate_limits: { five_hour: { used_percentage: 12, resets_at: Math.round(Date.now() / 1000) + 3 * 3600 }, seven_day: { used_percentage: 40, resets_at: Math.round(Date.now() / 1000) + 2 * 86400 } } });
-  await abrir('#uso');
-  conferir('Uso do plano real (12% e 40%)', await esperar(visivel('#p-uso') + ` && [...document.querySelectorAll('.uso-val')].map((e) => e.textContent).join() === '12%,40%'`, 8000), await texto('#uso-barras'));
+  await abrir('#mais/uso');
+  conferir('Uso do plano real (12% e 40%)', await esperar(`OM.rotas.atual().nome === 'uso' && [...document.querySelectorAll('.uso-cartao .uso-val')].map((e) => e.textContent).join() === '12%,40%'`, 10000), await texto('.uso-real'));
   await foto('4-uso-real');
 
   // ═════════ este aparelho e sair ═════════
-  await abrir('#aparelho');
-  conferir('Este aparelho: nome pareado e instruções (fora da Tela de Início)', await esperar(visivel('#p-aparelho') + ` && ${Q('#ap-nome')}.textContent === 'iPhone do teste' && !${Q('#ap-instalar')}.hidden`), await texto('#p-aparelho'));
+  await abrir('#mais/aparelho');
+  conferir('Este aparelho: nome pareado, conexão e "aberto no navegador"', await esperar(`OM.rotas.atual().nome === 'aparelho' && ${Q('#mais-ap-nome')}.textContent === 'iPhone do teste' && ${Q('#mais-ap-conexao')}.textContent === 'Conectado' && /navegador/.test(${Q('#mais-ap-inst')}.textContent)`, 10000), await texto('.tela[data-tela="aparelho"]'));
   conferir('service worker e manifesto do servidor real', await esperar(`navigator.serviceWorker.getRegistration().then((r) => !!(r && r.active))`, 8000));
   const man = (await cdp('Page.getAppManifest')).result || {};
   conferir('manifesto /manifest-m.webmanifest servido sem erros', man.url?.endsWith('/manifest-m.webmanifest') && !(man.errors || []).length, JSON.stringify(man.errors || man.url));
-  await clicar('#ap-sair');
-  await clicar('#ap-sair-sim');
-  conferir('Sair → pareamento e o servidor esquece o aparelho', await esperar(visivel('#v-parear')) && (await esperar(`true`)) && (await estadoRemoto()).aparelhos.length === 0, JSON.stringify((await estadoRemoto()).aparelhos));
+  await avaliar(`(localStorage.setItem('x', '1'), sessionStorage.setItem('x', '1'), true)`);
+  await clicar('#mais-ap-sair');
+  conferir('Sair pede confirmação (folha)', await esperar(`!!${Q('.folha')} && /Sair deste aparelho\\?/.test(${Q('.folha')}.textContent)`), await texto('body'));
+  await clicarExato('.folha .btn', 'Sair');
+  conferir('Sair → pareamento', await esperar(`document.body.dataset.modo === 'parear'`, 10000), await texto('body'));
+  conferir('Sair → o servidor esquece o aparelho', (await estadoRemoto()).aparelhos.length === 0, JSON.stringify((await estadoRemoto()).aparelhos));
+  conferir('Sair → localStorage e sessionStorage vazios', await avaliar('localStorage.length === 0 && sessionStorage.length === 0'), await avaliar('JSON.stringify([Object.keys(localStorage), Object.keys(sessionStorage)])'));
+  conferir('Sair → o cookie __Host-orbit foi apagado', !(await cdp('Network.getCookies', { urls: [URL_M] })).result.cookies.some((c) => c.name === '__Host-orbit'));
 } catch (e) {
   conferir('exceção no teste', false, e?.stack || String(e));
 } finally {
+  clearInterval(manter);
   try { ws?.close(); } catch {}
   if (edge) await fecharEdge(porta, perfil);
   for (const s of conexoesProxy) s.destroy();

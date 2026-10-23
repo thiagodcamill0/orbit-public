@@ -12,7 +12,9 @@
 <link rel="apple-touch-icon" href="/assets/pwa/icone-192.png">
 
 <link rel="stylesheet" href="assets/comum/base.css"><!-- base visual comum ao celular (20/10): tokens e peças; antes do <style> -->
+<link rel="stylesheet" href="assets/comum/componentes.css">
 <script src="assets/comum/base.js"></script>
+<script src="assets/comum/icones.js"></script><!-- OrbitIcones: ícones SVG comuns ao celular; antes do <script> principal -->
 <script src="assets/comum/widgets.js"></script><!-- OrbitWidgets: contas dos widgets da Visão geral (comum ao celular) --><!-- OrbitBase: status, escala das barras, sprites (comum ao celular) -->
 <style>
   :root { --linha: 56px; } /* tokens comuns (cores, status, fontes, escala das barras): assets/comum/base.css */
@@ -38,36 +40,8 @@
   ::-webkit-scrollbar-thumb { background: var(--fio-2); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
   ::-webkit-scrollbar-track { background: transparent; }
 
-  /* ---------- Peças (.quad, .chip, .pilula, .girando, .num/.mono/.espaco, barra .ctx-l: assets/comum/base.css) ---------- */
+  /* ---------- Peças: .quad, .chip, .pilula, .girando, .num/.mono/.espaco, barra .ctx-l em assets/comum/base.css; .btn, .btn-icone, .link, .selo, .tile, .seg-filtro, .chave, .toast, .menu-flut, .esq em assets/comum/componentes.css ---------- */
 
-  .btn {
-    height: 32px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    border: 1px solid var(--fio-2); border-radius: 8px; background: var(--bloco); color: var(--t1);
-    font-size: 13px; font-weight: 500; white-space: nowrap;
-    transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
-  }
-  .btn:hover { background: var(--bloco-2); border-color: var(--fio-3); }
-  .btn svg { color: var(--t2); }
-  .btn.solido { background: #ededed; border-color: #ededed; color: #111112; }
-  .btn.solido:hover { background: #fff; border-color: #fff; }
-  .btn.solido svg { color: #111112; }
-  .btn.alerta { background: rgba(255, 197, 61, .1); border-color: rgba(255, 197, 61, .28); color: var(--agu-t); }
-  .btn.alerta svg { color: var(--agu-t); }
-  .btn.alerta:hover { background: rgba(255, 197, 61, .16); }
-  .btn.feito svg { color: var(--ok-t); }
-  .btn.p { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 7px; }
-  .btn-icone {
-    width: 32px; height: 32px; flex: none; display: inline-grid; place-items: center;
-    border: 0; border-radius: 8px; background: none; color: var(--t2);
-    transition: background-color .15s var(--ease), color .15s var(--ease);
-  }
-  .btn-icone:hover { background: var(--bloco); color: var(--t1); }
-  .btn-icone[aria-pressed="true"] { background: var(--bloco); color: var(--t1); box-shadow: inset 0 0 0 1px var(--fio-2); }
-  .link {
-    border: 0; background: none; padding: 4px 0; color: var(--t3); font-size: 12px; white-space: nowrap;
-    transition: color .15s var(--ease);
-  }
-  .link:hover { color: var(--t1); }
 
   /* ---------- Casca ---------- */
   .casca {
@@ -135,7 +109,6 @@
   /* Tiles */
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
   .lista:focus-visible { outline: none; }
-  .tile { background: var(--cartao); border: 1px solid var(--fio); border-radius: 12px; padding: 4px; min-width: 0; }
   .tile-cab { display: flex; align-items: center; gap: 8px; padding: 8px 10px 9px; color: var(--t2); font-size: 13px; white-space: nowrap; overflow: hidden; }
   .tile-cab span { overflow: hidden; text-overflow: ellipsis; }
   .tile-cab svg { color: var(--t3); }
@@ -143,8 +116,6 @@
     display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
     padding: 14px 14px 12px; background: var(--casca); border: 1px solid var(--fio); border-radius: 8px; min-width: 0;
   }
-  .tile-num { font-size: 30px; font-weight: 450; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .tile-num small { font-size: 14px; color: var(--t2); letter-spacing: 0; margin-left: 2px; }
   .barras { display: flex; align-items: flex-end; gap: 3px; height: 34px; flex: none; }
   .barras i { width: 5px; border-radius: 2px; background: var(--cor); min-height: 2px; display: flex; flex-direction: column-reverse; }
   .barras i.zero { background: var(--fio-2); }
@@ -301,7 +272,6 @@
   @container principal (max-width: 520px) {
     .conteudo { padding: 14px 12px 64px; }
     .sub-l .proj { display: none; }
-    .tile-num { font-size: 26px; }
     .barras i { width: 4px; }
     .barras i:nth-child(-n+4) { display: none; }
     .tile-corpo { padding: 12px 10px 10px; gap: 8px; }
@@ -414,17 +384,6 @@
   .cfg-linha > label, .cfg-linha > .rot { flex: 1 1 200px; min-width: 0; color: var(--t1); }
   .cfg-linha small { display: block; color: var(--t3); font-size: 12px; }
   .cfg-linha .ctl { display: flex; align-items: center; gap: 8px; flex: none; }
-  .chave {
-    appearance: none; -webkit-appearance: none; margin: 0; flex: none;
-    width: 30px; height: 18px; border-radius: 999px; background: var(--fio-3); position: relative; cursor: pointer;
-    transition: background-color .15s var(--ease);
-  }
-  .chave::before {
-    content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%;
-    background: var(--t2); transition: transform .15s var(--ease), background-color .15s var(--ease);
-  }
-  .chave:checked { background: #ededed; }
-  .chave:checked::before { transform: translateX(12px); background: #111112; }
   input[type="range"] { width: 140px; accent-color: #ededed; }
   input[type="time"], select {
     height: 30px; padding: 0 8px; background: var(--bloco); color: var(--t1);
@@ -443,13 +402,6 @@
   .atalhos dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: baseline; }
   .atalhos dt { display: flex; gap: 4px; justify-content: flex-end; }
   .atalhos dd { margin: 0; color: var(--t2); }
-  .toast {
-    position: fixed; right: 24px; bottom: 24px; z-index: 50; max-width: calc(100vw - 32px);
-    display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px;
-    background: var(--bloco); border: 1px solid var(--fio-2); border-radius: 12px; font-size: 13px; color: var(--t1);
-  }
-  .toast .btn { height: 28px; padding: 0 10px; }
-  .toast span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---------- Larguras ---------- */
   @media (max-width: 1099px) {
@@ -542,10 +494,6 @@
   .btn-orbita:hover { background: #1c1c1c; border-color: var(--fio-3); transform: translateY(-1px); }
   .btn-orbita svg { color: #fff; }
 
-  .btn { border-color: var(--fio-2); background: #1a1a1a; border-radius: 8px; }
-  .btn:hover { background: var(--bloco); border-color: var(--fio-3); }
-  .btn.alerta { background: rgba(245, 158, 11, .1); border-color: rgba(245, 158, 11, .3); color: #f5b13d; }
-  .btn-icone:hover, .btn-icone[aria-pressed="true"] { background: #1a1a1a; }
 
   .aviso-conexao {
     position: relative; min-height: 76px; padding: 18px 20px; margin-bottom: 22px; border-radius: 14px;
@@ -556,24 +504,8 @@
   .aviso-conexao i { background: var(--perigo); }
   .aviso-conexao b { color: var(--t1); font-weight: 600; }
 
-  /* Tiles: stat-card do Orbit */
+  /* Tiles (stat-card): .tile, .tile-num, .tile-ico… em assets/comum/componentes.css */
   .tiles { gap: 16px; margin-bottom: 26px; }
-  .tile {
-    position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 14px;
-    background: #161616; border: 0; border-top: 2px solid transparent; border-radius: 14px; box-shadow: var(--sombra);
-    transition: transform .18s ease;
-  }
-  .tile:hover { transform: translateY(-1px); }
-  .tile.alerta { border-top-color: rgba(245, 158, 11, .5); }
-  .tile-rot { font-size: 12.5px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-  .tile-meio { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .tile-num { font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
-  .tile-num small { font-weight: 500; }
-  .tile-ico {
-    width: 42px; height: 42px; flex: none; display: grid; place-items: center; overflow: hidden;
-    border: 1px solid var(--fio-2); border-radius: 10px; background: #141414; color: var(--t2);
-  }
-  .tile.alerta .tile-ico { color: var(--aviso); background: rgba(245, 158, 11, .1); border-color: rgba(245, 158, 11, .35); }
   .tile-ico .robo { width: 40px; height: 40px; image-rendering: pixelated; }
   .tile-pe { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--fio); min-width: 0; }
   .tile-rodape { padding: 0; min-width: 0; color: #666; }
@@ -582,10 +514,8 @@
   .barras i { width: 4px; opacity: .9; }
   .barras i.zero { background: #2a2a2a; }
 
-  /* Visão geral: lista + coluna lateral */
-  .geral-grade { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  /* Visão geral: lista e widgets numa grade de colunas (21/10; grade em assets/widgets.css, posições em widgets.js) */
   .col-lista { min-width: 0; }
-  .col-lado { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .cena { position: relative; overflow: hidden; border-radius: 14px; aspect-ratio: 560 / 272; background: #161616; box-shadow: var(--sombra); }
   .cena img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
   .cena::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, .78) 0%, rgba(0, 0, 0, .2) 55%, transparent 80%); pointer-events: none; }
@@ -602,13 +532,6 @@
   .painel { padding: 16px 18px; background: #161616; border-radius: 14px; box-shadow: var(--sombra); }
   .painel-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
   .painel-cab h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
-  .selo {
-    display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
-    font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-    color: #22c55e; background: rgba(34, 197, 94, .12); border: 1px solid rgba(34, 197, 94, .3);
-  }
-  .selo.ruim { color: #f87171; background: rgba(239, 68, 68, .12); border-color: rgba(239, 68, 68, .3); }
-  .selo.medio { color: #f5b13d; background: rgba(245, 158, 11, .12); border-color: rgba(245, 158, 11, .3); }
   .saude-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
   .saude-lista li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #cfcfcf; min-width: 0; }
   .saude-lista i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
@@ -625,17 +548,6 @@
   /* Controle segmentado */
   .filtros { margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; }
   .filtros::-webkit-scrollbar { display: none; }
-  .seg-filtro { display: inline-flex; gap: 2px; padding: 3px; background: #161616; border: 1px solid var(--fio); border-radius: 10px; box-shadow: var(--sombra); }
-  .seg-filtro button {
-    display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
-    border: 0; border-radius: 7px; background: none; color: var(--t2); font-size: 13px; white-space: nowrap;
-    transition: background-color .18s ease, color .18s ease;
-  }
-  .seg-filtro button:hover { color: var(--t1); }
-  .seg-filtro button[aria-pressed="true"] { background: #232323; color: var(--t1); box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
-  .seg-filtro .n { font-size: 11px; color: #555; font-variant-numeric: tabular-nums; }
-  .seg-filtro button[aria-pressed="true"] .n { color: var(--t2); }
-  .seg-filtro .n.tem { color: var(--aviso); }
   .barra-lista { margin: -8px 0 10px; }
 
   /* Seções e tabela */
@@ -688,8 +600,6 @@
   .bloco, .ag-lista { background: #121212; border-color: var(--fio); border-radius: 10px; }
   .modal { background: var(--casca); border-color: var(--fio-2); border-radius: 14px; }
   .cfg { background: #161616; border: 0; border-radius: 12px; box-shadow: var(--sombra); }
-  .chave:checked { background: var(--acento); }
-  .chave:checked::before { background: #fff; }
   input[type="range"] { accent-color: var(--acento); }
   .seg button[aria-pressed="true"] { background: #232323; }
 
@@ -701,15 +611,8 @@
   .filtros { display: flex; padding-right: 28px; }
   .col-lista { position: relative; }
   @container principal (max-width: 720px) { .col-lista::before { content: ""; position: absolute; top: 0; right: 0; width: 36px; height: 38px; z-index: 1; pointer-events: none; background: linear-gradient(to right, rgba(17, 17, 17, 0), #111111 85%); } }
-  @container principal (max-width: 1080px) {
-    .geral-grade { grid-template-columns: minmax(0, 1fr); }
-    .col-lado { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  }
   @container principal (max-width: 520px) {
     .conteudo { padding: 18px 12px 64px; }
-    .tile { padding: 14px 14px 12px; }
-    .tile-num { font-size: 26px; }
-    .tile-ico { width: 36px; height: 36px; }
     .tile-ico .robo { width: 34px; height: 34px; }
     .tile-pe .barras { display: none; }
     .av-robo:not(.p), .linha:not(.filho) .av-robo { width: 41px; height: 41px; border-radius: 12px; }
@@ -742,7 +645,7 @@
     .projetos { padding-right: 28px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .tile:hover, .rapido button:hover, .btn-orbita:hover { transform: none; }
+    .rapido button:hover, .btn-orbita:hover { transform: none; }
   }
 
   /* =====================================================================
@@ -754,6 +657,21 @@
   .av-robo.g { width: 53px; height: 53px; border-radius: 14px; }
   .av-robo.g img { width: 49px; height: 49px; border-radius: 12px; }
   .av-robo.g .av-selo { width: 16px; height: 16px; font-size: 10px; }
+  /* Marca da IA (logoIA): canto superior direito, espelhando o selo de status; some nos avatares pequenos e na pilha. */
+  .av-ia { position: absolute; right: -5px; top: -5px; width: 17px; height: 17px; border-radius: 50%; display: none; place-items: center; border: 2px solid var(--bg); background: #1c1c1c; pointer-events: auto; }
+  .av-robo[data-ia] .av-ia { display: grid; }
+  .av-robo.p .av-ia, .fa-pilha .av-ia { display: none !important; }
+  .av-ia svg { width: 10px; height: 10px; }
+  .av-robo[data-ia="claude"] .av-ia svg { fill: none; stroke: #d97757; stroke-width: 2.6; stroke-linecap: round; }
+  .av-robo[data-ia="codex"] .av-ia svg { fill: #ececec; }
+  .linha:not(.filho) .av-robo .av-ia { width: 21px; height: 21px; right: -6px; top: -6px; }
+  .linha:not(.filho) .av-robo .av-ia svg { width: 13px; height: 13px; }
+  body.compacta .linha:not(.filho) .av-robo .av-ia { width: 18px; height: 18px; right: -5px; top: -5px; }
+  body.compacta .linha:not(.filho) .av-robo .av-ia svg { width: 11px; height: 11px; }
+  @container principal (max-width: 520px) {
+    .linha:not(.filho) .av-robo .av-ia { width: 16px; height: 16px; right: -5px; top: -5px; }
+    .linha:not(.filho) .av-robo .av-ia svg { width: 10px; height: 10px; }
+  }
 
   /* Urgência do tempo de espera */
   .urg-amb { color: var(--aviso) !important; }
@@ -788,11 +706,8 @@
   .pk-ferr-linha .num { flex: none; color: var(--t3); }
   .pk-botoes { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .pk-botoes .btn { height: 38px; }
-  .btn.solido-claro { flex: 1 1 180px; background: #f0f0f0; border-color: #f0f0f0; color: #111; font-weight: 600; }
-  .btn.solido-claro:hover { background: #fff; border-color: #fff; }
-  .btn.solido-claro svg { color: #111; }
-  .btn.contorno { flex: 0 1 auto; background: transparent; border-color: #3a3a3a; }
-  .btn.contorno:hover { background: #1a1a1a; }
+  .btn.solido-claro { flex: 1 1 180px; }
+  .btn.contorno { flex: 0 1 auto; }
   #pk-fixar[aria-pressed="true"] { color: #818cf8; background: rgba(99, 102, 241, .12); box-shadow: none; }
   #pk-fixar[aria-pressed="true"] svg path { fill: currentColor; }
   #pk-silenciar[aria-pressed="true"] { color: #f5b13d; background: rgba(245, 158, 11, .1); box-shadow: none; }
@@ -912,6 +827,14 @@
   .fa-acoes .btn { min-width: 0; }
   @container (max-width: 330px) { .fa-acoes .btn:not(.btn-orbita) span { display: none; } .fa-acoes .btn:not(.btn-orbita) { padding: 0 10px; } }
   .office { height: 100%; min-height: 420px; position: relative; }
+  .office.office-com-esc:not([hidden]) { display: flex; flex-direction: column; } /* faixa dos escritórios acima do palco */
+  .office-com-esc > .office-escritorios { flex: none; }
+  .office-com-esc > .of-raiz { flex: 1 1 0; min-height: 0; }
+  /* canvas dos escritórios: irmão da faixa; em modo canvas ele ocupa a aba e faixa e palco ficam escondidos; em "Sessões" só o palco, com a barra de volta */
+  .office-canvas, .office-barra-sessoes { display: none; }
+  .office-modo-canvas > .office-canvas { display: block; flex: 1 1 0; min-height: 0; position: relative; }
+  .office-modo-canvas > .office-escritorios, .office-modo-canvas > .of-raiz, .office-modo-sessoes > .office-escritorios { display: none; }
+  .office-modo-sessoes > .office-barra-sessoes { display: flex; flex: none; align-items: center; padding: 6px 12px; background: var(--lat-fundo); border-bottom: 1px solid var(--fio-2); }
   .office-vazio { min-height: calc(100vh - 40px); display: grid; place-content: center; justify-items: center; gap: 12px; padding: 32px 20px; text-align: center; color: var(--t2); }
   .office-vazio h2 { margin: 4px 0 0; font-size: 20px; font-weight: 600; letter-spacing: -.03em; color: var(--t1); }
   .office-vazio p { margin: 0; max-width: 380px; line-height: 1.5; }
@@ -929,9 +852,6 @@
   .fa-mais:hover { color: var(--t1); border-color: #4a4a4a; }
   .tiles-wrap { position: relative; margin-bottom: 26px; }
   .tiles-wrap .tiles { margin-bottom: 0; }
-  .tile { padding: 14px 18px 12px; gap: 8px; }
-  .tile-num { font-size: 28px; }
-  .tile-ico { width: 38px; height: 38px; }
   .tile-ico .robo { width: 36px; height: 36px; }
   .cena-bloco { display: flex; flex-direction: column; gap: 8px; }
   .cena::after { background: linear-gradient(to top, rgba(0, 0, 0, .35), transparent 45%); }
@@ -1006,8 +926,6 @@
   .ctx-selo.alto { color: #f87171; }
   .quad.perigo { color: #f87171; background: rgba(239, 68, 68, .1); border-color: rgba(239, 68, 68, .35); }
   .conf-acoes { display: flex; justify-content: flex-end; gap: 8px; }
-  .btn.perigo { background: rgba(239, 68, 68, .16); border-color: rgba(239, 68, 68, .5); color: #fecaca; }
-  .btn.perigo:hover { background: rgba(239, 68, 68, .24); border-color: rgba(239, 68, 68, .7); }
   .rapido { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .rap {
     --rf: #222; --rc: #a3a3a3; --rb: #2e2e2e;
@@ -1036,7 +954,7 @@
   /* Peso do texto simples (todo 400 do app usa esta variável); "Texto em negrito" nas configurações sobe para 600 */
   body.negrito { --peso-texto: 600; }
   h1, h2, h3, .tit, .pk-tit, .fa-tit b, .rap b, .painel-cab h3, .sec-cab h2, .marca-txt b { letter-spacing: -.01em; }
-  .tile-num, .mt b, .fa-mais b, .cab-pagina h1 { letter-spacing: -.02em; }
+  .mt b, .fa-mais b, .cab-pagina h1 { letter-spacing: -.02em; }
   .tempo, .c-tempo, .tile-num, .mt b, .pk-tempo, .fa-tempo, .seg-filtro .n, .nav-item .n, .proj-item .n, .resumo b, .cena-leg, .saude-lista, .kv dd, time { font-variant-numeric: tabular-nums; }
   .lt time { font: var(--peso-texto) 12px/24px var(--sans); color: var(--t3); font-variant-numeric: tabular-nums; }
   .lt .txt span.lt-corpo { font: var(--peso-texto) 13px/1.5 var(--sans); color: var(--t2); }
@@ -1044,28 +962,18 @@
   .lt .lt-ag img { width: 14px; height: 14px; image-rendering: pixelated; border-radius: 3px; }
 
   /* ===== Ciclo 1: estados de toque dos botões (pressionar, foco, ícone) ===== */
-  .btn { transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease-press); }
   .btn-orbita { transition: transform var(--dur-1) var(--ease-press); }
-  .btn-icone { transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease-press); }
   .seg button { transition: transform var(--dur-1) var(--ease-press); }
-  .seg-filtro button { transition: background-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) var(--ease-press); }
   .rapido button, button.rap { transition: background-color var(--dur-2) ease, color var(--dur-2) ease, border-color var(--dur-2) ease, transform var(--dur-1) var(--ease-press); }
-  .btn:active:not(:disabled), .seg button:active:not(:disabled), .seg-filtro button:active:not(:disabled), .rapido button:active:not(:disabled) { transform: scale(.97); transition-duration: .06s; }
-  .btn-icone:active:not(:disabled) { transform: scale(.94); transition-duration: .06s; }
+  .seg button:active:not(:disabled), .rapido button:active:not(:disabled) { transform: scale(.97); transition-duration: .06s; }
   .btn-orbita:active:not(:disabled), .rap:active:not(:disabled) { transform: translateY(0) scale(.97); transition-duration: .06s; }
-  .btn:focus-visible, .btn-icone:focus-visible, .seg button:focus-visible, .seg-filtro button:focus-visible, .rapido button:focus-visible, .rap:focus-visible,
+  .seg button:focus-visible, .rapido button:focus-visible, .rap:focus-visible,
   #pk-fixar[aria-pressed="true"]:focus-visible, #pk-silenciar[aria-pressed="true"]:focus-visible, #pk-adiar[aria-pressed="true"]:focus-visible {
     outline: none; box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), var(--luz, 0 0 #0000);
   }
   .btn-orbita:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), 0 2px 8px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 0 0 1px rgba(255, 255, 255, .04); }
-  .btn-icone[aria-pressed="true"]:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), var(--luz, 0 0 #0000), inset 0 0 0 1px var(--fio-2); }
-  .seg-filtro button[aria-pressed="true"]:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), 0 1px 3px rgba(0, 0, 0, .5); }
-  .btn svg[data-i="externo"] { transition: transform var(--dur-2) var(--ease-press); }
-  @media (hover: hover) { .btn:hover svg[data-i="externo"] { transform: translate(1.5px, -1.5px); } }
   @media (prefers-reduced-motion: reduce) {
-    .btn:active:not(:disabled), .btn-icone:active:not(:disabled), .seg button:active:not(:disabled),
-    .seg-filtro button:active:not(:disabled), .rapido button:active:not(:disabled), .rap:active:not(:disabled) { transform: none; }
-    .btn:hover svg[data-i="externo"] { transform: none; }
+    .seg button:active:not(:disabled), .rapido button:active:not(:disabled), .rap:active:not(:disabled) { transform: none; }
   }
 
   /* ===== Subagente ao vivo: ação em curso (ou a última), feed curto e última mensagem ===== */
@@ -1124,16 +1032,13 @@
   /* ===== Ciclo 3: escala única de rótulos em caixa alta ===== */
   .rot-sec, .tabela-cab { font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-estr); line-height: 16px; }
   .tabela-cab > span { font-size: inherit; color: inherit; }
-  .selo, .cena-rot { font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-selo); line-height: 1; }
+  .cena-rot { font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-selo); line-height: 1; }
 
   /* ===== Ciclo 5: realce de 1 px no topo dos botões escuros (luz de cima) ===== */
   /* :where() deixa a regra base em 0,1,0: o anel de foco do Ciclo 1 (0,2,0) e os #pk-* tingidos continuam ganhando. */
-  .btn:where(:not(.solido, .solido-claro, .alerta, .perigo, .contorno, .btn-orbita)), .rap { --luz: var(--luz-topo); box-shadow: var(--luz); }
-  .btn:where(:not(.solido, .solido-claro, .alerta, .perigo, .contorno, .btn-orbita)):hover, .rap:hover:not(:disabled) { --luz: var(--luz-topo-h); }
-  .btn-icone:hover, .btn-icone[aria-pressed="true"] { --luz: var(--luz-topo); }
-  .btn-icone:hover:not(:focus-visible) { box-shadow: var(--luz); }
-  .btn-icone[aria-pressed="true"]:not(:focus-visible) { box-shadow: var(--luz), inset 0 0 0 1px var(--fio-2); }
-  .btn:active:not(:disabled):not(:focus-visible), .rap:active:not(:disabled):not(:focus-visible), .btn-icone:active:not(:disabled):not(:focus-visible) { --luz: 0 0 #0000; }
+  .rap { --luz: var(--luz-topo); box-shadow: var(--luz); }
+  .rap:hover:not(:disabled) { --luz: var(--luz-topo-h); }
+  .rap:active:not(:disabled):not(:focus-visible) { --luz: 0 0 #0000; }
   .btn-orbita { box-shadow: 0 2px 8px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 0 0 1px rgba(255, 255, 255, .04); }
   .btn-orbita:active:not(:disabled):not(:focus-visible) { box-shadow: 0 2px 8px rgba(0, 0, 0, .4), inset 0 0 0 1px rgba(255, 255, 255, .04); }
   #pk-fixar[aria-pressed="true"], #pk-silenciar[aria-pressed="true"], #pk-adiar[aria-pressed="true"] { --luz: 0 0 #0000; }
@@ -1161,11 +1066,9 @@
 
   /* ===== Ciclo 10: tipografia dos números e títulos (tracking por tamanho, "case" nos rótulos) ===== */
   /* Vence a camada de tipografia (~1173, mesmas especificidades) por vir depois. "case" soma ao tnum, não o substitui. */
-  .tile-num { font-weight: 600; letter-spacing: -.035em; }
-  .tile-num small { margin: 0 .15em 0 .1em; letter-spacing: 0; font-weight: 500; }
   .cab-pagina h1 { letter-spacing: -.025em; }
   .mt b, .fa-mais b { letter-spacing: -.015em; }
-  .rot-sec, .tabela-cab, .selo { font-feature-settings: "case" 1; }
+  .rot-sec, .tabela-cab { font-feature-settings: "case" 1; }
 
   /* ===== Ciclo 11: fade nas bordas só onde há mais conteúdo para rolar (scroll-driven, sem JS) ===== */
   /* Sem rolagem a timeline fica inativa: valores iniciais (largura 0, extremos #000) = máscara 100% opaca, sem stop transparente.
@@ -1190,8 +1093,6 @@
     90% { --fd: 24px; --fdc: transparent; }
     100% { --fe: 24px; --fec: transparent; --fd: 0px; --fdc: #000; }
   }
-  /* ===== Ciclo 13: toast com saída animada (Desfazer inerte durante a saída) ===== */
-  .toast .btn:disabled { cursor: default; }
   /* ===== Ciclo 14: item ativo da lateral acende (200 ms) e apaga (120 ms) — o degradê vai num ::before e só a opacidade anima ===== */
   .nav-item, .proj-item { position: relative; isolation: isolate; transition: background-color var(--dur-1) var(--ease-press), color var(--dur-1) var(--ease-press); }
   .nav-item::before, .proj-item::before {
@@ -1288,36 +1189,18 @@
   /* ===== Ciclo 26: fio da Linha do tempo contínuo de centro a centro dos nós (o nó opaco, z-index 1, cobre o trecho) ===== */
   .lt li::before { top: 12px; bottom: -12px; }
 
-  /* ===== Home: gráficos dos agentes + Cena do dia compacta (14/10) ===== */
-  /* Saúde e Acesso rápido saíram. A coluna mostra primeiro o que é lido de relance (estado das sessões e
-     contexto). < 560 px úteis empilha; entre 616 e 1080 os dois gráficos dividem a linha. */
-  /* 19/10: as vagas são da coluna, não do widget (o modo de edição troca os widgets de lugar, assets/widgets.js).
-     A lateral tem três vagas, na ordem do HTML; o pé, duas. Sincronização (16/10): a 3ª vaga da
-     lateral, abaixo do Uso de contexto, no vão que sobrava na coluna. */
-  .col-lado { container: lado / inline-size; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; align-content: start; min-width: 0; }
-  .col-lado > .graf { min-width: 0; }
-  /* Uso do plano e Espaço em disco (16/10): num bloco próprio, depois da lateral no HTML.
-     Lado a lado (> 1080) ficam abaixo da cena, na largura da lista, e a lateral ocupa as duas linhas da grade.
-     Empilhado, o bloco vem depois da lateral, como antes; a margem negativa deixa o vão de 16 px entre os
-     cartões no lugar dos 20 px da grade. */
-  .col-pe { container: lado / inline-size; display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: -4px; }
-  .col-pe > .graf { min-width: 0; }
-  @container principal (width > 1080px) {
-    .geral-grade { grid-template-rows: auto minmax(0, 1fr); row-gap: 16px; }
-    .col-lista { grid-column: 1; grid-row: 1; }
-    .col-pe { grid-column: 1; grid-row: 2; align-self: start; margin-top: 0; }
-    .col-lado { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; }
-  }
-  /* A cena (15/10) fica logo abaixo da lista, na largura dela e com o mesmo vão de 16 px entre cards.
-     Só o GIF, sem rótulo, robôs nem legenda. Proporção 560/240: o GIF é 560×272, e os 32 px a menos saem
-     quase todos do céu (object-position 85%), então cachoeiras, árvores e chão ficam inteiros, sem distorcer. */
-  .col-lista > .cena-bloco { margin-top: 16px; min-width: 0; }
-  .col-lista .cena { --cena-w: 560; --cena-h: 240; aspect-ratio: var(--cena-w) / var(--cena-h); border-radius: 14px; }
-  /* Terraço (15/10): o GIF é 1500×900 (5:3); na 560/240 sumiam ~30% da altura (vigas, mesa).
-     Fica na proporção nativa, inteiro. */
-  .col-lista .cena[data-cena="cyber2"] { --cena-w: 1500; --cena-h: 900; }
-  .col-lista .cena::after { content: none; }
-  .col-lista .cena img { position: absolute; inset: 0; object-position: center 85%; }
+  /* ===== Home: gráficos dos agentes + Cena do dia (14/10) ===== */
+  /* 21/10: a Visão geral é uma grade de colunas (assets/widgets.css + widgets.js): a lista de sessões, os widgets e a
+     Cena do dia são itens dela, em qualquer posição e tamanho. O alinhamento da lateral com a lista, os fins quase
+     alinhados e a cena em pé (15–16/10) saíram: a grade alinha tudo, e a cena é um widget que vira vertical quando
+     a caixa dela fica em pé (ajustarCena, no JS). */
+  /* Proporção natural 560/240: o GIF é 560×272, e os 32 px a menos saem quase todos do céu (object-position 85%),
+     então cachoeiras, árvores e chão ficam inteiros, sem distorcer. Com altura escolhida, o cover corta no foco. */
+  .graf-cena .cena { --cena-w: 560; --cena-h: 240; border-radius: 14px; }
+  /* Terraço (15/10, pedido do usuário): o GIF é 1500×900 (5:3); na 560/240 sumiam ~30% da altura (vigas, mesa). */
+  .graf-cena .cena[data-cena="cyber2"] { --cena-w: 1500; --cena-h: 900; }
+  .graf-cena .cena::after { content: none; }
+  .graf-cena .cena img { position: absolute; inset: 0; object-position: center 85%; }
   /* Cena cyber: foto grande reduzida, sem pixelated (serrilharia); enquadra a rua, onde os robôs andam. */
   .cena.cyber img { image-rendering: auto; object-position: center 62%; }
   /* Cenas GIF grandes (15/10: Cachoeira 2, Vento, Cyber 2): também reduzidas, então sem pixelated. A Cidade (500×300) amplia e fica pixelated. */
@@ -1329,44 +1212,14 @@
   /* Gato dormindo (16/10): 1672×941, com a cabeça na direita (x ≈ 88%); ancorar à direita mantém a cara e o corpo
      se o cover cortar as laterais. */
   .cena[data-cena="sleep-cat"] img { object-position: 85% 65%; }
-  /* Lado a lado, os dois cartões da linha têm a mesma altura (15/10): o mais baixo estica
-     e o conteúdo fica no topo. */
-  @container principal (min-width: 616px) and (max-width: 1080px) {
-    .col-lado { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-    .col-lado > .graf:nth-of-type(3) { grid-column: 1 / -1; }
-  }
-  /* Cena na proporção fixa em qualquer largura (16/10): em telas grandes ela não estica mais
-     até o fim da lateral, que a deixava alta demais. O equilíbrio entre as colunas vem do Uso do plano e do
-     Espaço em disco abaixo dela e da versão em pé na lateral, sem esticar nada. */
-  /* Cena do dia em pé (15/10): com a coluna da esquerda bem mais alta que a lateral (medirCenaV, no JS), a
-     horizontal sai de baixo da lista e a versão vertical (assets/*-vertical.png, 941×1672) entra logo abaixo do
-     último cartão da lateral, com o mesmo vão de 16 px, na largura da coluna. A cena fica fora do fluxo
-     (absolute na coluna; topo e altura vêm do JS), então não entra na conta da altura da grade. A medida
-     desconta a horizontal, então a decisão não muda com o modo; na troca a horizontal some e o Uso do plano
-     sobe para logo abaixo da lista.
-     Altura: a maior possível até o fim da coluna da esquerda, sem passar do tamanho nativo da imagem em pixels
-     da tela (posicionarCenaV, no JS); o cover corta sem distorcer, no foco de cada cena (cachoeira e trilha;
-     letreiros e beco). Empilhado (≤ 1080): só a horizontal. */
-  .cena-v { display: none; }
-  @container principal (width > 1080px) {
-    .col-lado { position: relative; }
-    .cena-v { display: block; position: absolute; left: 0; right: 0; top: var(--cv-topo, 0px); height: var(--cv-alt, 0px); overflow: hidden; border-radius: 14px; background-color: var(--sup); box-shadow: var(--sombra); opacity: 0; visibility: hidden; }
-    .cena-v img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: 60% 58%; }
-    .cena-v.cyber img { object-position: 55% 58%; }
-    .geral-grade.cena-vertical .cena-v { opacity: 1; visibility: visible; }
-    .geral-grade.cena-vertical .col-lista > .cena-bloco { display: none; }
-    /* Só anima depois da 1ª decisão (cena-anima): ao abrir a página, a Home já entra no modo certo.
-       Quem sai some logo; quem entra aparece com 120 ms de atraso. */
-    @media (prefers-reduced-motion: no-preference) {
-      .geral-grade.cena-anima .cena-v { transition: opacity 240ms ease, visibility 0s linear 240ms; }
-      .geral-grade.cena-anima.cena-vertical .cena-v { transition: opacity 300ms ease 120ms, visibility 0s; }
-    }
-  }
-  /* Topo da lateral = topo da lista (15/10): o card "Sessões agora" começa na mesma altura
-     do primeiro card da lista, abaixo dos botões e do cabeçalho do projeto. A distância vem do JS
-     (alinharLado). Empilhado (≤ 1080), sem alinhamento. */
-  @container principal (width > 1080px) {
-    .col-lado { padding-top: var(--lado-topo, 0px); }
+  /* Cena em pé (15/10; no widget desde 21/10): nas cenas com versão vertical (assets/*-vertical.png, 941×1672), a
+     caixa mais alta que larga mostra a vertical por cima da horizontal; só entra já carregada. */
+  .graf-cena .cena-v { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: cover; object-position: 60% 58%; opacity: 0; visibility: hidden; border-radius: inherit; }
+  .graf-cena .cena.cyber .cena-v { object-position: 55% 58%; }
+  .graf-cena .cena.em-pe .cena-v { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: no-preference) {
+    .graf-cena .cena-v { transition: opacity 240ms ease, visibility 0s linear 240ms; }
+    .graf-cena .cena.em-pe .cena-v { transition: opacity 300ms ease, visibility 0s; }
   }
 
   /* Cartões de gráfico (15/10): rótulo em caixa alta espaçada, número grande, unidade e uma linha de
@@ -1417,7 +1270,7 @@
   .gl-item.zero { color: var(--t3); }
   .gl-item.zero i { opacity: .35; }
   .gl-item.zero .gl-n { color: var(--t3); font-weight: 500; }
-  @container lado (max-width: 250px) {
+  @container lado (max-width: 210px) {
     .gf-topo { flex-direction: column-reverse; align-items: flex-start; }
     .gf-num { font-size: 38px; }
   }
@@ -1458,7 +1311,7 @@
   .graf-ctx .gc-linha:hover::before, .graf-ctx .gc-linha:hover + .gc-linha::before, .graf-ctx .gc-linha[aria-current="true"]::before, .graf-ctx .gc-linha[aria-current="true"] + .gc-linha::before,
   .graf-sinc .gs-repo.aberto::before, .graf-sinc .gs-repo.aberto + .gs-repo::before { opacity: 0; }
   .graf-compacto .gu-pe { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .06); }
-  @container lado (max-width: 250px) { .graf-compacto .gf-num { font-size: 22px; } }
+  @container lado (max-width: 210px) { .graf-compacto .gf-num { font-size: 22px; } }
 
   /* Sessões agora (redesenho de 17/10): a legenda abaixo do anel virou uma lista de linhas, no mesmo ritmo das
      linhas do Uso de contexto: ponto com halo na cor do estado, nome, contagem forte e % apagada, as duas em
@@ -1549,7 +1402,7 @@
   .gu-logo { flex: none; width: 14px; height: 14px; fill: none; stroke: #d97757; stroke-width: 2.1; stroke-linecap: round; }
   .gu-conta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t3); font-size: 11.5px; line-height: 1.2; cursor: default; }
   .gu-conta[hidden] { display: none; }
-  @container lado (max-width: 250px) {
+  @container lado (max-width: 210px) {
     .graf-uso .gf-topo { flex-direction: column; }
     .gu-id { align-items: flex-start; max-width: 100%; margin-top: 0; }
   }
@@ -1614,7 +1467,7 @@
   .gd-periodo button:hover { color: var(--t1); }
   .gd-periodo button[aria-checked="true"] { background: #2d2d2d; color: var(--t1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .5); }
   .gd-periodo button:focus-visible { outline: 2px solid rgba(112, 184, 255, .7); outline-offset: 1px; }
-  @container lado (max-width: 250px) { .gd-periodo { position: static; align-self: flex-start; } }
+  @container lado (max-width: 210px) { .gd-periodo { position: static; align-self: flex-start; } }
   /* Gráfico: 2 px de linha, grade e eixos recessivos, rótulos em tom apagado. */
   .gd-graf { position: relative; height: 128px; margin: 2px 0 10px; }
   .gd-graf svg { display: block; width: 100%; height: 100%; overflow: visible; touch-action: pan-y; }
@@ -1698,7 +1551,7 @@
      poço (campo, bloco interno) = a busca (#171717 + sombra interna) · fios = branco 6% · foco = o anel azul da lateral. */
 
   /* Cartões e superfícies: o cinza da lateral */
-  .tile, .painel, .tabela, .fa-card, .fa-mais, .pk-cab, .pk-sec, .pk-bloco, .mini, .cfg, .cena { background-color: var(--sup); }
+  .painel, .tabela, .fa-card, .fa-mais, .pk-cab, .pk-sec, .pk-bloco, .mini, .cfg, .cena { background-color: var(--sup); }
   .tile-leitura { background: var(--sup); }
   .pk-cab { background-image: radial-gradient(circle, #2c2c2c 1px, transparent 1px); }
   .fa-card:hover, .fa-mais:hover { background-color: var(--sup-h); }
@@ -1733,18 +1586,9 @@
   .pk-titulo:focus { border-color: rgba(255, 255, 255, .16); background: var(--poco); box-shadow: var(--poco-sombra), 0 0 0 3px rgba(255, 255, 255, .05); }
   .md code, .ag-feed .lt-ferr { background: var(--bloco); border-color: var(--fio); }
 
-  /* Botões: o ladrilho da lateral (#262626 + luz de 1 px), hover clareia, clique afunda */
-  .btn:where(:not(.solido, .solido-claro, .alerta, .perigo, .contorno, .btn-orbita)) { background: var(--bloco); border-color: var(--fio); }
-  .btn:where(:not(.solido, .solido-claro, .alerta, .perigo, .contorno, .btn-orbita)):hover { background: var(--bloco-2); border-color: var(--fio-l2); }
-  .btn svg { color: var(--lat-t); transition: color .15s ease, transform var(--dur-2) var(--ease-press); }
-  .btn:hover svg { color: var(--t1); }
-  .btn:active:not(:disabled), .seg button:active:not(:disabled), .seg-filtro button:active:not(:disabled), .rapido button:active:not(:disabled) { transform: scale(.975); }
-  .btn.contorno { background: transparent; border-color: var(--fio-l2); }
-  .btn.contorno:hover { background: var(--lat-hover); border-color: rgba(255, 255, 255, .14); }
-  .btn.solido svg, .btn.solido:hover svg, .btn.solido-claro svg, .btn.solido-claro:hover svg { color: #111; }
-  .btn.alerta svg, .btn.alerta:hover svg { color: inherit; }
-  .btn.feito svg { color: var(--ok-t); }
-  .btn-orbita svg, .btn-orbita:hover svg { color: #fff; }
+  /* Botões (.btn, .btn-icone…): assets/comum/componentes.css. Aqui ficam o .btn-orbita e os casos da página. */
+  .seg button:active:not(:disabled), .rapido button:active:not(:disabled), .btn-orbita:active:not(:disabled) { transform: scale(.975); }
+  .btn-orbita svg,.btn-orbita:hover svg { color: #fff; }
   /* .btn-orbita: miolo no tom dos botões (antes #161616, afundava no cartão #1d1d1d); borda como a dos outros botões */
   .btn-orbita { background: var(--bloco); border-color: var(--fio); }
   .btn-orbita:hover { background: var(--bloco-2); border-color: var(--fio-l2); }
@@ -1753,29 +1597,18 @@
   .callout-acoes .btn { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .12); }
   .callout-acoes .btn:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .16); }
 
-  /* Botões só de ícone: como o "recolher" da lateral; ligado = a pílula */
-  .btn-icone { color: var(--lat-t); }
-  .btn-icone:hover { background: var(--lat-hover); color: var(--t1); --luz: 0 0 #0000; }
-  .btn-icone[aria-pressed="true"] { background: var(--lat-pilula); color: #fff; --luz: var(--lat-pilula-sombra); }
-  .btn-icone[aria-pressed="true"]:not(:focus-visible) { box-shadow: var(--luz); }
-  .btn-icone[aria-pressed="true"]:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), var(--luz); }
 
   /* Segmentados (abas e opções): trilho no tom da lateral, hover clareia, ativo = pílula */
-  .seg-filtro { background: var(--sup); border-color: var(--fio); }
-  .seg-filtro button, .seg button { color: var(--lat-t); }
-  .seg-filtro button { border-radius: 8px; }
-  .seg-filtro button:not([aria-pressed="true"]):hover, .seg button:not([aria-pressed="true"]):hover { background: var(--lat-hover); color: var(--t1); }
-  .seg-filtro button[aria-pressed="true"], .seg button[aria-pressed="true"] { color: #f5f5f5; font-weight: 500; }
-  .seg-filtro button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--lat-pilula); box-shadow: var(--lat-pilula-sombra); }
+  .seg button { color: var(--lat-t); }
+  .seg button:not([aria-pressed="true"]):hover { background: var(--lat-hover); color: var(--t1); }
+  .seg button[aria-pressed="true"] { color: #f5f5f5; font-weight: 500; }
+  .seg button[aria-pressed="true"] { background: var(--lat-pilula); box-shadow: var(--lat-pilula-sombra); }
   .com-ind > button[aria-pressed="true"] { background: none; box-shadow: none; }
   .seg-ind, .seg .seg-ind { background: var(--lat-pilula); box-shadow: var(--lat-pilula-sombra); }
   .seg-filtro .seg-ind { border-radius: 8px; }
   .seg { background: var(--poco); border-color: var(--fio); box-shadow: var(--poco-sombra); }
   .seg button { transition: background-color var(--dur-1) var(--ease-press), color var(--dur-1) var(--ease-press), transform var(--dur-1) var(--ease-press); }
-  .seg-filtro .n { color: #6a6a6a; }
-  .seg-filtro button[aria-pressed="true"] .n { color: var(--t2); }
-  .seg-filtro .n.tem { color: var(--aviso); }
-  .seg-filtro button[aria-pressed="true"]:focus-visible, .seg button[aria-pressed="true"]:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), var(--lat-pilula-sombra); }
+  .seg button[aria-pressed="true"]:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel), var(--lat-pilula-sombra); }
   .com-ind > button[aria-pressed="true"]:focus-visible { box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel); }
 
   /* Chips, alternadores e kbd */
@@ -1786,11 +1619,10 @@
   kbd { border-color: var(--fio-l2); }
 
   /* Ícones em ladrilho */
-  .sec-cab .quad, .tile-ico { background: var(--bloco); border-color: var(--fio); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05); color: var(--lat-t); }
+  .sec-cab .quad { background: var(--bloco); border-color: var(--fio); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05); color: var(--lat-t); }
   .sec-precisa .quad { color: var(--aviso); border-color: rgba(245, 158, 11, .35); background: rgba(245, 158, 11, .08); box-shadow: none; }
   .quad.perigo { color: #f87171; background: rgba(239, 68, 68, .1); border-color: rgba(239, 68, 68, .35); box-shadow: none; }
   .nada .quad { color: var(--ok-t); }
-  .tile.alerta .tile-ico { color: var(--aviso); background: rgba(245, 158, 11, .1); border-color: rgba(245, 158, 11, .35); box-shadow: none; }
 
   /* Acesso rápido: item calmo, hover clareia, ícone em ladrilho */
   .rap, .rapido .rap { background: #212121; border-color: var(--fio); }
@@ -1803,24 +1635,13 @@
   .rap:disabled { background: #1a1a1a; border-color: rgba(255, 255, 255, .04); }
   .rap:disabled .rap-ico { --rc: #4f4f4f; --rf: #1f1f1f; --rb: rgba(255, 255, 255, .04); }
 
-  /* Chave liga/desliga: a mesma do Não perturbe */
-  .chave { background: #333; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .4); transition: background-color .2s ease; }
-  .chave::before { background: #8a8a8a; box-shadow: 0 1px 2px rgba(0, 0, 0, .4); transition: transform .25s var(--ease-press), background-color .2s ease, width .15s var(--ease-press); }
-  .chave:hover:not(:disabled) { background: #3c3c3c; }
-  .chave:active:not(:disabled)::before { width: 15px; }
-  .chave:checked, .chave:checked:hover { background: var(--acento); }
-  .chave:checked::before { background: #fff; }
-  .chave:checked:active:not(:disabled)::before { transform: translateX(9px); }
-  .chave:focus-visible { outline: none; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .4), 0 0 0 2px var(--sup), 0 0 0 4px var(--anel); }
 
   /* Camadas flutuantes */
   .modal { border-color: rgba(255, 255, 255, .08); box-shadow: 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4); }
-  .toast { background: var(--sup); border-color: var(--fio-l2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 8px 24px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4); }
-  .link:focus-visible, #pk-id:focus-visible, .pk-tit:focus-visible { outline: none; border-radius: 6px; box-shadow: 0 0 0 2px var(--anel); }
+  #pk-id:focus-visible, .pk-tit:focus-visible { outline: none; border-radius: 6px; box-shadow: 0 0 0 2px var(--anel); }
 
   @media (prefers-reduced-motion: reduce) {
-    .hist-linha, button.ag-item, .seg button, button.chip, .ag-toggle, .chave, .chave::before, .ctx-foco, input[type="time"], select { transition: none !important; }
-    .chave:checked:active::before { transform: translateX(12px); }
+    .hist-linha, button.ag-item, .seg button, button.chip, .ag-toggle, .ctx-foco, input[type="time"], select { transition: none !important; }
   }
 
   /* ===== Projetos personalizados (14/10): ícone, tag de cor, cabeçalho na Home, chip do filtro e popover ===== */
@@ -1965,19 +1786,6 @@
     .pj-cor:hover, .pj-cor:active, .pj-op:active, .sec-proj .pj-quad:active, #filtro-proj.chip:active { transform: none; }
   }
 
-  /* "Limpar concluídas": botão escuro, chapado, borda fina e ícone */
-  .btn-suave {
-    display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 13px 0 11px;
-    border: 1px solid #2e2e2e; border-radius: 9px; background: #181818; box-shadow: none;
-    color: #e4e4e4; font-size: 12.5px; font-weight: 500; white-space: nowrap; cursor: pointer;
-    transition: background-color .15s ease, border-color .15s ease;
-  }
-  .btn-suave svg { flex: none; color: #b5b5b5; transition: color .15s ease; }
-  .btn-suave:hover { background: #1e1e1e; border-color: #3a3a3a; }
-  .btn-suave:hover svg { color: var(--t1); }
-  .btn-suave:active { background: #141414; transition-duration: .05s; }
-  .btn-suave:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--fundo), 0 0 0 4px var(--anel); }
-  @media (prefers-reduced-motion: reduce) { .btn-suave, .btn-suave svg { transition: none; } }
 
   /* Barra das abas (15/10): abas à esquerda; à direita, "Nova instância" */
   /* As abas nunca encolhem: se não couberem ao lado dos botões, os botões descem para a linha de baixo.
@@ -2006,33 +1814,13 @@
   .sec-proj .pj-tirar-g { color: var(--t3); }
   .sec-proj .pj-tirar-g:hover { color: var(--t1); }
 
-  /* Menu flutuante: ações da lista e escolha do projeto da nova instância */
-  .menu-flut { position: fixed; z-index: 45; top: 0; left: 0; min-width: 232px; max-width: min(320px, calc(100vw - 24px)); max-height: min(380px, calc(100vh - 24px)); overflow-y: auto;
-    padding: 5px; border-radius: 12px; background: var(--sup); border: 1px solid rgba(255, 255, 255, .08); color: var(--t1);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4); animation: pj-entra .16s var(--ease-press); }
-  .menu-tit { padding: 8px 9px 6px; font-size: 11.5px; color: #6a6a6a; }
-  .menu-item { width: 100%; height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 9px; border: 0; border-radius: 8px; background: none;
-    color: #e4e4e4; font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer; transition: background-color .12s ease, color .12s ease; }
-  .menu-item svg { flex: none; color: #9a9a9a; }
-  .menu-item .mi-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .menu-item:hover, .menu-item:focus-visible { background: rgba(255, 255, 255, .06); color: var(--t1); outline: none; }
-  .menu-item:hover svg, .menu-item:focus-visible svg { color: var(--t1); }
+  /* Menu flutuante: ações da lista e escolha do projeto da nova instância (o menu em si: assets/comum/componentes.css) */
   .menu-item .pj-mini { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 6px; background: #343434; color: #e5e5e5;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); --tag-anel: var(--sup); font-size: 10.5px; }
   .menu-item .pj-mini .pj-txt { font-size: 12px; }
   .menu-item .pj-mini .pj-txt.duplo { font-size: 9px; }
   .menu-item .pj-mini .pj-tag { width: 7px; height: 7px; top: -2px; right: -2px; }
-  /* 17/10: menu de botão direito da instância na Home (separador, atalho, perigo, desativado e o nome no topo) */
-  .menu-flut.no-ponto { max-height: calc(100vh - 24px); }
-  .menu-tit.cab { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .menu-sep { height: 1px; margin: 5px 4px; background: rgba(255, 255, 255, .06); }
-  .menu-item .mi-atalho { flex: none; margin-left: 14px; font-size: 10.5px; line-height: 15px; color: #6a6a6a; }
-  .menu-item.perigo, .menu-item.perigo svg { color: var(--erro-t); }
-  .menu-item.perigo:hover, .menu-item.perigo:focus-visible { background: rgba(229, 72, 77, .1); color: var(--erro-t); }
-  .menu-item.perigo:hover svg, .menu-item.perigo:focus-visible svg { color: var(--erro-t); }
-  .menu-item[aria-disabled="true"] { opacity: .42; cursor: default; }
-  .menu-item[aria-disabled="true"]:hover { background: none; }
-  @media (prefers-reduced-motion: reduce) { .menu-flut { animation: none; } .menu-item { transition: none; } .btn-nova .gira { animation-duration: 2.4s; } }
+  @media (prefers-reduced-motion: reduce) { .btn-nova .gira { animation-duration: 2.4s; } }
 
   /* Seletores das Configurações (Lembrar depois de, Cena): a lista abre no jeito do menu flutuante, não na nativa do Windows.
      Sem suporte a base-select, fica o select nativo com o estilo de poço acima. */
@@ -2214,19 +2002,6 @@
     .rev-chk .caixa, .rev-chk .caixa svg { transition: none; }
   }
 
-  /* Tipografia das abas de filtro: rótulo e número na mesma linha de base, peso sem pulo de largura */
-  .seg-filtro button { align-items: baseline; gap: 6px; line-height: 30px; font-size: 13px; font-weight: 450; letter-spacing: -.01em; }
-  .seg-filtro button[aria-pressed="true"] { font-weight: 550; }
-  /* Reserva a largura do rótulo em negrito: a aba não cresce ao ser marcada e o indicador não pula */
-  .seg-filtro .rot { display: inline-flex; flex-direction: column; }
-  .seg-filtro .rot::after { content: attr(data-t); content: attr(data-t) / ""; height: 0; overflow: hidden; visibility: hidden; font-weight: 550; pointer-events: none; user-select: none; }
-  .seg-filtro .n { min-width: 1ch; font-size: 11.5px; font-weight: 500; letter-spacing: 0; color: #7c7c7c; }
-  .seg-filtro .n.zero { color: #4e4e4e; }
-  .seg-filtro button:hover .n:not(.tem) { color: var(--t2); }
-  .seg-filtro button[aria-pressed="true"] .n:not(.tem) { color: #b4b4b4; }
-  .seg-filtro .n.tem { color: var(--aviso); font-weight: 600; }
-  /* Grupo com concluídas a revisar: o número ganha a cor do ponto "a revisar" */
-  .seg-filtro .n.novo, .seg-filtro button:hover .n.novo, .seg-filtro button[aria-pressed="true"] .n.novo { color: var(--foco); font-weight: 600; }
 
   /* ===== Linha do tempo: ação legível (15/10) =====
      Hora (cinza, tabular) · ícone do tipo no nó · verbo (claro, 500) + objeto (cinza médio).
@@ -2671,6 +2446,18 @@
 <link rel="stylesheet" href="assets/lateral.css"><!-- grupos da lateral: recolher e arrastar (17/10) -->
 <link rel="stylesheet" href="assets/widgets.css"><!-- modo de edição dos widgets da Visão geral (19/10) -->
 <link rel="stylesheet" href="assets/arquivos.css">
+<link rel="stylesheet" href="assets/whiteboard.css">
+<link rel="stylesheet" href="assets/whiteboard-agentes.css">
+<link rel="stylesheet" href="assets/whiteboard-times.css">
+<link rel="stylesheet" href="assets/whiteboard-painel.css">
+<link rel="stylesheet" href="assets/whiteboard-web.css">
+<link rel="stylesheet" href="assets/whiteboard-menu.css">
+<link rel="stylesheet" href="assets/whiteboard-exportar.css">
+<link rel="stylesheet" href="assets/grafo.css">
+<link rel="stylesheet" href="assets/grafo-barra.css">
+<link rel="stylesheet" href="assets/grafo-painel.css">
+<link rel="stylesheet" href="assets/grafo-widget.css"><!-- widget "Grafo do projeto" da Visão geral (21/10) -->
+<link rel="stylesheet" href="assets/grafo-legenda.css">
 <link rel="stylesheet" href="assets/abas.css">
 <link rel="stylesheet" href="assets/navegador.css"><!-- navegador interno (16/10) -->
 <link rel="stylesheet" href="assets/terminal.css"><!-- terminal integrado (16/10) -->
@@ -2801,6 +2588,7 @@
           <button class="nav-item" type="button" data-lat="terminal" id="nav-terminal" data-terminal aria-pressed="false" title="Terminal (Ctrl+`)"><span data-icone="terminal"></span><span class="nl">Terminal</span><span class="n"></span></button><!-- terminal integrado -->
           <button class="nav-item" type="button" data-lat="navegador" id="nav-navegador" title="Abrir uma aba do navegador"><span data-icone="globo"></span><span class="nl">Navegador</span></button>
           <button class="nav-item" type="button" data-lat="repos" data-vista="repos"><span data-icone="branch"></span><span class="nl">Repositórios</span></button>
+          <button class="nav-item" type="button" data-lat="whiteboard" data-vista="whiteboard"><span data-icone="quadro"></span><span class="nl">Whiteboard</span></button>
         </nav></div></div>
       </section>
       <section class="lat-grupo" data-grupo="conhecimento">
@@ -2809,6 +2597,7 @@
           <button class="nav-item" type="button" data-lat="ideias" id="nav-ideias" data-ideias title="Ideias"><span data-icone="lampada"></span><span class="nl">Ideias</span><span class="n" data-ideias-n></span></button>
           <button class="nav-item" type="button" data-lat="skills" id="nav-skills" data-skills title="Skills dos agentes"><span data-icone="varinha"></span><span class="nl">Skills</span></button><!-- assets/skills.js + skills.css -->
           <button class="nav-item" type="button" data-lat="automacoes" id="nav-automacoes" data-automacoes title="Automações"><span data-icone="raio"></span><span class="nl">Automações</span></button>
+          <button class="nav-item" type="button" data-lat="grafo" data-vista="grafo"><span data-icone="grafo"></span><span class="nl">Grafo</span></button><!-- assets/grafo.js -->
         </nav></div></div>
       </section>
       <section class="lat-grupo" data-grupo="projetos">
@@ -2851,7 +2640,7 @@
       <div id="vista-geral">
         <section id="faixa-acao" class="faixa-acao" aria-label="Precisa de você" hidden></section>
         <div class="tiles-wrap"><section id="tiles" class="tiles" aria-label="Hoje"></section></div>
-        <div class="geral-grade"><div class="col-lista">
+        <div class="geral-grade"><div class="col-lista" data-wd="lista">
         <div id="barra-filtros" class="barra-filtros">
           <div id="acoes-filtros" class="acoes-filtros">
             <button id="btn-nova" class="btn solido btn-nova" type="button" aria-haspopup="menu" aria-expanded="false"><span data-icone="mais"></span><span id="btn-nova-rot">Nova instância</span></button>
@@ -2861,9 +2650,7 @@
           <button id="filtro-proj" class="chip sans" type="button" hidden title="Tirar o filtro"></button>
         </div>
         <div id="lista" class="lista" role="listbox" tabindex="0" aria-label="Sessões"></div>
-        <div class="cena-bloco"><div id="cena" class="cena" aria-hidden="true"><img data-gif="waterfall" alt="" width="560" height="272"></div></div>
         </div>
-        <aside class="col-lado" aria-label="Resumo">
           <section class="painel graf graf-compacto graf-estado" data-widget="estado" aria-labelledby="ge-tit">
             <div class="gf-topo">
               <div class="gf-resumo">
@@ -2906,9 +2693,6 @@
               </span>
             </div>
           </section>
-          <div id="cena-v" class="cena-v" aria-hidden="true"><img alt="" width="941" height="1672" decoding="async"></div>
-        </aside>
-        <div class="col-pe">
           <section class="painel graf graf-uso" data-widget="uso" aria-labelledby="gu-tit">
             <div class="gf-topo">
               <div class="gf-resumo">
@@ -2951,7 +2735,25 @@
             <ul id="gd-leg" class="graf-leg gd-leg" aria-label="Linhas do gráfico"></ul>
             <div class="gu-pe"><span id="gd-lido" class="gu-lido"></span></div>
           </section>
-        </div>
+          <section id="grafo-card" class="painel graf graf-compacto graf-grafo" data-widget="grafo" aria-labelledby="gg-tit"><!-- 21/10: assets/grafo-widget.js + grafo-widget.css (brain do projeto selecionado) -->
+            <div class="gf-topo">
+              <div class="gf-resumo">
+                <h3 id="gg-tit" class="gf-rot">Grafo do projeto</h3>
+                <b id="gg-n" class="gf-num">—</b>
+                <span id="gg-uni" class="gf-uni"></span>
+                <span id="gg-sub" class="gf-delta"></span>
+              </div>
+            </div>
+            <div class="gg-area" title="Clique numa nota para a prévia · Ctrl + roda aproxima · duplo clique encaixa">
+              <div class="gg-vista" hidden></div>
+              <div class="gg-vazio"></div>
+              <aside class="gg-prev" aria-label="Prévia da nota" hidden></aside>
+            </div>
+            <div class="gu-pe"><span id="gg-lido" class="gu-lido"></span><button id="gg-abrir" class="btn gg-abrir" type="button" disabled><span data-icone="grafo"></span>Abrir no Grafo</button></div>
+          </section>
+          <section class="painel graf graf-cena" data-widget="cena" aria-label="Cena do dia"><!-- 21/10: a Cena do dia virou widget (em pé: ajustarCena) -->
+            <div id="cena" class="cena" aria-hidden="true"><img data-gif="waterfall" alt="" width="560" height="272"><img class="cena-v" alt="" width="941" height="1672" decoding="async"></div>
+          </section>
         </div>
       </div>
       <script src="assets/widgets.js"></script><!-- modo de edição dos widgets (19/10): antes da pintura, a ordem gravada já no lugar -->
@@ -2971,6 +2773,8 @@
     </div>
     <section id="office" class="office" aria-label="Office (Demo)" hidden></section>
     <section id="repos" class="repos-vista" aria-label="Repositórios" hidden></section>
+    <section id="whiteboard" class="wb-vista" aria-label="Whiteboard" hidden></section><!-- assets/whiteboard.js -->
+    <section id="grafo" class="gv-vista" aria-label="Grafo" hidden></section><!-- assets/grafo.js -->
     <section id="arquivo" class="arq-vista" aria-label="Arquivo" hidden></section><!-- rodada 8: prévia e busca (assets/arquivos.js) -->
     <div id="term-painel" class="term-painel" hidden></div><!-- terminal integrado (assets/terminal.js): painel inferior -->
   </main>
@@ -3157,6 +2961,10 @@
       <section class="cfg" aria-labelledby="t-cfg-remoto">
         <h3 id="t-cfg-remoto">Acesso pelo celular</h3>
         <div id="cfg-remoto" class="rm"><p class="rm-vazio">Carregando…</p></div><!-- assets/remoto-config.js -->
+      </section>
+      <section class="cfg" aria-labelledby="t-cfg-codex">
+        <h3 id="t-cfg-codex">Codex</h3>
+        <div id="cfg-codex-caixa"><p class="rg-vazio">Carregando…</p></div><!-- assets/codex-config.js -->
       </section>
       <section class="cfg">
         <h3>Aparência</h3>
@@ -3396,87 +3204,10 @@ function sv(tag, attrs) {
   for (const k in attrs) e.setAttribute(k, String(attrs[k]));
   return e;
 }
-function caminhoEngrenagem() {
-  const n = 32, pts = [];
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 - Math.PI / 2 - Math.PI / 32;
-    const r = i % 4 < 2 ? 6.6 : 5.1;
-    pts.push((8 + r * Math.cos(a)).toFixed(2) + ' ' + (8 + r * Math.sin(a)).toFixed(2));
-  }
-  return 'M' + pts.join('L') + 'Z';
-}
-const ICONES = {
-  voltar: [['path', { d: 'M13 8H3.5' }], ['path', { d: 'M7.5 4 3.5 8l4 4' }]],
-  busca: [['circle', { cx: 7, cy: 7, r: 4.5 }], ['path', { d: 'M10.5 10.5 13.5 13.5' }]],
-  lua: [['path', { d: 'M13.2 9.9A5.6 5.6 0 0 1 6.1 2.8a5.6 5.6 0 1 0 7.1 7.1z' }]],
-  pasta: [['path', { d: 'M2.5 4.5a1 1 0 0 1 1-1h2.8l1.4 1.5h4.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z' }]],
-  historico: [['path', { d: 'M2.6 8a5.4 5.4 0 1 0 1.6-3.8' }], ['path', { d: 'M2.5 2.8v2.6h2.6' }], ['path', { d: 'M8 5.3v2.9l1.9 1.2' }]],
-  sino: [['path', { d: 'M4.2 10.8V7.3a3.8 3.8 0 0 1 7.6 0v3.5l1.2 1.4H3z' }], ['path', { d: 'M6.6 13.6a1.5 1.5 0 0 0 2.8 0' }]],
-  'sino-mudo': [['path', { d: 'M4.2 7.3a3.8 3.8 0 0 1 6.4-2.8M11.8 7.4v3.4l1.2 1.4H5' }], ['path', { d: 'M6.6 13.6a1.5 1.5 0 0 0 2.8 0' }], ['path', { d: 'M2.5 13.5l11-11' }]],
-  engrenagem: [['path', { d: caminhoEngrenagem(), 'stroke-width': 1.3 }], ['circle', { cx: 8, cy: 8, r: 2.1 }]],
-  ajuda: [['circle', { cx: 8, cy: 8, r: 6 }], ['path', { d: 'M6.4 6.3a1.7 1.7 0 1 1 2.4 1.6c-.5.2-.8.6-.8 1.1v.3' }], ['circle', { cx: 8, cy: 11.3, r: .55, fill: 'currentColor', stroke: 'none' }]],
-  x: [['path', { d: 'M4.5 4.5l7 7M11.5 4.5l-7 7' }]],
-  externo: [['path', { d: 'M9.5 2.5h4v4M13.5 2.5 7.8 8.2' }], ['path', { d: 'M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3' }]],
-  terminal: [['rect', { x: 2, y: 3, width: 12, height: 10, rx: 1.5 }], ['path', { d: 'M5 6.5 7 8.2 5 9.9M8.5 10h2.5' }]],
-  alfinete: [['path', { d: 'M6 2.5h4M7 2.5v3.8L4.8 8.8h6.4L9 6.3V2.5M8 8.8v4.7' }]],
-  relogio: [['circle', { cx: 8, cy: 8, r: 5.8 }], ['path', { d: 'M8 5v3.2l2 1.3' }]],
-  vassoura: [['path', { d: 'M13.5 2.5 9.2 6.8' }], ['path', { d: 'M7.3 6.1l2.6 2.6-.8 1.1c-1 1.3-2.7 2.3-5.1 2.7.4-2.4 1.4-4.1 2.7-5.1z' }], ['path', { d: 'M5.8 10.4 7 9.2M6.9 11.4l.9-.9' }], ['path', { d: 'M11.6 11.3h.01M13.2 12.4h.01M12.3 13.8h.01' }]],
-  lixeira: [['path', { d: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.2a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.2' }]],
-  chevron: [['path', { d: 'M6 3.8 10.2 8 6 12.2' }]],
-  check: [['path', { d: 'M3.5 8.5l3 3 6-7' }]],
-  'check-duplo': [['path', { d: 'M1.6 8.6l2.8 2.8 5.6-6.6' }], ['path', { d: 'M7.9 11.1l.3.3 5.6-6.6' }]],
-  copiar: [['rect', { x: 5.5, y: 5.5, width: 8, height: 8, rx: 1.5 }], ['path', { d: 'M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5' }]],
-  sub: [['circle', { cx: 4, cy: 4.5, r: 1.6 }], ['circle', { cx: 12, cy: 4.5, r: 1.6 }], ['circle', { cx: 8, cy: 12, r: 1.6 }], ['path', { d: 'M5.2 5.7 7 10.5M10.8 5.7 9 10.5' }]],
-  grade: [['rect', { x: 2.5, y: 2.5, width: 4.5, height: 4.5, rx: 1 }], ['rect', { x: 9, y: 2.5, width: 4.5, height: 4.5, rx: 1 }], ['rect', { x: 2.5, y: 9, width: 4.5, height: 4.5, rx: 1 }], ['rect', { x: 9, y: 9, width: 4.5, height: 4.5, rx: 1 }]],
-  painel: [['rect', { x: 2, y: 2.5, width: 12, height: 11, rx: 1.5 }], ['path', { d: 'M9.5 2.5v11' }]],
-  alerta: [['path', { d: 'M8 2.5 14 13H2z' }], ['path', { d: 'M8 6.5v3' }], ['circle', { cx: 8, cy: 11.3, r: .5, fill: 'currentColor', stroke: 'none' }]],
-  atividade: [['path', { d: 'M1.5 8.5h3l1.8-4.5 3.4 8.5 1.8-4h3' }]],
-  arquivo: [['rect', { x: 2, y: 3, width: 12, height: 3, rx: .8 }], ['path', { d: 'M3 6v6.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6M6.5 8.8h3' }]],
-  balao: [['path', { d: 'M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5z' }]],
-  doc: [['path', { d: 'M4 2.5h5l3 3v8H4z' }], ['path', { d: 'M8.8 2.5v3.2H12M6 9h4M6 11.3h3' }]],
-  chave: [['path', { d: 'M10.2 2.6a3.2 3.2 0 0 0-3.7 4.3L2.6 10.8l2.6 2.6 3.9-3.9a3.2 3.2 0 0 0 4.3-3.7l-2 2-1.9-.5-.5-1.9z' }]],
-  info: [['circle', { cx: 8, cy: 8, r: 6 }], ['path', { d: 'M8 7.3v3.7' }], ['circle', { cx: 8, cy: 5, r: .55, fill: 'currentColor', stroke: 'none' }]],
-  cadeado: [['rect', { x: 3.5, y: 7, width: 9, height: 6.5, rx: 1.2 }], ['path', { d: 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2' }]],
-  lista: [['path', { d: 'M6 4.5h7M6 8h7M6 11.5h7' }], ['circle', { cx: 3.2, cy: 4.5, r: .6, fill: 'currentColor' }], ['circle', { cx: 3.2, cy: 8, r: .6, fill: 'currentColor' }], ['circle', { cx: 3.2, cy: 11.5, r: .6, fill: 'currentColor' }]],
-  play: [['path', { d: 'M5.5 3.8v8.4L12 8z' }]],
-  parar: [['rect', { x: 4.5, y: 4.5, width: 7, height: 7, rx: 1.2 }]],
-  teclado: [['rect', { x: 1.8, y: 4, width: 12.4, height: 8, rx: 1.5 }], ['path', { d: 'M4.5 6.6h.01M7 6.6h.01M9.5 6.6h.01M12 6.6h.01M5 9.5h6' }]],
-  ampulheta: [['path', { d: 'M4 2.5h8M4 13.5h8M5 2.5c0 3 6 3 6 5.5S5 10.5 5 13.5M11 2.5c0 3-6 3-6 5.5s6 2.5 6 5.5' }]],
-  raio: [['path', { d: 'M9 1.8 3.5 9h4L7 14.2 12.5 7h-4z' }]],
-  comprimir: [['path', { d: 'M6 2.5v3.5H2.5M10 2.5v3.5h3.5M6 13.5V10H2.5M10 13.5V10h3.5' }]],
-  borracha: [['path', { d: 'M9.2 2.8l4 4-6.4 6.4H4.3L2.8 11.7a1 1 0 0 1 0-1.4z' }], ['path', { d: 'M6.2 5.8l4 4M8 13.2h5.5' }]],
-  branch: [['circle', { cx: 4.5, cy: 3.8, r: 1.5 }], ['circle', { cx: 4.5, cy: 12.2, r: 1.5 }], ['circle', { cx: 11.5, cy: 5.2, r: 1.5 }], ['path', { d: 'M4.5 5.3v5.4M11.5 6.7c0 2.8-7 2.2-7 4' }]],
-  predio: [['rect', { x: 3, y: 2.5, width: 10, height: 11, rx: 1 }], ['path', { d: 'M5.8 5.3h1M9.2 5.3h1M5.8 8h1M9.2 8h1M7 13.5v-2.6h2v2.6' }]],
-  lapis: [['path', { d: 'M10.6 2.9a1.5 1.5 0 0 1 2.1 0l.4.4a1.5 1.5 0 0 1 0 2.1L6 12.5l-3.2.7.7-3.2z' }], ['path', { d: 'M9.3 4.2l2.5 2.5' }]],
-  lampada: [['path', { d: 'M6 11.3c0-1.3-2-2.4-2-4.8a4 4 0 0 1 8 0c0 2.4-2 3.5-2 4.8z' }], ['path', { d: 'M6.4 13.6h3.2' }]],
-  varinha: [['path', { d: 'M2.8 13.2 9.6 6.4' }], ['path', { d: 'M8.6 5.4l2 2' }], ['path', { d: 'M11.8 1.8v2.4M10.6 3h2.4M13.6 6.8v1.6M12.8 7.6h1.6M5.6 2.2v1.6M4.8 3h1.6' }]], // aba Skills
-  mais: [['path', { d: 'M8 3v10M3 8h10' }]],
-  menos: [['path', { d: 'M3 8h10' }]],
-  instalar: [['path', { d: 'M8 2.5v7M5 6.7l3 3 3-3' }], ['path', { d: 'M2.5 10.5v1.8a1.2 1.2 0 0 0 1.2 1.2h8.6a1.2 1.2 0 0 0 1.2-1.2v-1.8' }]],
-  pontos: [['circle', { cx: 3.5, cy: 8, r: .9, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 8, cy: 8, r: .9, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 12.5, cy: 8, r: .9, fill: 'currentColor', stroke: 'none' }]],
-  // Ícones de projeto (escolhidos em "Personalizar projeto")
-  codigo: [['path', { d: 'M5.3 4.6 1.9 8l3.4 3.4M10.7 4.6 14.1 8l-3.4 3.4M9.1 3 6.9 13' }]],
-  foguete: [['path', { d: 'M8 1.9c2.4 1.5 3.5 4.1 3 7.1l-1.3 1.7H6.3L5 9c-.5-3 .6-5.6 3-7.1z' }], ['circle', { cx: 8, cy: 6.2, r: 1.2 }], ['path', { d: 'M5.1 9.4 3.2 11.3l2.5.4M10.9 9.4l1.9 1.9-2.5.4M7.1 12.8 8 14.3l.9-1.5' }]],
-  robo: [['rect', { x: 3, y: 5.2, width: 10, height: 7.8, rx: 2 }], ['path', { d: 'M8 5.2V3.3M6.3 10.8h3.4M1.8 8.3v2M14.2 8.3v2' }], ['circle', { cx: 8, cy: 2.6, r: .7 }], ['circle', { cx: 6, cy: 8.4, r: .6, fill: 'currentColor' }], ['circle', { cx: 10, cy: 8.4, r: .6, fill: 'currentColor' }]],
-  cubo: [['path', { d: 'M8 1.9 13.4 5v6L8 14.1 2.6 11V5z' }], ['path', { d: 'M2.6 5 8 8.1 13.4 5M8 8.1v6' }]],
-  globo: [['circle', { cx: 8, cy: 8, r: 6 }], ['path', { d: 'M2 8h12M8 2c1.7 1.7 2.5 3.7 2.5 6S9.7 12.3 8 14M8 2C6.3 3.7 5.5 5.7 5.5 8s.8 4.3 2.5 6' }]],
-  casa: [['path', { d: 'M2.5 7.3 8 2.6l5.5 4.7v5.7a.6.6 0 0 1-.6.6H9.6V10H6.4v3.6H3.1a.6.6 0 0 1-.6-.6z' }]],
-  carrinho: [['path', { d: 'M1.8 2.8h1.9l1.6 7.3h6.9l1.5-5.1H4.3' }], ['circle', { cx: 6.2, cy: 12.8, r: .9 }], ['circle', { cx: 11.4, cy: 12.8, r: .9 }]],
-  grafico: [['path', { d: 'M2.5 13.5h11M4.6 11V8.2M8 11V4.5M11.4 11V6.6' }]],
-  livro: [['path', { d: 'M8 4.3C6.8 3.3 5 2.9 2.5 3v9.4c2.5-.1 4.3.3 5.5 1.3 1.2-1 3-1.4 5.5-1.3V3C11 2.9 9.2 3.3 8 4.3zM8 4.3v9.4' }]],
-  paleta: [['path', { d: 'M8 2a6 6 0 0 0 0 12c.9 0 1.4-.6 1.4-1.3 0-.9-.8-1.2-.8-2s.6-1.3 1.4-1.3H12a2 2 0 0 0 2-2C14 4.4 11.3 2 8 2z' }], ['circle', { cx: 5, cy: 7.2, r: .7, fill: 'currentColor' }], ['circle', { cx: 7.3, cy: 4.7, r: .7, fill: 'currentColor' }], ['circle', { cx: 10.5, cy: 5.2, r: .7, fill: 'currentColor' }]],
-  camera: [['rect', { x: 2, y: 4.6, width: 12, height: 8.6, rx: 1.6 }], ['path', { d: 'M5.6 4.6l1-1.8h2.8l1 1.8' }], ['circle', { cx: 8, cy: 8.9, r: 2.3 }]],
-  musica: [['path', { d: 'M6 12.2V3.6l7-1.4v8.4' }], ['circle', { cx: 4.4, cy: 12.2, r: 1.6 }], ['circle', { cx: 11.4, cy: 10.6, r: 1.6 }]],
-  jogo: [['path', { d: 'M4.6 5h6.8a3 3 0 0 1 2.9 3.8l-.7 2.5a1.5 1.5 0 0 1-2.6.6L9.6 10.5H6.4L5 11.9a1.5 1.5 0 0 1-2.6-.6l-.7-2.5A3 3 0 0 1 4.6 5z' }], ['path', { d: 'M5 6.9v2.2M3.9 8h2.2' }], ['circle', { cx: 10.6, cy: 7.4, r: .6, fill: 'currentColor' }], ['circle', { cx: 11.8, cy: 8.8, r: .6, fill: 'currentColor' }]],
-  coracao: [['path', { d: 'M8 13.4S2.4 10.2 2.4 6.2A2.9 2.9 0 0 1 8 5a2.9 2.9 0 0 1 5.6 1.2c0 4-5.6 7.2-5.6 7.2z' }]],
-  estrela: [['path', { d: 'M8 2.1l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.3l-3.6 1.9.7-4-2.9-2.8 4-.6z' }]],
-  folha: [['path', { d: 'M3 13c0-6 3.6-9.9 10.5-10.4C13 9.5 9 13 3 13zM3 13l5.6-5.6' }]],
-};
+// Ícones: o conjunto vem de assets/comum/icones.js (OrbitIcones, comum ao celular).
+const temIcone = (nome) => OrbitIcones.nomes.includes(nome);
 function icone(nome, tam = 16) {
-  const v = sv('svg', { viewBox: '0 0 16 16', width: tam, height: tam, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' });
-  for (const [t, a] of ICONES[nome] || []) v.append(sv(t, a));
-  v.dataset.i = nome;
-  return v;
+  return OrbitIcones.icone(nome, tam); // nome que o comum não tem sai como svg vazio (dataset.i = nome)
 }
 function logo() {
   const v = sv('svg', { viewBox: '0 0 16 16', width: 16, height: 16, fill: 'currentColor', 'aria-hidden': 'true' });
@@ -3523,7 +3254,6 @@ const est = {
 const CENAS = ['waterfall', 'waterfall-2', 'wind', 'medieval-field', 'city', 'cyber', 'cyber2', 'sleep-cat']; // nomes de assets/ (GIF ou PNG em ESTATICOS), na ordem do seletor
 const CENAS_SUAVES = new Set(['waterfall-2', 'wind', 'cyber2', 'sleep-cat']); // GIFs grandes (1400 a 1736 px) e o PNG sleep-cat (1672 px): reduzidos, sem pixelated (serrilharia)
 const local = {
-  revisadas: ler('gi.revisadas', {}), // id → quando foi marcada como revisada; vale enquanto a sessão não terminar de novo
   adiadas: ler('gi.adiadas', {}),
   agrupar: !!ler('gi.agrupar', true),
   densidade: ler('gi.densidade', 'confortavel') === 'compacta' ? 'compacta' : 'confortavel',
@@ -3538,29 +3268,7 @@ if (!local.ordenar || !Object.hasOwn(COLUNAS_ORDEM, local.ordenar.col) || (local
 if (!local.adiadas || typeof local.adiadas !== 'object') local.adiadas = {};
 if (!local.recolhidas || typeof local.recolhidas !== 'object') local.recolhidas = {};
 if (!local.grupos || typeof local.grupos !== 'object') local.grupos = ler('gi.encerradas', false) ? { encerradas: false } : {};
-if (!local.revisadas || typeof local.revisadas !== 'object') local.revisadas = {};
-migrarRevisao();
 local.ordemGrupos = normalizarOrdemGrupos(local.ordemGrupos);
-// 16/10: "Concluídas · não vistas" + "Concluídas" viraram "Concluídas" + "Revisadas". Ordem e recolhimento gravados
-// passam para o grupo equivalente (não vistas → Concluídas, Concluídas → Revisadas). Roda uma vez, na primeira
-// abertura sem "gi.revisadas". Abrir nunca contou como revisar, então nenhuma sessão nasce revisada.
-function migrarRevisao() {
-  try { if (localStorage.getItem('gi.revisadas') !== null) return; } catch { return; }
-  const novo = (e) => (e === 'naovistas' ? 'concluidas' : e === 'concluidas' ? 'revisadas' : e);
-  if (Array.isArray(local.ordemGrupos)) {
-    local.ordemGrupos = local.ordemGrupos.map(novo);
-    gravar('gi.ordemGrupos', local.ordemGrupos);
-  }
-  const g = {};
-  for (const [k, v] of Object.entries(local.grupos)) {
-    const i = k.lastIndexOf('|') + 1; // 'p:Projeto|estado' ou só 'estado'
-    g[k.slice(0, i) + novo(k.slice(i))] = v;
-  }
-  local.grupos = g;
-  gravar('gi.grupos', local.grupos);
-  gravar('gi.revisadas', local.revisadas);
-  try { localStorage.removeItem('gi.vistos'); } catch {}
-}
 // Ordem salva saneada: só chaves conhecidas, sem repetir; grupo que faltar entra no lugar padrão. null = ordem padrão.
 function normalizarOrdemGrupos(v) {
   if (!Array.isArray(v)) return null;
@@ -3591,9 +3299,10 @@ function adiadaAte(s) {
 function parada(s, agora = Date.now()) {
   return s.status === 'trabalhando' && agora - (Number(s.atividade) || desdeDe(s)) > PARADA_MS;
 }
-// Revisada: marcada depois de terminar. Se voltar a trabalhar e terminar de novo, o "desde" passa da marca e ela volta para Concluídas.
+// Revisada (21/10: no servidor, s.revisadaEm em ms): marcada depois de terminar. Se voltar a trabalhar e terminar de novo,
+// o servidor apaga o campo e a sessão volta para Concluídas.
 function revisada(s) {
-  return REVISAVEL.has(s.status) && (local.revisadas[s.id] || 0) >= desdeDe(s);
+  return REVISAVEL.has(s.status) && !!s.revisadaEm;
 }
 const aRevisar = (s) => REVISAVEL.has(s.status) && !revisada(s);
 // Cópia da regra do janela.mjs (20/10; o janela.test confere as duas): 1M em Fable/Mythos, Opus/Sonnet 4.6+ e
@@ -3918,6 +3627,12 @@ const dom = { linhas: new Map(), grupos: new Map(), subs: new Map(), nada: null,
 // Arraste de grupo pelo cabeçalho (ver "Reordenar grupos"): enquanto ativo, a lista não redesenha.
 const grpArr = { ativo: false, pendente: false, semClique: false, p: null };
 
+// Selo neutro "Codex" (provisório, 21/10): só com s.provedor === 'codex'; o CSS (assets/codex.css) entra na primeira vez que aparece.
+function seloCodex(s) {
+  if (!s || s.provedor !== 'codex') return null;
+  if (!document.querySelector('link[href="assets/codex.css"]')) document.head.append(h('link', { rel: 'stylesheet', href: 'assets/codex.css' }));
+  return h('span', { class: 'cdx-selo', title: 'Sessão do Codex' }, 'Codex');
+}
 // Sem ações rápidas na linha (16/10): compactar, limpar, fixar, remover, VS Code e conversa ficam no detalhe.
 function criarLinha(chave) {
   const r = {};
@@ -3989,7 +3704,7 @@ function preencherMae(el, s, f, agora) {
   const aberta = famAberta(f);
   const depPrecisa = f.deps.some((d) => GRUPO_DE[d.status] === 'precisa') || f.agentes.some((a) => a.status === 'aguardando');
   const sig = [st, n, s.projeto, s.projeto && nomeProj(s.projeto), s.nome, s.status === 'trabalhando' && s.ferramenta ? s.ferramenta.nome + s.ferramenta.alvo : '', s.detalhe, s.tarefa,
-    !!s.fixada, !!s.silenciada, ad, par, nv, ctx ? ctx.tokens + ctx.modelo : '', des, s.atividade, nDeps, aberta, depPrecisa, fantasma ? '' : rotuloModelo(s), fantasma ? '' : sigOrbit(s), fantasma ? '' : JSON.stringify(autoCompactacao(s))].join('\u0001');
+    s.provedor || '', !!s.fixada, !!s.silenciada, ad, par, nv, ctx ? ctx.tokens + ctx.modelo : '', des, s.atividade, nDeps, aberta, depPrecisa, fantasma ? '' : rotuloModelo(s), fantasma ? '' : sigOrbit(s), fantasma ? '' : JSON.stringify(autoCompactacao(s))].join('\u0001');
   el.classList.toggle('a-revisar', nv);
   el.classList.toggle('adiada', !!ad);
   el.classList.toggle('fantasma', fantasma);
@@ -4015,6 +3730,8 @@ function preencherMae(el, s, f, agora) {
   txt(r.tit, n);
   r.tit.title = n + (s.nome ? ' · ' + s.nome : '');
   const icos = [];
+  const cdx = seloCodex(s);
+  if (cdx) icos.push(cdx);
   if (s.fixada) icos.push(h('span', { class: 'mini-ico', title: 'Fixada' }, icone('alfinete', 13)));
   if (s.silenciada) icos.push(h('span', { class: 'mini-ico', title: 'Silenciada: não avisa' }, icone('sino-mudo', 13)));
   r.icos.replaceChildren(...icos);
@@ -4058,13 +3775,15 @@ function preencherDep(el, s, agora) {
   const r = el._r;
   const st = statusDe(s);
   const des = desdeDe(s);
-  const sig = [st, nome(s), s.nome, s.status === 'trabalhando' && s.ferramenta ? s.ferramenta.nome + s.ferramenta.alvo : '', s.detalhe, des, contexto(s) ? s.contexto.tokens : ''].join('\u0001');
+  const sig = [st, nome(s), s.nome, s.status === 'trabalhando' && s.ferramenta ? s.ferramenta.nome + s.ferramenta.alvo : '', s.detalhe, des, contexto(s) ? s.contexto.tokens : '', s.provedor || ''].join('\u0001');
   el.dataset.s = st;
   el.dataset.id = s.id;
   el.setAttribute('role', 'option');
   atualizarAvatar(r.av, st, s);
   if (el._sig === sig) return;
   el._sig = sig;
+  const cdxSel = r.sessao.querySelector('.cdx-selo'), cdxNovo = seloCodex(s); // Codex etapa 5: membro de time leva o selo, como na linha-mãe
+  if (cdxNovo && !cdxSel) r.desc.after(cdxNovo); else if (!cdxNovo && cdxSel) cdxSel.remove();
   txt(r.chip, s.nome || 'sessão');
   r.chip.title = 'Sessão dependente' + (s.nome ? ': ' + s.nome : '');
   txt(r.desc, nome(s));
@@ -4330,6 +4049,7 @@ function renderLista() {
       el.classList.toggle('sel', sel);
       if (el.getAttribute('role') === 'option') el.setAttribute('aria-selected', String(sel));
       if (id) el.id = 'l-' + id; else el.removeAttribute('id');
+      el.draggable = !!id && !el.dataset.agente; // arrastar a sessão para o Whiteboard (card de agente)
     }
     reconciliar(gr.corpo, corpo);
     filhos.push(gr.el);
@@ -4468,7 +4188,7 @@ function renderFaixa() {
     const av = avatarEl(38);
     atualizarAvatar(av, st, s);
     const mae = s.pai && est.sessoes.get(s.pai);
-    const copiar = h('button', { type: 'button', class: 'btn p', title: 'Copiar claude --resume ' + s.id }, icone('terminal', 14), h('span', null, 'Copiar resume'));
+    const copiar = h('button', { type: 'button', class: 'btn p', title: 'Copiar ' + cmdResume(s.id, true) }, icone('terminal', 14), h('span', null, 'Copiar resume'));
     copiar.addEventListener('click', (e) => { e.stopPropagation(); copiarResume(s.id, copiar); });
     const abrir = h('button', { type: 'button', class: 'btn btn-orbita p', title: 'Abrir a conversa no Orbit' }, icone('balao', 14), 'Abrir conversa'); // etapa 5
     abrir.addEventListener('click', (e) => { e.stopPropagation(); abrirSessao(s.id); });
@@ -4716,7 +4436,7 @@ function pintarProjIcone(el, p, tam) {
   const c = projCfg(p);
   const ic = String(c.icone || '');
   let glifo;
-  if (ICONES[ic] && ICONES_PROJ.some(([n]) => n === ic)) glifo = icone(ic, tam);
+  if (temIcone(ic) && ICONES_PROJ.some(([n]) => n === ic)) glifo = icone(ic, tam);
   else if (ic.startsWith('txt:') && ic.length > 4) glifo = h('span', { class: 'pj-txt' + (grafemas(ic.slice(4)).length > 1 ? ' duplo' : '') }, ic.slice(4));
   else if (FOTO_PROJ.test(ic)) glifo = h('img', { class: 'pj-foto', src: ic.slice(4), alt: '', draggable: 'false' });
   else glifo = h('span', { class: 'pj-letra' }, letraDe(nomeProj(p)));
@@ -4754,6 +4474,9 @@ function criarPersonalizar() {
   pj.letra = h('span', { class: 'pj-letra' });
   pj.nome = h('input', { type: 'text', class: 'pj-campo pj-nome-campo', maxlength: '60', 'aria-label': 'Nome do projeto', autocomplete: 'off', spellcheck: 'false' });
   pj.pasta = h('span');
+  // 21/10: brain do projeto (widget "Grafo do projeto" da Visão geral). O campo abre o seletor de pasta; o x desvincula.
+  pj.brain = h('button', { type: 'button', class: 'pj-campo pj-brain', onclick: () => escolherBrainProj() });
+  pj.brainX = h('button', { type: 'button', class: 'pj-foto-bt pj-brain-x', title: 'Desvincular o brain', 'aria-label': 'Desvincular o brain', onclick: () => salvarProj(pj.p, { brain: '' }) }, icone('x', 13));
   pj.grade = h('div', { class: 'pj-grade', role: 'group', 'aria-label': 'Ícone' },
     h('button', { type: 'button', class: 'pj-op', 'data-ico': '', title: 'Letra inicial', 'aria-label': 'Letra inicial' }, pj.letra),
     ...ICONES_PROJ.map(([n, rot]) => h('button', { type: 'button', class: 'pj-op', 'data-ico': n, title: rot, 'aria-label': rot }, icone(n, 16))));
@@ -4771,6 +4494,7 @@ function criarPersonalizar() {
     h('div', { class: 'pj-cab' }, pj.prev, h('div', { class: 'pj-cab-txt' }, h('small', null, 'Personalizar projeto'), pj.tit),
       h('button', { type: 'button', class: 'btn-icone', title: 'Fechar', 'aria-label': 'Fechar', onclick: () => fecharPersonalizar(true) }, icone('x', 14))),
     h('div', { class: 'pj-rot' }, 'Nome', pj.pasta), pj.nome,
+    h('div', { class: 'pj-rot' }, 'Brain', h('span', null, 'pasta de notas do grafo')), h('div', { class: 'pj-linha' }, pj.brain, pj.brainX),
     h('div', { class: 'pj-rot' }, 'Ícone'), pj.grade, h('div', { class: 'pj-linha' }, pj.txt, pj.foto, pj.arq),
     h('div', { class: 'pj-rot' }, 'Tag', h('span', null, 'ponto no canto do ícone')), pj.cores,
     // Etapa 5: o fluxo antigo (instância nova na extensão do VS Code) fica aqui, no menu do projeto.
@@ -4843,7 +4567,18 @@ function atualizarPersonalizar() {
   pj.livreRot.classList.toggle('sel', livre);
   if (livre) pj.livreRot.style.setProperty('--c', cor); else pj.livreRot.style.removeProperty('--c');
   if (document.activeElement !== pj.livre) pj.livre.value = cor || '#6366f1';
-  pj.restaurar.hidden = !c.icone && !cor && !c.rotulo;
+  const br = brainDe(p);
+  txt(pj.brain, br || 'Vincular brain…');
+  pj.brain.classList.toggle('vazio', !br);
+  pj.brain.title = br ? br + ' (clique para trocar)' : 'Escolher a pasta de notas do projeto';
+  pj.brainX.hidden = !br;
+  pj.restaurar.hidden = !c.icone && !cor && !c.rotulo && typeof c.brain !== 'string';
+}
+async function escolherBrainProj() {
+  const p = pj.p;
+  if (p == null || !window.GrafoWidget) return;
+  const pasta = await window.GrafoWidget.escolherPasta({ titulo: 'Brain de ' + nomeProj(p), dica: 'a pasta de notas (.md) que vira o grafo do projeto na Visão geral', inicio: brainDe(p) || pastaDoProjeto(p), volta: pj.brain });
+  if (pasta) salvarProj(p, { brain: pasta });
 }
 function posicionarPersonalizar() {
   if (!pj.el || pj.el.hidden) return;
@@ -4892,7 +4627,7 @@ function fecharPersonalizar(devolverFoco) {
   pj.ancora = null;
 }
 document.addEventListener('pointerdown', (e) => {
-  if (pj.el && !pj.el.hidden && !pj.el.contains(e.target) && !e.target.closest('.pj-editar, .pj-quad, .pj-editar-g')) fecharPersonalizar(false);
+  if (pj.el && !pj.el.hidden && !pj.el.contains(e.target) && !e.target.closest('.pj-editar, .pj-quad, .pj-editar-g, .gw-modal')) fecharPersonalizar(false); // .gw-modal: seletor do brain por cima
 }, true);
 addEventListener('resize', posicionarPersonalizar);
 addEventListener('scroll', posicionarPersonalizar, true);
@@ -4991,8 +4726,9 @@ function filtrar(f) { est.filtro = est.filtro === f ? '' : f; irGeral(); render(
 // GIFs: mascotes e cena. Parados quando a aba some ou com movimento reduzido.
 const gifParado = {};
 const gifsPausados = () => document.hidden || reduzido();
-const ESTATICOS = { 'robot-sleep': 'assets/robot-sleep-sheet.png', 'robot-done': 'assets/robot-done-app.png?v=2', cyber: 'assets/cyber.png', 'medieval-field': 'assets/medieval-field.png', 'sleep-cat': 'assets/sleep-cat.png',  'sprites/sprite-done-parado': 'assets/sprites/sprite-done-parado.png', 'sprites/sprite-work-parado': 'assets/sprites/sprite-work-parado.png' }; // PNG: dispensa quadro parado (o robot-sleep anima pelo CSS; o robot-done-app sai de testes/gerar-robot-done.py)
-const VERSAO_GIF = { 'robot-work': 2 }; // sobe quando o arquivo muda: o servidor manda cachear imagem por 24 h
+const ESTATICOS = { 'robot-sleep': 'assets/robot-sleep-sheet.png', 'robot-done': 'assets/robot-done-app.png?v=2', cyber: 'assets/cyber.png', 'medieval-field': 'assets/medieval-field.png', 'sleep-cat': 'assets/sleep-cat.png',
+  'sprites/sprite-done-parado': 'assets/sprites/sprite-done-parado.png?v=2', 'sprites/sprite-work-parado': 'assets/sprites/sprite-work-parado.png' }; // PNG: dispensa quadro parado (o robot-sleep anima pelo CSS; o robot-done-app sai de testes/gerar-robot-done.py)
+const VERSAO_GIF = { 'robot-work': 2, 'sprites/sprite-music': 2, 'sprites/sprite-sleep': 2, 'sprites/sprite-work': 2, 'sprites/sprite-cook': 2, 'sprites/sprite-needu': 2, 'sprites/sprite-search': 2, 'sprites/sprite-wizark': 2, 'sprites/sprite-think': 2, 'sprites/sprite-done': 2 }; // sobe quando o arquivo muda: o servidor manda cachear imagem por 24 h
 function srcGif(nome) { return ESTATICOS[nome] || (gifsPausados() && gifParado[nome] ? gifParado[nome] : 'assets/' + nome + '.gif' + (VERSAO_GIF[nome] ? '?v=' + VERSAO_GIF[nome] : '')); }
 function imgGif(nome, tam, cls) {
   const img = h('img', { alt: '', width: tam, height: tam, class: cls || null, 'data-gif': nome, decoding: 'async' });
@@ -5051,12 +4787,16 @@ function renderTopo() {
   const vo = est.vista === 'office';
   const vr = est.vista === 'repos';
   const va = est.vista === 'arquivo'; // rodada 8: prévia e busca de arquivos
+  const vw = est.vista === 'whiteboard';
+  const vgr = est.vista === 'grafo';
   if (abas.on) vh = posicionarCabecalho(); // rodada 9: cada vista mora na sua aba; o cabeçalho vai para a que está à vista
   else {
-    document.querySelector('.conteudo').hidden = vo || vr || va;
+    document.querySelector('.conteudo').hidden = vo || vr || va || vw || vgr;
     $('office').hidden = !vo;
     $('repos').hidden = !vr;
     $('arquivo').hidden = !va;
+    $('whiteboard').hidden = !vw;
+    $('grafo').hidden = !vgr;
   }
   if (!vistaVisivel('repos') && reposEst && reposEst.ativo) pausarRepos(); // saída da vista sem mostrarVista (filtros, projeto)
   $('btn-office-e').setAttribute('aria-pressed', String(vo));
@@ -5177,12 +4917,11 @@ function desenharIcone(cor, n) {
 // 17/10: sprites em assets/sprites (128 px, reduzidos de assets/new/assets gif). Só o trabalho tem variantes: a
 // sorteada vale para o ciclo de trabalho inteiro (sessão: até sair de Trabalhando; subagente: a vida toda).
 // Mapa estado → sprite, limiares e ferramentas de busca: comuns ao celular (assets/comum/base.js).
-const { SPRITE, CTX_MAGO, CTX_COZINHA, FERR_BUSCA, ehBusca, ehDelegacao } = OrbitBase;
+const { SPRITE, FERR_BUSCA, ehBusca, ehDelegacao } = OrbitBase;
 function estadoSprite(st, s, a) {
   if (a) return OrbitBase.estadoSprite(st, { agente: true, ferramenta: a.ferramenta });
   const subTrabalhando = agentesDe(s).some((x) => x.status === 'trabalhando');
-  const tokens = st === 'trabalhando' && contexto(s) ? contexto(s).tokens : 0;
-  return OrbitBase.estadoSprite(st, { ferramenta: s.ferramenta, subTrabalhando, tokens, revisada: st === 'concluida' && !subTrabalhando && revisada(s) });
+  return OrbitBase.estadoSprite(st, { ferramenta: s.ferramenta, subTrabalhando, revisada: st === 'concluida' && !subTrabalhando && revisada(s) });
 }
 // Busca e espera ficam ao menos RETER_MS na tela: um Grep dura décimos de segundo e o robô piscaria.
 const RETER_MS = 2500;
@@ -5194,7 +4933,7 @@ function spriteAvatar(st, s, a) {
   const agora = Date.now();
   const r = spriteRetido.get(chave);
   if (estado === 'busca' || estado === 'espera') spriteRetido.set(chave, { estado, ate: agora + RETER_MS });
-  else if (r && r.ate > agora && (estado === 'trabalho' || estado === 'mago' || estado === 'cozinha')) { estado = r.estado; reavaliarAvatares(r.ate - agora); }
+  else if (r && r.ate > agora && estado === 'trabalho') { estado = r.estado; reavaliarAvatares(r.ate - agora); }
   else if (r) spriteRetido.delete(chave);
   const l = SPRITE[estado];
   if (l.length === 1) return l[0];
@@ -5249,10 +4988,22 @@ function avatarEl(tam, cls) {
   const img = h('img', { alt: '', width: tam - 2, height: tam - 2, class: 'spr', decoding: 'async' });
   img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
   const selo = h('span', { class: 'av-selo', 'aria-hidden': 'true' });
-  const el = h('span', { class: 'av-robo' + (cls ? ' ' + cls : '') }, img, selo);
+  const ia = h('span', { class: 'av-ia', 'aria-hidden': 'true' });
+  const el = h('span', { class: 'av-robo' + (cls ? ' ' + cls : '') }, img, ia, selo);
   el._img = img;
   el._selo = selo;
+  el._ia = ia;
   return el;
+}
+// Marca da IA no canto superior direito do avatar (21/10): Claude (a mesma do card Uso do plano, .gu-logo) ou Codex (OpenAI).
+const LOGO_IA = {
+  claude: { rot: 'Claude', d: 'M12.22 10.42L13.39 2.1M12.99 10.74L17.29 5.22M13.48 11.4L20.9 8.4M13.58 12.22L20.12 13.14M13.26 12.99L19.88 18.16M12.6 13.48L15.33 20.25M11.78 13.58L10.69 21.31M11.01 13.26L6.83 18.62M10.52 12.6L2.73 15.75M10.42 11.78L3.38 10.79M10.74 11.01L4.36 6.03M11.4 10.52L8.82 4.12' },
+  codex: { rot: 'Codex', d: 'M22.28 9.82a5.98 5.98 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.51-2.9A6.07 6.07 0 0 0 4.98 4.18a5.98 5.98 0 0 0-4 2.9 6.05 6.05 0 0 0 .74 7.1 5.98 5.98 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.52 2.9A5.98 5.98 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.21 5.99 5.99 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.07zm-9.02 12.61a4.48 4.48 0 0 1-2.88-1.04l.14-.08 4.78-2.76a.79.79 0 0 0 .39-.68v-6.74l2.02 1.17a.07.07 0 0 1 .04.05v5.58a4.5 4.5 0 0 1-4.49 4.5zm-9.66-4.13a4.47 4.47 0 0 1-.53-3.01l.14.09 4.78 2.76a.77.77 0 0 0 .78 0l5.84-3.37v2.33a.08.08 0 0 1-.03.06L9.74 19.95a4.5 4.5 0 0 1-6.14-1.65zM2.34 7.9a4.49 4.49 0 0 1 2.37-1.97V11.6a.77.77 0 0 0 .39.68l5.81 3.35-2.02 1.17a.08.08 0 0 1-.07 0l-4.83-2.79A4.5 4.5 0 0 1 2.34 7.87zm16.6 3.86L13.1 8.36 15.12 7.2a.08.08 0 0 1 .07 0l4.83 2.79a4.49 4.49 0 0 1-.68 8.1v-5.68a.79.79 0 0 0-.4-.67zm2.01-3.02l-.14-.09-4.77-2.78a.78.78 0 0 0-.79 0L9.41 9.23V6.9a.07.07 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.68 4.66zM8.31 12.86l-2.02-1.16a.08.08 0 0 1-.04-.06V6.07a4.5 4.5 0 0 1 7.38-3.45l-.14.08L8.7 5.46a.79.79 0 0 0-.39.68zm1.1-2.37l2.6-1.5 2.61 1.5v3l-2.6 1.5-2.61-1.5z' },
+};
+function logoIA(prov) {
+  const v = sv('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' });
+  v.append(sv('path', { d: LOGO_IA[prov].d }));
+  return v;
 }
 // s: a sessão (no subagente, a mãe); a: o subagente, quando o avatar é dele.
 function atualizarAvatar(el, st, s, a) {
@@ -5260,6 +5011,12 @@ function atualizarAvatar(el, st, s, a) {
   if (el.dataset.s !== st) el.dataset.s = st;
   el._args = s ? [st, s, a || null] : null;
   trocarSprite(el, s ? spriteAvatar(st, s, a) : SPRITE[st === 'trabalhando' ? 'trabalho' : 'dormindo'][0]);
+  const prov = !s ? '' : s.provedor === 'codex' ? 'codex' : 'claude';
+  if (el._iaProv !== prov) {
+    el._iaProv = prov;
+    if (prov) { el.dataset.ia = prov; el._ia.title = LOGO_IA[prov].rot; el._ia.replaceChildren(logoIA(prov)); }
+    else { delete el.dataset.ia; el._ia.removeAttribute('title'); el._ia.replaceChildren(); }
+  }
   if (el._seloSt !== st) {
     el._seloSt = st;
     el._selo.replaceChildren(...(st === 'aguardando' || st === 'erro' ? ['!'] : st === 'concluida' || st === 'concluido' ? [icone('check', 9)] : []));
@@ -5582,7 +5339,7 @@ function renderRevisao(s) {
   bar.hidden = !mostra;
   if (!mostra) { bar._sig = ''; return; }
   const feita = revisada(s);
-  const quando = feita ? local.revisadas[s.id] : 0;
+  const quando = feita ? s.revisadaEm : 0;
   const sig = [s.id, s.status, feita, quando].join('|');
   if (bar._sig === sig) return;
   bar._sig = sig;
@@ -5619,6 +5376,7 @@ function renderPeek() {
   if (pk.peek._chave !== chaveDet) {
     pk.peek._chave = chaveDet;
     pk.peek.dataset.id = s.id;
+    $('pk-copiar').title = 'Copiar ' + cmdResume(s.id, true);
     pk.corpo.scrollTop = 0;
     pk.tiles._sig = pk.kv._sig = pk.pai._sig = pk.agentes._sig = pk.lt._chave = '';
     pk.pilula._sig = '';
@@ -5661,6 +5419,10 @@ function renderPeek() {
   txt(pk.tempo, 'há ' + dur(agora - des));
   aplicarUrg(pk.tempo, espera ? agora - des : 0);
   pk.tempo.title = ROTULO[st] + ' desde ' + hora(des);
+  { // selo "Codex" ao lado do estado (criado/removido aqui: sem Codex não há elemento)
+    const l1 = pk.tempo.parentNode, sel = l1.querySelector('.cdx-selo'), novo = seloCodex(s);
+    if (novo && !sel) pk.tempo.after(novo); else if (!novo && sel) sel.remove();
+  }
 
   txt(pk.tit, nome(s));
   pk.tit.title = nome(s) + ' · clique para renomear';
@@ -6411,10 +6173,56 @@ function renderHistorico() {
   }));
 }
 let historicoCompleto = false;
+// Whiteboard: o SSE pode restaurar a vista antes de os scripts do whiteboard (no fim do body) rodarem;
+// nesse caso a entrada espera o DOMContentLoaded (todos os scripts síncronos já executados). Sair cancela a espera.
+let wbPendente = false;
+function wbEntrar() {
+  if (document.readyState === 'loading' || !window.Whiteboard) {
+    if (!wbPendente) { wbPendente = true; document.addEventListener('DOMContentLoaded', () => { if (wbPendente) { wbPendente = false; wbEntrar(); } }, { once: true }); }
+    return;
+  }
+  try { window.Whiteboard.entrar($('whiteboard')); } catch (e) { console.warn('whiteboard', e); }
+}
+function wbSair() {
+  wbPendente = false;
+  try { window.Whiteboard?.sair(); } catch (e) { console.warn('whiteboard', e); }
+}
+function grEntrar() {
+  if (document.readyState === 'loading' || !window.GrafoAba) { document.addEventListener('DOMContentLoaded', () => { if (window.GrafoAba) try { window.GrafoAba.entrar($('grafo')); } catch (e) { console.warn('grafo', e); } }, { once: true }); return; }
+  try { window.GrafoAba.entrar($('grafo')); } catch (e) { console.warn('grafo', e); }
+}
+function grSair() { try { window.GrafoAba?.sair(); } catch (e) { console.warn('grafo', e); } }
+// Widget "Grafo do projeto" (21/10, assets/grafo-widget.js): o brain de cada projeto mora em config.projetos[p].brain
+// (pasta absoluta; '' = sem brain). Sem o campo, o projeto do próprio Orbit usa o cofre (GET /grafo/padrao).
+var grafoPadrao = { projeto: '', pasta: '' }; // var: render() e o popover podem rodar antes desta linha
+fetch('/grafo/padrao', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+  if (!j) return;
+  grafoPadrao.projeto = String(j.projeto || ''); grafoPadrao.pasta = String(j.pasta || '');
+  atualizarGrafoWidget(); atualizarPersonalizar();
+}).catch(() => {});
+function brainDe(p) { const b = projCfg(p).brain; return typeof b === 'string' ? b : p && p === grafoPadrao.projeto ? grafoPadrao.pasta : ''; }
+function pastaDoProjeto(p) { const a = projetosArq().find((x) => x.nome === p); return (a && a.pasta) || ''; }
+function vincularBrain(p, pasta) { salvarProj(p, { brain: String(pasta || '') }); }
+function abrirGrafoEm(pasta) {
+  try { window.GrafoAba?.definirPasta(pasta); } catch (e) { console.warn('grafo', e); }
+  mostrarVista('grafo');
+}
+var grafoWidget = null;
+function atualizarGrafoWidget() { if (grafoWidget) try { grafoWidget.atualizar(); } catch (e) { console.warn('grafo do projeto', e); } }
+function montarGrafoWidget() {
+  if (!window.GrafoWidget || !$('grafo-card')) return;
+  try {
+    grafoWidget = window.GrafoWidget.montar($('grafo-card'), {
+      filtro: () => est.projeto || '', projetos: projetosArq, padrao: () => grafoPadrao.projeto,
+      nome: nomeProj, brain: brainDe, pastaProjeto: pastaDoProjeto, vincular: vincularBrain, abrirGrafo: abrirGrafoEm, icone,
+    });
+  } catch (e) { console.warn('grafo do projeto', e); }
+}
+document.addEventListener('DOMContentLoaded', montarGrafoWidget, { once: true });
 function mostrarVista(v) {
   if (abas.on) { // rodada 9: a vista abre (ou ganha o foco) na aba dela; o resto do efeito mora no provedor
     if (v === 'arquivo') { render(); return; } // os arquivos têm abas próprias
-    if (v === 'office' || v === 'repos' || v === 'historico') est.peek = false; // como antes: a tela pede o espaço todo
+    if (v === 'office' || v === 'repos' || v === 'historico' || v === 'whiteboard' || v === 'grafo') est.peek = false; // como antes: a tela pede o espaço todo
     abrirVistaAba(v);
     render();
     return;
@@ -6422,10 +6230,14 @@ function mostrarVista(v) {
   if (est.vista === v) return;
   const anterior = est.vista;
   est.vista = v;
-  if (anterior === 'office') pausarOffice();
+  if (anterior === 'office') sairDoOffice();
   if (v === 'office') { est.peek = false; abrirOffice(); }
   if (anterior === 'repos') pausarRepos();
   if (v === 'repos') { est.peek = false; abrirRepos(); }
+  if (anterior === 'whiteboard') wbSair();
+  if (v === 'whiteboard') { est.peek = false; wbEntrar(); }
+  if (anterior === 'grafo') grSair();
+  if (v === 'grafo') { est.peek = false; grEntrar(); }
   if (anterior === 'arquivo' && arqPronto) try { window.Arquivos.pausar(); } catch (e) { console.warn('arquivo', e); } // rodada 8
   if (v === 'arquivo') { est.peek = false; if (arqPronto) try { window.Arquivos.retomar(); } catch (e) { console.warn('arquivo', e); } }
   if (v === 'historico') {
@@ -6467,8 +6279,7 @@ function render() {
   try { renderTitulo(); } catch (e) { console.warn('título', e); }
   try { if (vistaVisivel('historico')) renderHistorico(); } catch (e) { console.warn('histórico', e); }
   try { if (window.Sincronia && window.Sincronia.projetoMudou) window.Sincronia.projetoMudou(); } catch (e) { console.warn('sincronia do projeto', e); }
-  // Recolher o 1º grupo termina com a dobra oculta, sem mudar o tamanho de nada que o ResizeObserver vê.
-  try { if (alinharLado()) medirCenaV(); } catch (e) { console.warn('alinhamento da lateral', e); }
+  atualizarGrafoWidget(); // só age se o projeto ou o brain mudou
 }
 function tick() {
   if (document.hidden) return;
@@ -6572,14 +6383,43 @@ function alvosRevisao(id) {
   const lista = f && f.id === id && !f.mae.fantasma ? membros(f) : [s];
   return lista.filter((x) => REVISAVEL.has(x.status)).map((x) => x.id);
 }
+// Grava na hora na sessão da tela (s.revisadaEm) e manda ao servidor (POST /sessao/:id/revisada); se falhar, desfaz.
 function gravarRevisao(ids, revisar) {
   const agora = Date.now();
   for (const id of ids) {
     const s = est.sessoes.get(id);
-    if (revisar && s) local.revisadas[id] = Math.max(agora, desdeDe(s));
-    else delete local.revisadas[id];
+    if (!s) continue;
+    const antes = s.revisadaEm;
+    if (revisar) s.revisadaEm = Math.max(agora, desdeDe(s));
+    else delete s.revisadaEm;
+    enviarRevisada(id, revisar, antes);
   }
-  gravar('gi.revisadas', local.revisadas);
+}
+function enviarRevisada(id, revisar, antes) {
+  return post('/sessao/' + encodeURIComponent(id) + '/revisada', { revisada: revisar }).catch(() => {
+    const atual = est.sessoes.get(id);
+    if (atual && !!atual.revisadaEm === revisar) {
+      if (antes) atual.revisadaEm = antes; else delete atual.revisadaEm;
+      render();
+      falhou('salvar a revisão')();
+    }
+  });
+}
+// Migração única (21/10): quem tinha "gi.revisadas" no navegador manda cada marca ainda válida ao servidor e apaga a chave.
+function migrarRevisadasLocais() {
+  let bruto = null;
+  try { bruto = localStorage.getItem('gi.revisadas'); } catch { return; }
+  if (bruto === null) return;
+  let marcas = {};
+  try { marcas = JSON.parse(bruto) || {}; } catch {}
+  if (!marcas || typeof marcas !== 'object' || Array.isArray(marcas)) marcas = {};
+  for (const [id, quando] of Object.entries(marcas)) {
+    const s = est.sessoes.get(id);
+    if (!s || s.revisadaEm || !REVISAVEL.has(s.status) || (Number(quando) || 0) < desdeDe(s)) continue;
+    s.revisadaEm = Math.max(Number(quando), desdeDe(s));
+    enviarRevisada(id, true, undefined);
+  }
+  try { localStorage.removeItem('gi.revisadas'); } catch {}
 }
 // Concluídas ↔ Revisadas pelo botão do detalhe (ou da Conversa). A linha recolhe no grupo antigo e abre no novo.
 function marcarRevisada(id, revisar = true) {
@@ -6601,16 +6441,11 @@ async function marcarTodasRevisadas() {
   const ok = await confirmar((n === 1 ? 'Ela sai' : 'Elas saem') + ' de Concluídas e ' + (n === 1 ? 'vai' : 'vão') + ' para Revisadas' + (est.projeto ? ' (só de ' + est.projeto + ')' : '') + '. Dá para desfazer em seguida.',
     'Marcar como revisadas', n === 1 ? 'Marcar 1 sessão como revisada?' : 'Marcar ' + n + ' sessões como revisadas?', { perigo: false });
   if (!ok) return;
-  const antes = Object.fromEntries(ids.map((id) => [id, local.revisadas[id]]));
   gravarRevisao(ids, true);
   fecharAvisosDe(ids);
   render();
   toast(n === 1 ? '1 sessão marcada como revisada' : n + ' sessões marcadas como revisadas', {
-    desfazer: () => {
-      for (const id of ids) { if (antes[id] == null) delete local.revisadas[id]; else local.revisadas[id] = antes[id]; }
-      gravar('gi.revisadas', local.revisadas);
-      render();
-    },
+    desfazer: () => { gravarRevisao(ids, false); render(); },
   });
 }
 // Revisar fecha o aviso do sistema que ainda estiver aberto para a sessão.
@@ -6686,8 +6521,6 @@ function moverAltura(el, entrar) {
   return a;
 }
 function podar() {
-  for (const id of Object.keys(local.revisadas)) if (!est.sessoes.has(id)) delete local.revisadas[id];
-  gravar('gi.revisadas', local.revisadas);
   for (const id of Object.keys(local.adiadas)) {
     const s = est.sessoes.get(id);
     if (!s || s.status !== 'aguardando' || local.adiadas[id] <= Date.now()) delete local.adiadas[id];
@@ -6766,6 +6599,76 @@ function abrirSessao(id) {
   if (!id || !est.sessoes.has(id)) return;
   abrirConversa(id);
 }
+// Whiteboard etapa 4: fonte viva das sessões para os cards de agente (assets/whiteboard-agentes.js lê na hora do uso).
+// Contrato da etapa 4 do Whiteboard. contexto.pct vai de 0 a 1 (como contexto() da lista).
+const fonteOuvintes = new Set();
+function avisarFonte(tipo, id) {
+  for (const fn of [...fonteOuvintes]) { try { fn({ tipo, id }); } catch (e) { console.warn('OrbitFonteSessoes', e); } }
+}
+function atividadeTexto(s) { // o mesmo texto da coluna "agora" da lista (celulaAgora), sem o DOM
+  if (s.status === 'aguardando' || s.status === 'erro') return limpo(s.detalhe) || (s.status === 'erro' ? 'Parou com erro' : 'Aguardando sua resposta');
+  if (s.status === 'trabalhando' && s.ferramenta && s.ferramenta.nome) { const alvo = limpo(s.ferramenta.alvo); return s.ferramenta.nome + (alvo ? ' · ' + alvo : ''); }
+  let t = limpo(s.tarefa) || limpo(s.primeira);
+  if (!t && s.status === 'nova') t = 'Aberta, ainda sem pedidos';
+  if (!t && s.status === 'encerrada') t = limpo(s.detalhe);
+  return t === nome(s) ? '' : t || '';
+}
+function resumoSessao(s) {
+  const st = statusDe(s);
+  const c = contexto(s);
+  const png = SPRITE_URL(spriteAvatar(st, s));
+  return {
+    id: s.id, nome: nome(s), projeto: s.projeto ? nomeProj(s.projeto) : '', status: st, statusTexto: ROTULO[st] || st,
+    sprite: png, contexto: c ? { tokens: c.tokens, limite: c.limite, pct: c.pct } : null,
+    atividade: atividadeTexto(s), detalhe: limpo(s.detalhe), ferramenta: s.ferramenta && s.ferramenta.nome ? String(s.ferramenta.nome) : '',
+    desde: desdeDe(s), agentes: agentesDe(s).length, pai: s.pai || null,
+    ...(s.provedor === 'codex' ? { provedor: 'codex' } : {}), // só o Codex: os objetos do Claude ficam como eram
+  };
+}
+const SPRITE_URL = (n) => ESTATICOS[n] || 'assets/' + n + '.gif' + (VERSAO_GIF[n] ? '?v=' + VERSAO_GIF[n] : ''); // os sprites ativos são gif; só os "parados" são png
+// Whiteboard etapa 5: o time de uma sessão = a família dela (raiz + dependentes por `pai`) + os subagentes do Task de cada uma.
+// Contrato da etapa 5 do Whiteboard.
+function textoCurto(t, n = 80) { const x = limpo(t); return x.length > n ? x.slice(0, n - 1) + '…' : x; }
+function resumoSubagente(s, a) {
+  const st = statusAgente(a);
+  const f = a.ferramenta && a.ferramenta.nome && st === 'trabalhando' ? a.ferramenta : null;
+  const alvo = f ? limpo(f.alvo) : '';
+  return {
+    id: a.id, sessao: s.id, tipo: limpo(a.tipo), descricao: limpo(a.descricao), status: st, statusTexto: ROTULO_AGENTE[st] || st,
+    sprite: SPRITE_URL(spriteAvatar(st, s, a)), inicio: Number(a.inicio) || 0, fim: Number(a.fim) || 0,
+    atividade: textoCurto(f ? nomeFerr(f.nome) + (alvo ? ' · ' + alvo : '') : a.descricao || a.tipo),
+  };
+}
+function timeDe(id) {
+  const s0 = id && est.sessoes.get(id);
+  if (!s0) return null;
+  const lista = [...est.sessoes.values()].filter((s) => s && s.id);
+  const raiz = raizDe(s0, new Map(lista.map((s) => [s.id, s]))).id;
+  const f = montarFamilias(lista).get(raiz);
+  if (!f) return null;
+  const lider = f.mae.fantasma ? null : f.mae;
+  const donas = lider ? [lider, ...f.deps] : f.deps;
+  const subagentes = [];
+  for (const d of donas) for (const a of agentesDe(d)) subagentes.push(resumoSubagente(d, a));
+  const ocupada = (s) => GRUPO_DE[statusDe(s)] === 'precisa' || GRUPO_DE[statusDe(s)] === 'trabalhando';
+  const ativos = donas.filter(ocupada).length + subagentes.filter((a) => a.status === 'trabalhando' || a.status === 'aguardando').length;
+  const nomeTime = lider ? nome(lider) : (f.mae.projeto ? nomeProj(f.mae.projeto) : '') || (f.deps[0] ? nome(f.deps[0]) : 'Time');
+  return {
+    raiz, nome: nomeTime, lider: lider ? resumoSessao(lider) : null, membros: f.deps.map(resumoSessao), subagentes, ativos,
+    total: donas.length + subagentes.length,
+  };
+}
+window.OrbitFonteSessoes = {
+  obter(id) { const s = id && est.sessoes.get(id); return s ? resumoSessao(s) : null; },
+  time(id) { return timeDe(id); },
+  lista() { return [...est.sessoes.values()].map(resumoSessao); },
+  ouvir(fn) { if (typeof fn !== 'function') return () => {}; fonteOuvintes.add(fn); return () => fonteOuvintes.delete(fn); },
+  abrir(id) {
+    if (!id || !est.sessoes.has(id)) return;
+    if (!abas.on && est.vista !== 'geral') mostrarVista('geral'); // sem abas, sai da vista atual (o Whiteboard salva ao sair); com abas, o detalhe abre ao lado
+    abrirSessao(id);
+  },
+};
 // Numa instância viva do Orbit, confirma, encerra (o processo dorme) e só então chama o URI: nunca dois processos.
 async function abrirNoVSCode(id) {
   const s = id && est.sessoes.get(id);
@@ -6909,18 +6812,25 @@ async function copiarTexto(t) {
     return ok;
   } catch { return false; }
 }
+// Codex (etapa 4): a sessão do Codex retoma com `codex resume <id>`; o resto, `claude --resume <id>`.
+function cmdResume(id, comId) {
+  const s = id && est.sessoes.get(id);
+  const c = s && s.provedor === 'codex' ? 'codex resume' : 'claude --resume';
+  return comId ? c + ' ' + id : c;
+}
 async function copiarResume(id, botao) {
   if (!id) return;
-  const ok = await copiarTexto('claude --resume ' + id);
+  const cmd = cmdResume(id, true);
+  const ok = await copiarTexto(cmd);
   // A linha não tem mais botão de copiar: pelo atalho c, sem o detalhe aberto, o retorno vem no toast.
   const alvo = botao || (est.peek ? $('pk-copiar') : null);
-  if (!alvo) { toast(ok ? 'Copiado: claude --resume ' + id : 'Não deu para copiar.'); return; }
+  if (!alvo) { toast(ok ? 'Copiado: ' + cmd : 'Não deu para copiar.'); return; }
   const rot = [...alvo.children].find((c) => c.tagName === 'SPAN');
   alvo.classList.add('feito');
   const antes = rot ? rot.textContent : null;
   if (rot) rot.textContent = ok ? 'Copiado ✓' : 'Falhou';
   const t0 = alvo.title;
-  alvo.title = ok ? 'Copiado: claude --resume ' + id : 'Não deu para copiar';
+  alvo.title = ok ? 'Copiado: ' + cmd : 'Não deu para copiar';
   clearTimeout(alvo._t);
   alvo._t = setTimeout(() => { alvo.classList.remove('feito'); if (rot) rot.textContent = antes; alvo.title = t0; }, 1500);
 }
@@ -7372,7 +7282,7 @@ function abrirCamada(qual) {
   const c = $('camada-' + qual);
   if (c._saida) { c._saida.cancel(); c._saida = null; c.style.pointerEvents = ''; } // reabriu durante a saída
   c.hidden = false;
-  if (qual === 'config') { sincronizarConfig(); buscarInstancias(); reinicioAoAbrir(); abrirRegras(); abrirMcp(); abrirRemoto(); } // etapa 4: "N de 5 vivas · X MB"
+  if (qual === 'config') { sincronizarConfig(); buscarInstancias(); reinicioAoAbrir(); abrirRegras(); abrirMcp(); abrirRemoto(); abrirCodex(); } // etapa 4: "N de 5 vivas · X MB"
   // Ciclo 9: fundo e caixa entram juntos (ease-out, escala perto de 1); a saída é mais curta.
   if (!reduzido()) {
     c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
@@ -7404,7 +7314,7 @@ function salvarConfig(parcial) {
   est.config = mesclar(est.config, parcial);
   render();
   sincronizarConfig();
-  post('/config', parcial).catch(falhou('salvar as configurações'));
+  return post('/config', parcial).catch(falhou('salvar as configurações')); // devolve a promessa (a seção Codex espera o salvamento antes de reler o estado)
 }
 function sincronizarConfig() {
   const c = est.config;
@@ -7452,6 +7362,7 @@ function sincronizarConfig() {
   set('cfg-cena', 'value', local.cena);
   set('cfg-negrito', 'checked', local.negrito);
   atualizarAtivar();
+  if (window.CodexConfig) window.CodexConfig.sincronizar(); // seção Codex (assets/codex-config.js)
 }
 for (const el of document.querySelectorAll('[data-notificar]')) {
   el.addEventListener('change', () => salvarConfig({ notificar: { ...est.config.notificar, [el.dataset.notificar]: el.checked } }));
@@ -7631,7 +7542,7 @@ function aplicarCena() {
   prepararQuadro(local.cena);
   const img = cena.querySelector('img');
   if (img) { img.style.visibility = ''; definirGif(img, local.cena); }
-  agendarCenaV();
+  ajustarCena();
 }
 function definirCena(c) {
   local.cena = CENAS.includes(c) ? c : 'waterfall';
@@ -7639,114 +7550,29 @@ function definirCena(c) {
   aplicarCena();
   sincronizarConfig();
 }
-// Cena do dia em pé (15/10): com a coluna da esquerda bem mais alta que os cartões da lateral, a horizontal sai
-// de baixo da lista e a vertical entra logo abaixo dos cartões da lateral, até no máximo o fim do Espaço em disco
-// (CSS em "Cena do dia em pé"). Só lado a lado e só nas cenas com versão vertical. Na maioria das vezes fica a
-// horizontal (16/10): a vertical só entra quando o vão cabe ela inteira na proporção (941×1672
-// na largura da lateral) e só sai abaixo de 85% disso; a folga segura o vaivém na divisa (barra de rolagem que
-// some, uma linha a mais ou a menos).
+// Cena do dia em pé (15/10; widget da grade desde 21/10): nas cenas com versão vertical (941×1672), a caixa do
+// widget mais alta que larga (proporção acima de EM_PE) mostra a vertical por cima da horizontal; volta abaixo de
+// 90% disso, para não piscar na divisa. A vertical só entra já carregada, nunca como caixa vazia; se falhar, tenta de
+// novo depois de 1 min. widgets.js chama a cada mudança da grade (evento wd-layout).
 const CENA_V = { waterfall: 'assets/bosque-vertical.png', cyber: 'assets/cyber-vertical.png' };
-const CENA_V_SAI = .85, CENA_V_VAO = 16;
-const cenaV = { on: false, pronta: {}, erro: {}, carregando: '', firme: false, vez: 0 };
-// Medidas relativas ao topo da coluna lateral. O último cartão é medido pelo conteúdo, e o fim da coluna da
-// esquerda é contado sem a horizontal (lista, vão, Uso do plano e Espaço em disco), então nada aqui muda com o
-// modo. null = Home oculta.
-function medidasCenaV() {
-  const lista = $('lista'), lado = document.querySelector('.col-lado'), pe = document.querySelector('.col-pe');
-  const ult = lado && [...lado.querySelectorAll(':scope > .graf')].pop();
-  if (!lista || !ult || !lista.getClientRects().length) return null;
-  const rl = lista.getBoundingClientRect(), rc = ult.getBoundingClientRect(), topo = lado.getBoundingClientRect().top;
-  if (rc.left < rl.right) return { lado: false }; // empilhado: só a horizontal
-  const px = (el, p) => parseFloat(getComputedStyle(el)[p]) || 0;
-  let fim = rc.top + px(ult, 'borderTopWidth') + px(ult, 'paddingTop');
-  for (const f of ult.children) if (f.getClientRects().length) fim = Math.max(fim, f.getBoundingClientRect().bottom + px(f, 'marginBottom'));
-  fim += px(ult, 'paddingBottom') + px(ult, 'borderBottomWidth') - topo;
-  const fimEsq = rl.bottom + px(lista, 'marginBottom') + CENA_V_VAO + pe.getBoundingClientRect().height - topo;
-  return { lado: true, larg: rc.width, ultFim: fim, vao: fimEsq - fim - CENA_V_VAO };
-}
-// Topo e altura da vertical: sempre logo abaixo do último cartão (Sincronização), no mesmo vão de 16 px entre
-// os cartões. Desce até o fim da coluna da esquerda, no máximo, e para antes de a imagem (941×1672) passar do tamanho nativo em
-// pixels da tela: maior que isso ela seria ampliada e perderia nitidez. O cover corta sem distorcer, no foco de
-// cada cena (as laterais, quando mais alta que a proporção; em cima e embaixo, quando o vão é menor). Com a coluna
-// já mais larga que o nativo, qualquer altura extra só amplia mais: o teto fica na proporção.
-const CENA_V_PX = { larg: 941, alt: 1672 };
-function posicionarCenaV(m) {
-  const teto = Math.max(m.larg * CENA_V_PX.alt / CENA_V_PX.larg, CENA_V_PX.alt / (window.devicePixelRatio || 1));
-  const caixa = $('cena-v'), alt = Math.max(0, Math.min(m.vao, teto));
-  caixa.style.setProperty('--cv-alt', alt + 'px');
-  caixa.style.setProperty('--cv-topo', m.ultFim + CENA_V_VAO + 'px');
-}
-// Topo da lateral = topo da lista (15/10): a distância do topo da coluna da lista até o primeiro card dela
-// (sessões, "Nada precisa de você" ou o vazio), com os botões e o cabeçalho do projeto no meio. Grupo recolhido
-// não tem card, então vale o próximo; sem nenhum, o topo da lista. O CSS só aplica lado a lado.
-function alinharLado() {
-  const lista = $('lista'), col = document.querySelector('.col-lista'), lado = document.querySelector('.col-lado');
-  if (!lista.getClientRects().length) return false; // Home oculta: fica a última medida
-  const card = [...lista.querySelectorAll('.tabela, .nada, .vazio')].find((el) => el.getClientRects().length) || lista;
-  const d = Math.max(0, card.getBoundingClientRect().top - col.getBoundingClientRect().top).toFixed(2) + 'px';
-  if (lado.style.getPropertyValue('--lado-topo') === d) return false;
-  lado.style.setProperty('--lado-topo', d);
-  return true;
-}
-// Fins quase alinhados (16/10): lado a lado, quando um cartão da lateral e um da coluna da
-// esquerda (fim da lista, cena, Uso do plano, Espaço em disco) terminam a até FIM_JUNTA px um do outro, o que
-// termina mais acima ganha a diferença no padding de baixo e os dois fecham na mesma linha. Diferença maior
-// (grupos fechados, lista curta) fica como está: os cartões nunca encolhem nem ganham um vão que apareça.
-// A cena tem proporção fixa, então quem cresce por ela é o último cartão da lista, logo acima. Cada ajuste
-// trava a linha dele: um ajuste seguinte só cresce cartões abaixo dela, para não desfazer o anterior.
-// Sempre parte do tamanho natural (tira os ajustes, mede, aplica de novo), então a mesma página dá o mesmo
-// resultado e o ResizeObserver não entra em laço.
-const FIM_JUNTA = 32;
-function alinharFins() {
-  for (const el of document.querySelectorAll('[data-fim-extra]')) { el.style.paddingBottom = ''; delete el.dataset.fimExtra; }
-  const lista = $('lista'), lado = document.querySelector('.col-lado'), pe = document.querySelector('.col-pe');
-  if (!lista.getClientRects().length) return;
-  const dir = [...lado.querySelectorAll(':scope > .graf')];
-  if (!dir.length || dir[0].getBoundingClientRect().left < lista.getBoundingClientRect().right) return; // empilhado
-  const visivel = (el) => el && el.getClientRects().length > 0;
-  const ultCard = [...lista.querySelectorAll('.tabela, .nada, .vazio')].filter(visivel).pop() || null;
-  const fundo = (el) => el.getBoundingClientRect().bottom;
-  const crescer = (el, d) => {
-    el.style.paddingBottom = (parseFloat(getComputedStyle(el).paddingBottom) || 0) + d + 'px';
-    el.dataset.fimExtra = '';
-  };
-  let travaEsq = -Infinity, travaDir = -Infinity;
-  for (const card of dir) {
-    // Medida nova a cada cartão: o ajuste anterior pode ter descido o que vem depois.
-    const esq = [
-      { y: fundo(lista), cresce: ultCard },
-      ...[document.querySelector('.col-lista > .cena-bloco')].filter(visivel).map((el) => ({ y: fundo(el), cresce: ultCard })),
-      ...[...pe.querySelectorAll(':scope > .graf')].map((el) => ({ y: fundo(el), cresce: el })),
-    ];
-    const y = fundo(card);
-    if (y <= travaDir + .5) continue;
-    let par = null;
-    for (const e of esq) if (e.y > travaEsq + .5 && (!par || Math.abs(e.y - y) < Math.abs(par.y - y))) par = e;
-    const d = par ? par.y - y : 0;
-    if (!par || Math.abs(d) <= .5 || Math.abs(d) > FIM_JUNTA) continue;
-    if (d > 0) crescer(card, d);
-    else if (par.cresce && fundo(par.cresce) > travaEsq + .5) crescer(par.cresce, -d);
-    else continue;
-    travaEsq = travaDir = Math.max(y, par.y);
-  }
-}
-// Antes da medida da cena: a vertical fica abaixo do último cartão, que desce junto com o alinhamento.
-function medirCenaV() {
-  alinharLado();
-  alinharFins();
-  const m = medidasCenaV();
-  if (!m) return;
-  if (m.lado) posicionarCenaV(m);
+const CENA_EM_PE = 1.1;
+const cenaV = { pronta: {}, erro: {}, carregando: '' };
+function ajustarCena() {
+  const cena = $('cena'), img = cena && cena.querySelector('.cena-v');
+  if (!img) return;
+  const r = cena.getBoundingClientRect();
+  if (!r.width || !r.height) return; // Home oculta: fica como estava
   const src = CENA_V[local.cena];
-  const quer = m.lado && !!src && Date.now() - (cenaV.erro[src] || 0) > 60e3 && m.vao >= m.larg * CENA_V_PX.alt / CENA_V_PX.larg * (cenaV.on ? CENA_V_SAI : 1);
-  if (quer && !cenaV.pronta[src]) { // a vertical só entra já carregada, nunca como caixa vazia
+  const ja = cena.classList.contains('em-pe');
+  const quer = !!src && Date.now() - (cenaV.erro[src] || 0) > 60e3 && r.height / r.width >= CENA_EM_PE * (ja ? .9 : 1);
+  if (quer && !cenaV.pronta[src]) {
     if (cenaV.carregando === src) return;
     cenaV.carregando = src;
     const im = new Image();
     const fim = (ok) => {
-      if (ok) cenaV.pronta[src] = true; else cenaV.erro[src] = Date.now(); // falhou: tenta de novo daqui a 1 min
+      if (ok) cenaV.pronta[src] = true; else cenaV.erro[src] = Date.now();
       if (cenaV.carregando === src) cenaV.carregando = '';
-      agendarCenaV();
+      setTimeout(ajustarCena);
     };
     // decode() só resolve quando há quadro (aba oculta, headless): espera no máximo 250 ms por ele.
     im.onload = () => Promise.race([im.decode().catch(() => {}), new Promise((ok) => setTimeout(ok, 250))]).then(() => fim(true));
@@ -7754,32 +7580,14 @@ function medirCenaV() {
     im.src = src;
     return;
   }
-  const caixa = $('cena-v'), img = caixa.querySelector('img'), grade = caixa.closest('.geral-grade');
-  if (quer) {
-    caixa.classList.toggle('cyber', local.cena === 'cyber');
-    if (img.getAttribute('src') !== src) img.src = src;
-  }
-  // O CSS fecha ou abre a horizontal e cruza as opacidades; os cartões não mudam de altura com o modo.
-  // A troca move o Uso do plano e o Espaço em disco sem mudar o tamanho de nada observado: mede os fins de novo.
-  if (cenaV.on !== quer) { grade.classList.toggle('cena-vertical', cenaV.on = quer); agendarCenaV(); }
-  if (!cenaV.firme && $('lista').childElementCount) {
-    cenaV.firme = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => grade.classList.add('cena-anima')));
-  }
+  if (quer && img.getAttribute('src') !== src) img.src = src;
+  cena.classList.toggle('em-pe', quer);
 }
-// Medida e decisão na hora, no callback do ResizeObserver (antes da pintura). Nada observado muda de tamanho
-// com a troca (a cena, o bloco da horizontal e o último cartão não são observados; os filhos dos cartões não
-// mudam), então não há aviso de laço. Se a decisão esperasse um rAF, ficaria presa sempre que o navegador
-// parasse de gerar quadros. Os outros gatilhos (troca de cena, imagem carregada) usam um timer.
-function agendarCenaV() { if (!cenaV.vez) cenaV.vez = setTimeout(() => { cenaV.vez = 0; medirCenaV(); }); }
-{
-  // Aba oculta não renderiza, então o ResizeObserver não dispara; ao voltar, confere de novo.
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) agendarCenaV(); });
-  const ro = new ResizeObserver(() => medirCenaV());
-  for (const el of [...document.querySelector('.col-lista').children, ...document.querySelectorAll('.col-lado > .graf > *, .col-pe > .graf > *')]) { // filhos: valem em qualquer vaga (widgets.js)
-    if (!el.classList.contains('cena-bloco')) ro.observe(el);
-  }
-}
+document.querySelector('.geral-grade').addEventListener('wd-layout', () => {
+  ajustarCena();
+  try { renderCtx(); } catch (e) { console.warn('gráfico de contexto', e); } // linhas a mais na sobra (ctxLimite)
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ajustarCena(); });
 function definirDensidade(d) {
   local.densidade = d === 'compacta' ? 'compacta' : 'confortavel';
   gravar('gi.densidade', local.densidade);
@@ -8059,6 +7867,15 @@ $('lista').addEventListener('click', (e) => {
   else if (linha.dataset.mae && linha.dataset.agente && est.sessoes.has(linha.dataset.mae)) abrirAgente(linha.dataset.mae, linha.dataset.agente);
   else if (linha.dataset.fam) alternarFamilia(linha.dataset.fam);
 });
+// Arrastar a sessão para o Whiteboard (card de agente). Só linhas de sessão; o clique e o menu seguem como antes.
+$('lista').addEventListener('dragstart', (e) => {
+  const linha = e.target.closest && e.target.closest('.linha');
+  const id = linha && linha.dataset.id;
+  if (!id || linha.dataset.agente || !e.dataTransfer) { e.preventDefault(); return; }
+  e.dataTransfer.setData('application/x-orbit-sessao', id);
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'copy';
+});
 $('lista').addEventListener('dblclick', (e) => {
   const linha = e.target.closest('.linha');
   if (linha && linha.dataset.id && !e.target.closest('button')) abrirSessao(linha.dataset.id); // etapa 5
@@ -8098,12 +7915,26 @@ function itensDaSessao(s) {
     { rot: orbit || vs ? 'Limpar conversa' : 'Copiar /clear', dica: orbit ? 'Limpar pelo Orbit (pede confirmação)' : vs ? 'Abrir no VS Code com /clear preenchido (pede confirmação)' : 'Copiar /clear para colar na sessão',
       ico: icone('borracha', ICO_MENU), acao: () => gerirContexto(id, 'clear') });
   if (orbit && c.processo !== 'dormindo') it.push({ rot: 'Encerrar instância', dica: 'Fechar o processo; a sessão continua aqui e acorda quando você escrever', ico: icone('lua', ICO_MENU), acao: () => encerrarInstancia(id) });
+  // Codex etapa 5: só sessão do Claude (Codex nunca é líder), só com a chave ligada.
+  if (!s.provedor && est.config && est.config.codex && est.config.codex.ativo) it.push({ rot: 'Novo membro Codex', dica: 'Um Codex no time desta sessão, na mesma pasta', ico: icone('mais', ICO_MENU), acao: () => abrirNovoMembroCodex(s) });
   it.push('-',
-    { rot: 'Copiar claude --resume', ico: icone('terminal', ICO_MENU), atalho: 'c', acao: () => copiarResume(id) },
+    { rot: 'Copiar ' + cmdResume(id), ico: icone('terminal', ICO_MENU), atalho: 'c', acao: () => copiarResume(id) },
     { rot: 'Copiar id', ico: icone('copiar', ICO_MENU), acao: () => copiarTexto(id).then((ok) => toast(ok ? 'Id copiado: ' + id : 'Não deu para copiar.')) },
     '-',
     { rot: 'Apagar instância', ico: icone('lixeira', ICO_MENU), atalho: 'Delete', perigo: true, acao: () => removerComDesfazer(id) });
-  return it;
+  return s.provedor === 'codex' ? itensDoCodex(it, orbit) : it;
+}
+// Codex (etapa 1, só monitorado): tira do menu o que é só do Claude (VS Code, compactar/limpar, instância, claude --resume) e junta os separadores que sobram.
+const SO_CLAUDE_MENU = new Set(['Abrir no VS Code', 'Compactar contexto', 'Copiar /compact', 'Limpar conversa', 'Copiar /clear', 'Encerrar instância']);
+function itensDoCodex(it, orbit) {
+  const r = [];
+  for (const x of it) {
+    if (x !== '-' && SO_CLAUDE_MENU.has(x.rot) && !(orbit && x.rot === 'Compactar contexto')) continue; // Codex etapa 4: instância do Orbit compacta (thread/compact/start)
+    if (x === '-' && (!r.length || r[r.length - 1] === '-')) continue;
+    r.push(x);
+  }
+  if (r[r.length - 1] === '-') r.pop();
+  return r;
 }
 function itensDoAgente(mae, agente, rot) {
   return [{ titulo: rot || 'Agente' },
@@ -8358,6 +8189,7 @@ function conectar() {
     for (const id of [...est.ocultos]) if (!novas.has(id)) est.ocultos.delete(id);
     if (est.sel && !novas.has(est.sel)) { est.sel = null; est.peek = false; }
     podar();
+    migrarRevisadasLocais(); // 21/10: gi.revisadas (navegador) → servidor, uma vez
     definirConexao('vivo');
     if (!est.iniciado) concluirRestauracao();
     render();
@@ -8366,12 +8198,14 @@ function conectar() {
     if (est.peek && est.sel) { est.lt.id = null; abrirLinhaTempo(est.sel); }
     if (agenteSel()) buscarDetalheAgente();
     if (est.camada === 'config') sincronizarConfig();
+    sincronizarCodexUso(true);
   });
   ouvir('sessao', (s) => {
     if (!s || !s.id) return;
     const antes = est.sessoes.get(s.id);
     est.sessoes.set(s.id, s);
     emitir('sessao', s);
+    avisarFonte('sessao', s.id);
     // Cada sessao que chega veio de um hook: a Saúde fica viva sem esperar o /saude.
     const at = Number(s.atividade) || 0;
     if (at > saude.ultimoHook && at <= Date.now() + 5000) saude.ultimoHook = at;
@@ -8389,6 +8223,7 @@ function conectar() {
     est.ocultos.delete(d.id);
     dom.linhas.delete('s:' + d.id);
     emitir('remover', d);
+    avisarFonte('remover', d.id);
     render();
   });
   ouvir('config', (c) => {
@@ -8396,7 +8231,9 @@ function conectar() {
     render();
     atualizarPersonalizar();
     if (est.camada === 'config') sincronizarConfig();
+    sincronizarCodexUso(false);
   });
+  ouvir('usoCodex', (u) => { if (window.CodexUso) window.CodexUso.receber(u); }); // uso do plano do Codex (assets/codex-uso.js); só chega com a chave ligada
   ouvir('resumo', (r) => { est.resumo = r; try { renderTiles(); renderResumo(); } catch (e) { console.warn(e); } });
   ouvir('alerta', (a) => { receberAlerta(a); emitir('alerta', a); });
   ouvir('uso', (u) => { est.uso = u || null; emitir('uso', est.uso); try { renderUso(); } catch (e) { console.warn('uso do plano', e); } });
@@ -8410,6 +8247,11 @@ function conectar() {
   ouvir('ideias', (l) => emitir('ideias', l)); // bloco de ideias da lateral (assets/ideias.js)
   ouvir('projetos', (d) => { emitir('projetos', d); render(); }); // rodada 8: lista de projetos (assets/arquivos.js)
   ouvir('arquivos', (d) => emitir('arquivos', d)); // rodada 8: mudanças nas pastas abertas da árvore
+  ouvir('escritorio', (ev) => { // escritórios (etapa 1): {id, resumo|null} -> faixa do Office (assets/escritorios-painel.js) e time no palco
+    try { window.EscritoriosPainel?.atualizar(ev); } catch (x) { console.warn('escritorio (painel)', x); }
+    try { window.EscritoriosCanvas?.atualizar(ev); } catch (x) { console.warn('escritorio (canvas)', x); }
+    try { window.Office?.aoEscritorio?.(ev); } catch (x) { console.warn('escritorio (office)', x); }
+  });
   ouvir('previas', (d) => receberPrevias(d)); // navegador interno: prévia dos projetos (navegador.mjs)
   ouvir('temas', (d) => emitir('temas', d)); // temas do VS Code: tema de cores ou de ícones trocado no VS Code (temas.mjs)
   ouvir('disco', receberDisco); // card Espaço em disco da Home (disco.mjs)
@@ -8446,6 +8288,16 @@ function acaoRapida(a) {
 const GRAF_ESTADO = OrbitWidgets.GRUPOS_ESTADO; // assets/comum/widgets.js (paleta de 17/10, a dos estados nos cards de projeto)
 const { ROSCA_R, ROSCA_C } = OrbitWidgets;
 const CTX_BARRAS = 5;
+// Uso de contexto mais alto que o conteúdo (21/10, altura escolhida no modo de edição da grade): as linhas a mais
+// enchem a sobra (data-sobra, de widgets.js), uma linha da lista por vez em cada coluna. Ficam marcadas (.gc-extra)
+// e não entram na medida do conteúdo, então a altura mínima do widget continua a das 5 primeiras.
+function ctxLimite() {
+  const caixa = $('gc-barras'), sobra = Number(caixa.closest('.graf').dataset.sobra) || 0;
+  const linha = caixa.querySelector('.gc-linha');
+  if (!sobra || !linha) return CTX_BARRAS;
+  const cols = getComputedStyle(caixa).gridTemplateColumns.split(' ').filter((x) => x && x !== 'none').length || 1;
+  return (Math.ceil(CTX_BARRAS / cols) + Math.floor(sobra / linha.offsetHeight)) * cols;
+}
 // Escala do gráfico de contexto: cor pura em cada ponto, mistura em OKLab entre eles (sem degrau).
 // Verde de 0 a 45% · amarelo em 50% · vermelho em 75% · roxo em 100% (sem laranja); a legenda marca 50 e 75.
 const CTX_ESCALA = [[0, '--gf-verde'], [0.45, '--gf-verde'], [0.50, '--gf-amarelo'], [0.75, '--gf-vermelho'], [1, '--gf-roxo']];
@@ -8541,7 +8393,7 @@ function renderCtx() {
     .map((s) => ({ s, c: contexto(s), p: ctxPct(s), ini: Number(s.inicio) || desdeDe(s) }))
     .sort((a, b) => b.p - a.p || String(a.s.id).localeCompare(b.s.id));
   const altos = lista.filter((x) => x.p >= 0.7).length;
-  const top = lista.slice(0, CTX_BARRAS);
+  const top = lista.slice(0, ctxLimite());
   const sig = JSON.stringify([top.map((x) => [x.s.id, nome(x.s), Math.round(x.p * 100), x.c.tokens, x.c.limite, x.c.acima, x.ini]), lista.length, altos, est.sel, est.filtro]);
   const caixa = $('gc-barras');
   if (caixa._sig === sig) return;
@@ -8567,7 +8419,7 @@ function renderCtx() {
     return;
   }
   const agora = Date.now();
-  caixa.replaceChildren(...top.map(({ s, c, p, ini }) => {
+  caixa.replaceChildren(...top.map(({ s, c, p, ini }, n) => {
     const pct = Math.round(p * 100);
     const faixa = faixaCtx(c);
     // Linha (17/10): ponto, nome e %; o trilho na cor do seu %; embaixo, os tokens de quanto cabe e o tempo aberta.
@@ -8582,7 +8434,7 @@ function renderCtx() {
     const tok = h('span', { class: 'gc-tok' }, h('b', null, fmtK(c.tokens)), (c.acima ? ' · limite de ' : ' de ') + fmtK(c.limite) + ' tokens');
     const tempo = h('span', { class: 'gc-tempo', title: 'Aberta desde ' + hora(ini) }, icone('relogio', 12), h('span', { 'data-t': ini, 'data-f': 'dur' }, dur(agora - ini)));
     return h('button', {
-      type: 'button', class: 'gc-linha' + (faixa ? ' ' + faixa : ''), 'data-id': s.id, 'aria-current': est.sel === s.id ? 'true' : null,
+      type: 'button', class: 'gc-linha' + (faixa ? ' ' + faixa : '') + (n >= CTX_BARRAS ? ' gc-extra' : ''), 'data-id': s.id, 'aria-current': est.sel === s.id ? 'true' : null,
       title: nome(s) + ' · ' + fmtNum(c.tokens) + ' tokens' + (c.acima ? ', acima do limite estimado de ' : ' de ') + fmtNum(c.limite) + ' · aberta desde ' + hora(ini) + ' · clique para abrir',
     }, ponto, h('span', { class: 'gc-nome' }, nome(s)), val, h('span', { class: 'gc-trilho' }, i), h('span', { class: 'gc-meta' }, tok, tempo));
   }));
@@ -8597,7 +8449,6 @@ const USO_VELHO = 30 * 60e3;
 // De onde o uso real vem (selo e linha de destaque, enquanto não há leitura).
 const USO_ORIGEM = 'O uso real vem das instâncias abertas pelo Orbit (a cada chamada à API), da status line das sessões '
   + 'no terminal e do botão de atualizar, no pé deste card. As sessões do painel do VS Code não mandam esse dado.';
-ICONES.atualizar = [['path', { d: 'M13 8a5 5 0 1 1-1.6-3.7' }], ['path', { d: 'M13 2.8v2.6h-2.6' }]];
 // Por que o botão não pode ler agora ('' = pode). Espelha o bloqueio do servidor (POST /uso/atualizar).
 function bloqueioUso(agora) {
   if (graf.lendoUso) return 'lendo';
@@ -9231,17 +9082,31 @@ const api = Object.freeze({
   },
   abrirVSCode: (id) => abrirNoVSCode(id), // pedido explícito; encerra a instância viva do Orbit antes
   abrirSessao: (id) => abrirSessao(id), // etapa 5: o cartão do Office abre a Conversa
+  // Fila de pedidos do Office: Permitir/Negar o pedido de permissão da sessão (mesma rota do cartão da Conversa).
+  responderPermissao: (id, corpo) => post('/sessao/' + encodeURIComponent(id) + '/permissao', corpo),
   selecionada: () => est.sel || null,
 });
 try { Object.defineProperty(window, 'GerenciadorAPI', { value: api, configurable: true }); } catch { window.GerenciadorAPI = api; }
 
-const office = { estado: 'nada', script: null, css: null };
+// esc: estado da faixa dos escritórios (assets/escritorios-painel.js): 'nada' | 'carregando' | 'ok' | 'indisponivel' (404 ou sem o script).
+// cv: canvas de escritórios (assets/escritorios-canvas.js) carregado; cvEl/barraSessoes: contêineres irmãos da faixa; dentro: onde a aba está
+// ('' = no canvas, 'sessoes' = Office de sempre, <id> = dentro de um escritório), lembrado em sessionStorage.
+const office = { estado: 'nada', script: null, css: null, faixa: null, escCss: null, escScript: null, esc: 'nada', painel: false,
+  cv: false, cvCss: null, cvScript: null, cvEl: null, barraSessoes: null, cvAtivo: false, dentro: '' };
+const OFFICE_DENTRO = 'orbit.office.dentro';
 function falhaOffice() {
   office.estado = 'falhou';
   const tentar = h('button', { type: 'button', class: 'btn' }, icone('historico', 14), 'Tentar de novo');
   tentar.addEventListener('click', () => {
     if (office.script) office.script.remove();
     if (office.css) office.css.remove();
+    if (office.escScript) office.escScript.remove();
+    if (office.escCss) office.escCss.remove();
+    if (office.cvScript) office.cvScript.remove();
+    if (office.cvCss) office.cvCss.remove();
+    office.cv = false; office.cvAtivo = false; office.painel = false;
+    try { window.EscritoriosCanvas?.desmontar(); } catch { /* sem canvas */ }
+    office.esc = 'nada';
     office.estado = 'nada';
     abrirOffice();
   });
@@ -9256,7 +9121,10 @@ function falhaOffice() {
 function abrirOffice() {
   const el = $('office');
   if (office.estado === 'pronto') {
-    try { if (window.Office && typeof window.Office.retomar === 'function') window.Office.retomar(); } catch (e) { console.warn('Visão de Office', e); }
+    // com o canvas disponível a aba volta onde estava (canvas ou dentro de um escritório); o Office só retoma se for aparecer
+    const noCanvas = canvasOfficePossivel() && !lerDentroOffice();
+    try { if (!noCanvas && window.Office && typeof window.Office.retomar === 'function') window.Office.retomar(); } catch (e) { console.warn('Visão de Office', e); }
+    montarPainelOffice();
     return;
   }
   if (office.estado === 'carregando' || office.estado === 'falhou') return;
@@ -9264,16 +9132,17 @@ function abrirOffice() {
   el.replaceChildren(h('div', { class: 'office-vazio' }, h('span', { class: 'office-spin' }, pontoStatus('trabalhando', 22)), h('p', null, 'Carregando a Visão de Office…')));
   office.css = h('link', { rel: 'stylesheet', href: 'assets/office.css' });
   document.head.append(office.css);
+  carregarEscritoriosOffice();
   const sc = document.createElement('script');
   sc.src = 'assets/office.js';
   sc.async = true;
   sc.onload = () => {
     try {
       if (!window.Office || typeof window.Office.montar !== 'function') throw new Error('window.Office.montar ausente');
-      el.replaceChildren();
+      el.replaceChildren(office.faixa, office.barraSessoes, office.cvEl); // a faixa dos escritórios fica antes do palco (escondida até o painel montar); o canvas e a barra de volta são irmãos dela
       window.Office.montar(el, api);
       office.estado = 'pronto';
-      if (!vistaVisivel('office')) pausarOffice();
+      if (!vistaVisivel('office')) pausarOffice(); else montarPainelOffice();
     } catch (e) {
       console.warn('Visão de Office', e);
       falhaOffice();
@@ -9283,8 +9152,163 @@ function abrirOffice() {
   office.script = sc;
   document.head.append(sc);
 }
+// Escritórios na aba Office: carrega assets/escritorios-painel.css/js e sonda GET /escritorios. Sem a rota (404, servidor
+// antigo) ou sem o script, a faixa fica escondida e o Office segue como era. O painel monta quando a aba está visível
+// e desmonta ao sair dela (a gaveta dele fica no <body>).
+function carregarEscritoriosOffice() {
+  const faixa = h('div', { class: 'office-escritorios', hidden: true });
+  office.faixa = faixa;
+  office.cvEl = h('div', { class: 'office-canvas' });
+  office.barraSessoes = h('div', { class: 'office-barra-sessoes' },
+    h('button', { type: 'button', class: 'esc-pn-btn esc-pn-voltar', onclick: () => voltarAoCanvasOffice() }, '← Escritórios'));
+  office.esc = 'carregando';
+  const carrega = (href, src) => {
+    const css = h('link', { rel: 'stylesheet', href });
+    document.head.append(css);
+    const sc = document.createElement('script');
+    sc.src = src;
+    sc.async = true;
+    const feito = new Promise((r) => { sc.onload = () => r(true); sc.onerror = () => r(false); });
+    document.head.append(sc);
+    return { css, sc, feito };
+  };
+  const pn = carrega('assets/escritorios-painel.css', 'assets/escritorios-painel.js');
+  const cv = carrega('assets/escritorios-canvas.css', 'assets/escritorios-canvas.js');
+  office.escCss = pn.css; office.escScript = pn.sc;
+  office.cvCss = cv.css; office.cvScript = cv.sc;
+  const sonda = fetch('/escritorios', { headers: { accept: 'application/json' } })
+    .then((r) => (r.ok ? r.json() : null)).then((j) => !!j && Array.isArray(j.escritorios)).catch(() => false);
+  Promise.all([pn.feito, cv.feito, sonda]).then(([a, c, b]) => {
+    if (office.faixa !== faixa) return; // houve "Tentar de novo" no meio
+    office.esc = a && b ? 'ok' : 'indisponivel';
+    office.cv = !!c; // sem o canvas, a faixa e o palco aparecem como antes
+    montarPainelOffice();
+  });
+}
+// Onde a aba estava (sessionStorage): '' = canvas, 'sessoes' ou o id do escritório.
+function lerDentroOffice() { try { return sessionStorage.getItem(OFFICE_DENTRO) || ''; } catch { return ''; } }
+function guardarDentroOffice(v) { try { if (v) sessionStorage.setItem(OFFICE_DENTRO, v); else sessionStorage.removeItem(OFFICE_DENTRO); } catch { /* sem sessionStorage */ } }
+function canvasOfficePossivel() {
+  return office.esc === 'ok' && office.cv && !!window.EscritoriosCanvas && typeof window.EscritoriosCanvas.montar === 'function';
+}
+// Escritório selecionado no painel: dentro de um escritório (ou sem canvas) o Office acompanha; no canvas e em "Sessões" não
+// (criar pela gaveta seleciona o novo e não pode entrar nele).
+function aoSelecionarOffice(id) {
+  if (office.cvAtivo) {
+    if (!office.dentro || office.dentro === 'sessoes' || office.dentro === id) return;
+    if (!id) { voltarAoCanvasOffice(true); return; }
+    office.dentro = id;
+    guardarDentroOffice(id);
+  }
+  try { window.Office?.escritorio?.(id); } catch (e) { console.warn('Office.escritorio', e); }
+}
+// Aplica o modo (canvas / dentro / sessões) à aba: classes, canvas montado só quando aparece, Office pausado no canvas.
+function aplicarModoOffice() {
+  if (!office.painel) return;
+  const el = $('office');
+  const modo = !office.cvAtivo ? 'normal' : office.dentro === 'sessoes' ? 'sessoes' : office.dentro ? 'dentro' : 'canvas';
+  el.classList.toggle('office-modo-canvas', modo === 'canvas');
+  el.classList.toggle('office-modo-sessoes', modo === 'sessoes');
+  office.faixa.hidden = modo === 'canvas' || modo === 'sessoes';
+  const EC = window.EscritoriosCanvas;
+  try {
+    if (modo === 'canvas') {
+      if (window.Office && typeof window.Office.pausar === 'function') window.Office.pausar();
+      if (EC) EC.montar(office.cvEl, {
+        base: '',
+        miniatura: (o) => window.Office.miniatura(o),
+        onEntrar: (id) => entrarNoOffice(id),
+        onCriar: (pos) => { window.EscritoriosPainel?.abrirGaveta('novo', null, { canvas: pos }); },
+        onEditar: (id) => { window.EscritoriosPainel?.abrirGaveta('editar', id); },
+        onDuplicar: (id) => { Promise.resolve(window.EscritoriosPainel?.duplicar(id)).catch(() => { /* o painel já avisou */ }); },
+        onExcluir: (id) => { Promise.resolve(window.EscritoriosPainel?.excluir(id)).catch(() => { /* o painel já avisou */ }); },
+      });
+    } else {
+      if (EC) EC.desmontar();
+      if (window.Office && typeof window.Office.retomar === 'function') window.Office.retomar();
+    }
+  } catch (e) { console.warn('Escritórios (canvas)', e); }
+}
+function entrarNoOffice(id) {
+  if (!office.painel || !office.cvAtivo || !id) return;
+  office.dentro = ''; // o onSelecionar do painel não deve repetir a chamada
+  if (id !== 'sessoes') { try { window.EscritoriosPainel?.selecionar(id); } catch (e) { console.warn('Escritórios', e); } }
+  office.dentro = id;
+  guardarDentroOffice(id);
+  aplicarModoOffice();
+  try { window.Office?.escritorio?.(id === 'sessoes' ? null : id); } catch (e) { console.warn('Office.escritorio', e); }
+}
+// Voltar ao canvas: com a gaveta do painel aberta e com alterações, pergunta "Descartar alterações?" (Manter / Descartar) antes;
+// sem alterações a gaveta fecha direto. `forcar` (o escritório sumiu) não pergunta.
+function voltarAoCanvasOffice(forcar) {
+  if (!office.painel || !office.cvAtivo) return;
+  const EP = window.EscritoriosPainel;
+  if (forcar !== true && EP && typeof EP.descartarGaveta === 'function') {
+    const suja = EP.gavetaSuja();
+    const p = EP.descartarGaveta();
+    if (suja) { Promise.resolve(p).then((ok) => { if (ok) voltarAoCanvasOffice(true); }).catch(() => { /* fica onde está */ }); return; }
+  }
+  const de = office.dentro;
+  office.dentro = '';
+  guardarDentroOffice('');
+  aplicarModoOffice();
+  // Foco volta ao ladrilho de onde se saiu (a lista do canvas chega depois do montar: tenta por até ~2 s).
+  if (de) {
+    let n = 0;
+    const tentar = () => {
+      if (office.dentro || !office.cvAtivo || !window.EscritoriosCanvas?.focar) return;
+      if (window.EscritoriosCanvas.focar(de) === false && ++n < 20) setTimeout(tentar, 100);
+    };
+    tentar();
+  }
+}
+function montarPainelOffice() {
+  const EP = window.EscritoriosPainel;
+  if (office.estado !== 'pronto' || office.esc !== 'ok' || office.painel || !office.faixa || !EP || typeof EP.montar !== 'function' || !vistaVisivel('office')) return;
+  office.painel = true;
+  office.cvAtivo = canvasOfficePossivel();
+  office.dentro = office.cvAtivo ? lerDentroOffice() : '';
+  office.faixa.hidden = false;
+  $('office').classList.add('office-com-esc');
+  try {
+    const opcoes = { base: '', onSelecionar: aoSelecionarOffice };
+    if (office.cvAtivo) {
+      opcoes.onVoltar = () => voltarAoCanvasOffice();
+      opcoes.onSumiu = (id) => { if (office.dentro === id) voltarAoCanvasOffice(true); }; // o escritório de dentro foi excluído (ou nunca existiu): canvas, nunca outro escritório
+      opcoes.onMudou = () => { try { window.EscritoriosCanvas?.recarregar(); } catch (e) { console.warn('Escritórios (canvas)', e); } };
+      if (office.dentro && office.dentro !== 'sessoes') opcoes.selecionado = office.dentro;
+    }
+    const p = EP.montar(office.faixa, opcoes);
+    if (p && typeof p.catch === 'function') p.catch((e) => console.warn('Escritórios', e));
+    aplicarModoOffice();
+    if (office.cvAtivo && office.dentro) { try { window.Office?.escritorio?.(office.dentro === 'sessoes' ? null : office.dentro); } catch (e) { console.warn('Office.escritorio', e); } }
+  } catch (e) { console.warn('Escritórios', e); desmontarPainelOffice(); }
+}
+function desmontarPainelOffice() {
+  if (!office.painel) return;
+  office.painel = false;
+  try { window.EscritoriosCanvas?.desmontar(); } catch (e) { console.warn('Escritórios (canvas)', e); }
+  try { window.EscritoriosPainel?.desmontar(); } catch (e) { console.warn('Escritórios', e); }
+  if (office.faixa) office.faixa.hidden = true;
+  const el = $('office');
+  el.classList.remove('office-com-esc', 'office-modo-canvas', 'office-modo-sessoes');
+  office.cvAtivo = false;
+}
+// Sair da aba Office: com a gaveta do painel suja pergunta "Descartar alterações?" antes de desmontar; "Manter" volta para a aba.
+function sairDoOffice() {
+  const EP = window.EscritoriosPainel;
+  if (office.estado === 'pronto' && office.painel && EP && typeof EP.gavetaSuja === 'function' && EP.gavetaSuja()) {
+    Promise.resolve(EP.descartarGaveta()).then((ok) => {
+      if (!ok) mostrarVista('office');
+      else if (!vistaVisivel('office')) pausarOffice();
+    }).catch(() => pausarOffice());
+    return;
+  }
+  pausarOffice();
+}
 function pausarOffice() {
   if (office.estado !== 'pronto') return;
+  desmontarPainelOffice();
   try { if (window.Office && typeof window.Office.pausar === 'function') window.Office.pausar(); } catch (e) { console.warn('Visão de Office', e); }
 }
 
@@ -9325,7 +9349,7 @@ function montarArquivos() {
 // assets/abas.js + .css (Rodada 9). As telas de antes viram conteúdo de abas `vista` (únicas); arquivos
 // e buscas têm abas próprias, cada uma com a sua instância. A conversa com os agentes não vira aba (16/10): fica sempre
 // no painel de detalhe (#pk-conversa). Sem o módulo (ou se ele falhar ao montar), a página segue com a troca de vistas de antes.
-const VISTAS_ABA = { geral: ['Visão geral', 'grade'], historico: ['Histórico', 'historico'], office: ['Office (Demo)', 'predio'], repos: ['Repositórios', 'branch'] };
+const VISTAS_ABA = { geral: ['Visão geral', 'grade'], historico: ['Histórico', 'historico'], office: ['Office (Demo)', 'predio'], repos: ['Repositórios', 'branch'], whiteboard: ['Whiteboard', 'quadro'], grafo: ['Grafo', 'grafo'] };
 let abasRaf = 0;
 function renderDepois() { if (!abasRaf) abasRaf = requestAnimationFrame(() => { abasRaf = 0; render(); }); }
 function vistaVisivel(v) {
@@ -9375,16 +9399,20 @@ function posicionarCabecalho() {
   abas.cabSimples.hidden = noHist;
   return noHist;
 }
-function elVista(v) { return v === 'geral' ? abas.cont : v === 'historico' ? abas.contHist : v === 'office' ? $('office') : v === 'repos' ? $('repos') : null; }
+function elVista(v) { return v === 'geral' ? abas.cont : v === 'historico' ? abas.contHist : v === 'office' ? $('office') : v === 'repos' ? $('repos') : v === 'whiteboard' ? $('whiteboard') : v === 'grafo' ? $('grafo') : null; }
 function aoMostrarVista(v) {
   if (v === 'office') { if (est.iniciado) abrirOffice(); else abas.officePend = true; } // sem sessões, o Office cairia na demonstração
   else if (v === 'repos') abrirRepos();
   else if (v === 'historico') carregarHistorico();
+  else if (v === 'whiteboard') wbEntrar();
+  else if (v === 'grafo') grEntrar();
   renderDepois();
 }
 function aoEsconderVista(v) {
-  if (v === 'office') pausarOffice();
+  if (v === 'office') sairDoOffice();
   else if (v === 'repos') pausarRepos();
+  else if (v === 'whiteboard') wbSair();
+  else if (v === 'grafo') grSair();
   renderDepois();
 }
 const provVista = {
@@ -9768,7 +9796,7 @@ function montarAbas() {
     raiz.replaceChildren();
     if (abas.cab && abas.cab.parentElement !== cont) cont.prepend(abas.cab, abas.aviso);
     cont.append(hist);
-    for (const el of [cont, $('office'), $('repos')]) if (el.parentElement !== main) main.insertBefore(el, $('arquivo'));
+    for (const el of [cont, $('office'), $('repos'), $('whiteboard'), $('grafo')]) if (el.parentElement !== main) main.insertBefore(el, $('arquivo'));
     if (abas.reserva) abas.reserva.remove();
     est.vista = 'geral';
     render();
@@ -10135,6 +10163,49 @@ function iniciarRemoto() {
 function abrirRemoto() {
   iniciarRemoto().then(() => { if (window.RemotoConfig) window.RemotoConfig.atualizar(); });
 }
+// Configurações → Codex: assets/codex-config.js (+ codex.css) carrega na primeira abertura; relê o GET /codex/estado a cada uma (só com a chave ligada).
+let codexCarga = null;
+function abrirCodex() {
+  if (!codexCarga) {
+    codexCarga = new Promise((ok, ruim) => {
+      const css = h('link', { rel: 'stylesheet', href: 'assets/codex.css' });
+      const sc = h('script', { src: 'assets/codex-config.js', async: true });
+      sc.onload = () => (window.CodexConfig ? ok(window.CodexConfig.montar({ el: $('cfg-codex-caixa'), config: () => est.config, salvar: (p) => salvarConfig(p) })) : ruim(new Error('window.CodexConfig ausente')));
+      sc.onerror = () => ruim(new Error('assets/codex-config.js não carregou'));
+      document.head.append(css, sc);
+    }).catch((e) => { console.warn('Codex', e); txt($('cfg-codex-caixa'), 'Não deu para carregar a seção do Codex.'); codexCarga = null; });
+    return;
+  }
+  codexCarga.then(() => { if (window.CodexConfig) window.CodexConfig.atualizar(); });
+}
+// Uso do plano do Codex (etapa 4): assets/codex-uso.js (+ codex.css) só carrega com config.codex.ativo; sem a chave o bloco sai do DOM e nenhum GET /codex/* é feito.
+let codexUsoCarga = null;
+function sincronizarCodexUso(reler) {
+  const liga = !!(est.config && est.config.codex && est.config.codex.ativo);
+  if (!liga) { if (window.CodexUso) window.CodexUso.desligar(); return; }
+  if (!codexUsoCarga) {
+    codexUsoCarga = new Promise((ok, ruim) => {
+      const cartao = document.querySelector('.graf-uso');
+      if (!cartao) return ruim(new Error('cartão do uso não achado'));
+      const sc = h('script', { src: 'assets/codex-uso.js', async: true });
+      sc.onload = () => {
+        if (!window.CodexUso) return ruim(new Error('window.CodexUso ausente'));
+        window.CodexUso.montar({ cartao, h, corCtx, degradeCtx, durRen, quandoUso, hora, dur, icone: (n, tam) => icone(n, tam), toast: (t) => toast(String(t)) });
+        ok();
+      };
+      sc.onerror = () => ruim(new Error('assets/codex-uso.js não carregou'));
+      const novos = [sc];
+      if (!document.querySelector('link[href="assets/codex.css"]')) novos.unshift(h('link', { rel: 'stylesheet', href: 'assets/codex.css' }));
+      document.head.append(...novos);
+    }).catch((e) => { console.warn('Uso do Codex', e); codexUsoCarga = null; });
+    reler = true;
+  }
+  codexUsoCarga.then(() => {
+    if (!window.CodexUso) return;
+    if (est.config && est.config.codex && est.config.codex.ativo) window.CodexUso.ligar(reler);
+    else window.CodexUso.desligar();
+  });
+}
 var niEst = { estado: 'nada', carga: null };
 const apiInstancias = Object.freeze({
   sessoes: api.sessoes,
@@ -10179,6 +10250,12 @@ function abrirNovaOrbit() {
   if (mdl.lista || mdl.semRota !== undefined) return seguir();
   buscarModelos().catch(() => {}).finally(seguir);
 }
+// Codex etapa 5: "Novo membro Codex" no menu da linha abre o popover já com Codex, a pasta da sessão e `pai` = ela.
+function abrirNovoMembroCodex(s) {
+  if (!s || s.provedor || !(est.config && est.config.codex && est.config.codex.ativo)) return;
+  carregarInstancias().then((I) => { if (I.aberto()) I.fechar(false); I.abrir($('btn-nova'), { pai: s.id, nome: nome(s), pasta: s.cwd || '' }); })
+    .catch(() => toast('O formulário do Orbit não carregou.'));
+}
 // Depois do 202: a sessão chega pelo /fluxo; seleciona e abre a Conversa (espera até 8 s).
 function mostrarCriada(id) {
   let n = 0;
@@ -10219,6 +10296,8 @@ function restaurarTela() {
   // O Office também espera o "inicio": montado sem sessões, ele cai no modo demonstração.
   else if (t.vista === 'office') { est.vista = 'office'; est.peek = false; }
   else if (t.vista === 'repos') { est.vista = 'repos'; est.peek = false; }
+  else if (t.vista === 'whiteboard') { est.vista = 'whiteboard'; est.peek = false; }
+  else if (t.vista === 'grafo') { est.vista = 'grafo'; est.peek = false; }
   if (Number(t.rolagem) > 0) pendente.rolagem = Number(t.rolagem);
 }
 function concluirRestauracao() {
@@ -10230,6 +10309,8 @@ function concluirRestauracao() {
   } else {
     if (est.vista === 'office') abrirOffice();
     if (est.vista === 'repos') abrirRepos();
+    if (est.vista === 'whiteboard') wbEntrar();
+    if (est.vista === 'grafo') grEntrar();
   }
   const y = abas.on ? 0 : pendente.rolagem;
   pendente.projeto = ''; pendente.rolagem = 0;
@@ -10267,6 +10348,25 @@ setInterval(vencerAdiamentos, 5e3);
 <script src="assets/ideias.js"></script>
 <script src="assets/skills.js"></script>
 <script src="assets/arquivos.js"></script>
+<script src="assets/whiteboard.js"></script>
+<script src="assets/whiteboard-formas.js"></script>
+<script src="assets/whiteboard-texto.js"></script>
+<script src="assets/whiteboard-setas.js"></script>
+<script src="assets/whiteboard-edicao.js"></script>
+<script src="assets/whiteboard-estilo.js"></script>
+<script src="assets/whiteboard-agentes.js"></script>
+<script src="assets/whiteboard-times.js"></script>
+<script src="assets/whiteboard-painel.js"></script>
+<script src="assets/whiteboard-web.js"></script>
+<script src="assets/whiteboard-menu.js"></script>
+<script src="assets/whiteboard-exportar.js"></script>
+<script src="assets/grafo-dados.js"></script>
+<script src="assets/grafo-fisica.js"></script>
+<script src="assets/grafo-painel.js"></script>
+<script src="assets/grafo-legenda.js"></script>
+<script src="assets/grafo-vista.js"></script>
+<script src="assets/grafo.js"></script>
+<script src="assets/grafo-widget.js"></script><!-- widget "Grafo do projeto" da Visão geral (21/10): montado no DOMContentLoaded (montarGrafoWidget) -->
 <script src="assets/abas.js"></script>
 <script src="assets/navegador.js"></script><!-- navegador interno (16/10): abas `web` -->
 <script src="assets/terminal.js"></script><!-- terminal integrado (16/10) -->

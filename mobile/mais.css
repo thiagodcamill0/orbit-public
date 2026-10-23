@@ -1,0 +1,92 @@
+/* Orbit no celular — tela mais (onda 3): lista Mais, Notificações e Este aparelho. Só tokens de assets/comum/base.css e as
+   peças de componentes.css (.btn, .chave, .esq); tamanho de toque 44 px (--alvo). Sem cor nova; sem inline (CSP). */
+
+/* ===== Lista agrupada (estilo ajustes do iOS, visual do PC: cartão #1d1d1d, fio de 6%) ===== */
+.mais-lista, .mais-pilha { display: grid; gap: var(--esp-4); padding-top: var(--esp-1); min-width: 0; }
+.mais-grupo, .mais-cartao {
+  min-width: 0; overflow: hidden;
+  background: var(--cartao); border: 1px solid var(--fio); border-radius: var(--r-4);
+}
+.mais-cartao { padding: 0 var(--esp-4); overflow: visible; }
+.mais-tit { margin: 0; padding: var(--esp-3) 0 var(--esp-1); font-size: 12px; font-weight: 500; color: var(--t3); }
+
+.mais-linha {
+  position: relative; display: flex; align-items: center; gap: var(--esp-3);
+  width: 100%; min-width: 0; min-height: calc(var(--alvo) + 4px); padding: var(--esp-2) 0;
+  background: none; border: 0; border-top: 1px solid var(--fio); border-radius: 0;
+  color: var(--t1); font-size: 16px; text-align: left; line-height: 1.3;
+}
+.mais-tit + .mais-linha, .mais-linha:first-child { border-top: 0; }
+/* dentro do grupo (lista de navegação) a linha vai de ponta a ponta e o fio começa depois do ícone */
+.mais-grupo > .mais-linha { padding: var(--esp-2) var(--esp-4); transition: background-color var(--dur-1) var(--ease-press); }
+.mais-grupo > .mais-linha + .mais-linha { border-top: 0; }
+.mais-grupo > .mais-linha + .mais-linha::before {
+  content: ""; position: absolute; top: 0; right: 0; left: calc(var(--esp-4) + 28px + var(--esp-3)); border-top: 1px solid var(--fio);
+}
+button.mais-linha:active { background: var(--lat-hover); }
+button.mais-linha:focus-visible { outline-offset: -2px; border-radius: var(--r-3); }
+
+.mais-ico {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: var(--r-2); background: var(--bloco); color: var(--t1);
+}
+.mais-ico svg { display: block; }
+.mais-rot { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.mais-rot-bloco { display: grid; gap: 1px; }
+.mais-sub { display: block; color: var(--t3); font-size: 12px; line-height: 1.3; font-weight: 400; }
+.mais-valor {
+  flex: 0 1 auto; min-width: 0; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--t2); font-size: 15px; font-variant-numeric: tabular-nums;
+}
+.mais-valor-solto { max-width: 62%; white-space: normal; text-align: right; overflow-wrap: anywhere; }
+.mais-chev { flex: none; display: grid; place-items: center; color: var(--t3); }
+
+/* ===== Linhas com chave, horas e informação ===== */
+.mais-linha-chave { cursor: pointer; }
+.mais-linha-chave .chave { margin-left: var(--esp-2); }
+.mais-linha-chave .chave:disabled { opacity: .5; }
+.mais-linha-info { font-size: 15px; }
+.mais-linha-info .mais-rot { color: var(--t1); flex: 0 0 auto; max-width: 48%; }
+.mais-linha-info .mais-valor, .mais-linha-info .mais-chip { margin-left: auto; }
+.mais-linha-horas { font-size: 15px; }
+.mais-linha-horas.inativa .mais-rot, .mais-linha-horas.inativa .mais-ate { color: var(--t3); }
+.mais-horas { display: flex; align-items: center; gap: var(--esp-2); flex: none; color: var(--t2); }
+.mais-ate { color: var(--t3); font-size: 14px; }
+/* 16 px: abaixo disso o iOS dá zoom ao focar o campo. Mesmo visual do campo de hora do PC (poço). */
+.mais-hora {
+  height: var(--alvo); min-width: 0; width: 96px; padding: 0 var(--esp-2); text-align: center;
+  background: var(--poco); color: var(--t1); border: 1px solid var(--fio); border-radius: var(--r-2);
+  box-shadow: var(--poco-sombra); font-size: 16px; font-variant-numeric: tabular-nums;
+}
+.mais-hora:disabled { opacity: .4; }
+.mais-hora:focus-visible { outline: 2px solid var(--anel); outline-offset: 1px; }
+
+/* Selo de estado (cores do PC: --ok-t, --agu-t, --erro-t) */
+.mais-chip {
+  flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 var(--esp-2); border-radius: var(--r-pilula);
+  background: var(--bloco); color: var(--t2); font-size: 12px; font-weight: 600; letter-spacing: .02em; white-space: nowrap;
+}
+.mais-chip:empty { display: none; }
+.mais-chip-ok { color: var(--ok-t); }
+.mais-chip-aviso { color: var(--agu-t); }
+.mais-chip-erro { color: var(--erro-t); }
+
+/* ===== Textos, passos e botões ===== */
+.mais-nota { padding: var(--esp-2) 0 var(--esp-3); color: var(--t3); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.mais-nota-solta { padding: 0 var(--esp-2); }
+.mais-erro { color: var(--erro-t); }
+.mais-nota:empty { display: none; }
+.mais-passos { margin: 0; padding: 0 0 var(--esp-2) 20px; color: var(--t2); font-size: 14px; line-height: 1.45; display: grid; gap: var(--esp-1); }
+.mais-passos[hidden] { display: none; }
+.mais-acoes { display: flex; flex-wrap: wrap; gap: var(--esp-2); padding: 0 0 var(--esp-3); }
+.mais-acoes:empty { display: none; }
+.mais-btn { height: var(--alvo); min-width: 0; padding: 0 var(--esp-4); font-size: 15px; flex: 1 1 auto; justify-content: center; }
+.mais-saida { padding-top: var(--esp-3); background: none; border: 0; }
+.mais-saida .mais-sair { width: 100%; flex: none; }
+.mais-saida .mais-nota { padding: var(--esp-3) var(--esp-2) 0; text-align: center; }
+.mais-carregando { height: 160px; border-radius: var(--r-4); margin-top: var(--esp-1); }
+.tela-erro.mais-carregando { height: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mais-grupo > .mais-linha { transition: none; }
+}

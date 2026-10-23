@@ -1,0 +1,19 @@
+/* Configurações → Codex (assets/codex-config.js). Só a paleta do Orbit: as linhas são as .cfg-linha das Configurações. */
+.cdx-linha[hidden] { display: none; }
+.cdx-exe { flex: 1 1 260px; max-width: 360px; font-family: var(--mono); }
+.cdx-estado { display: block; margin-top: 2px; overflow-wrap: anywhere; font-family: var(--mono); line-height: 1.45; }
+.cdx-usar { flex: none; }
+.cdx-usar[hidden] { display: none; }
+
+/* Selo provisório "Codex" (linha da lista, card da sessão, cabeçalho da conversa): texto pequeno em cinza neutro, sem cor nova. */
+.cdx-selo { flex: none; margin-left: 6px; padding: 0 5px; border: 1px solid var(--fio-2, rgba(255, 255, 255, .085)); border-radius: 4px;
+  color: var(--t2, #888); font-size: 10px; font-weight: 500; line-height: 15px; letter-spacing: .02em; white-space: nowrap; align-self: center; }
+
+/* Uso do plano do Codex (assets/codex-uso.js): bloco abaixo do uso do Claude no cartão "Uso do plano". Mesmas classes gu-* do Claude; marca neutra. */
+.cdx-uso { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .06); }
+.cdx-uso-topo { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 4px; }
+.cdx-uso-topo .cdx-selo { margin-left: 0; padding: 0 8px; font-size: 12px; line-height: 22px; color: var(--t1, #eee); }
+.cdx-uso-plano { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t3, #777); font-size: 12px; }
+.cdx-uso-plano[hidden] { display: none; }
+.cdx-uso-vazio { margin: 0; padding: 8px 0; color: var(--t3, #777); font-size: 12.5px; }
+.graf-uso.demo .cdx-uso .gc-trilho i { opacity: 1; }

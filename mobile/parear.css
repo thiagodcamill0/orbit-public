@@ -1,0 +1,75 @@
+/* Orbit no celular — tela parear (onda 3). Só tokens de assets/comum/base.css e peças de componentes.css (.btn, .btn.solido). */
+
+/* Sem cabeçalho: a tela se apresenta sozinha (logo + título do passo). */
+.tela[data-tela="parear"] .tela-cab { display: none; }
+.tela[data-tela="parear"] .tela-corpo { padding-top: var(--st); }
+
+.par { max-width: 420px; margin: 0 auto; padding: clamp(var(--esp-4), 7dvh, 64px) 0 var(--esp-5); min-width: 0; }
+html.tec .par { padding-top: var(--esp-3); }
+html.tec .par-marca { display: none; }
+
+.par-marca { display: flex; align-items: center; gap: var(--esp-3); margin-bottom: var(--esp-5); }
+.par-logo { width: 56px; height: 56px; flex: none; border-radius: var(--r-4); box-shadow: var(--sombra); user-select: none; -webkit-user-drag: none; }
+.par-nome-app { font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--t1); }
+
+.par-aviso {
+  display: flex; align-items: flex-start; gap: var(--esp-2); margin-bottom: var(--esp-4); padding: var(--esp-3);
+  border: 1px solid var(--fio-2); border-radius: var(--r-3); background: var(--sup); color: var(--t1);
+  font-size: 14px; line-height: 1.4; overflow-wrap: anywhere;
+}
+.par-aviso svg { flex: none; margin-top: 1px; color: var(--t2); }
+.par-aviso.aviso { background: color-mix(in srgb, var(--aviso) 10%, transparent); border-color: color-mix(in srgb, var(--aviso) 30%, transparent); }
+.par-aviso.aviso svg { color: var(--aviso); }
+
+/* Os dois passos dividem a mesma célula; o inativo some (opacity + visibility) e o ativo entra com o movimento do PC. */
+.par-passos { display: grid; min-width: 0; }
+.par-passo {
+  grid-area: 1 / 1; min-width: 0; display: flex; flex-direction: column;
+  transition: opacity var(--dur-3) var(--ease-press), transform var(--dur-3) var(--ease-press), visibility 0s linear var(--dur-3);
+}
+.par[data-passo="1"] .par-passo[data-p="2"], .par[data-passo="2"] .par-passo[data-p="1"] {
+  opacity: 0; visibility: hidden; pointer-events: none;
+}
+.par[data-passo="1"] .par-passo[data-p="2"] { transform: translateX(var(--esp-5)); }
+.par[data-passo="2"] .par-passo[data-p="1"] { transform: translateX(calc(var(--esp-5) * -1)); }
+.par[data-passo="1"] .par-passo[data-p="1"], .par[data-passo="2"] .par-passo[data-p="2"] {
+  opacity: 1; visibility: visible; transform: none; transition-delay: 0s;
+}
+
+.par-tit { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; color: var(--t1); overflow-wrap: anywhere; }
+.par-txt { margin-top: var(--esp-2); font-size: 15px; line-height: 1.45; color: var(--t2); }
+.par-rot { margin: var(--esp-5) 0 var(--esp-2); font-size: 13px; font-weight: 500; color: var(--t2); }
+
+.par-campo {
+  width: 100%; min-width: 0; height: 52px; padding: 0 var(--esp-3); border: 1px solid var(--fio-2); border-radius: var(--r-3);
+  background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t1); font-size: 16px; font-weight: 500;
+  -webkit-appearance: none; appearance: none; transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+.par-campo::placeholder { color: var(--t3); }
+.par-campo:focus { outline: none; border-color: var(--anel); box-shadow: var(--poco-sombra), 0 0 0 2px var(--anel); }
+.par-campo:disabled { opacity: .5; }
+.par-campo[aria-invalid="true"] { border-color: color-mix(in srgb, var(--perigo) 60%, transparent); }
+.par-codigo {
+  font-family: var(--mono); font-size: 30px; font-weight: 500; letter-spacing: .4em; padding-left: calc(var(--esp-3) + .4em);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.par-codigo::placeholder { letter-spacing: .4em; }
+
+.par-tempo { margin-top: var(--esp-3); font-size: 14px; text-align: center; color: var(--t2); font-variant-numeric: tabular-nums; }
+.par-tempo.fim { color: var(--aviso); }
+.par-erro { margin-top: var(--esp-3); font-size: 14px; line-height: 1.4; color: var(--erro-t); overflow-wrap: anywhere; }
+
+.par-btn { width: 100%; height: 48px; margin-top: var(--esp-4); font-size: 16px; font-weight: 600; border-radius: var(--r-3); }
+.par-btn:disabled { opacity: .55; cursor: default; }
+.par-sec { margin-top: var(--esp-2); font-weight: 500; }
+.par-btn:focus-visible { outline: 2px solid var(--anel); outline-offset: 2px; }
+
+.par-dica { display: flex; align-items: flex-start; gap: var(--esp-2); margin-top: var(--esp-5); font-size: 13px; line-height: 1.4; color: var(--t3); }
+.par-dica svg { flex: none; margin-top: 1px; }
+
+/* Movimento reduzido: só troca (sem deslocamento nem transição). */
+@media (prefers-reduced-motion: reduce) {
+  .par-passo, .par-campo { transition: none; }
+  .par .par-passo { transform: none !important; }
+  .par-btn:active { transform: none; }
+}

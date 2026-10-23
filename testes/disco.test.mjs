@@ -198,7 +198,7 @@ try {
   conferir(await av(`document.querySelector('#gd-n').textContent.endsWith('GB')`), 'número grande em GB', await av(`document.querySelector('#gd-n').textContent`));
   conferir(await av(`document.querySelectorAll('#gd-svg .gd-linha').length === 2`), 'duas linhas no gráfico');
   conferir(await av(`document.querySelectorAll('#gd-leg .gl-item').length === 2`), 'legenda com as duas linhas');
-  conferir(await av(`[...document.querySelectorAll('.col-pe > .graf')].pop().classList.contains('graf-disco')`), 'card é o último do bloco abaixo da cena');
+  conferir(await av(`document.querySelector('.graf-disco').parentElement.classList.contains('geral-grade') && OrbitGrade.layout().some((i) => i.k === 'disco')`), 'card é um widget da grade da Visão geral'); // 21/10: grade (widgets.js)
   await fotoTela('01-home-1440');
   await fotoCard('02-card-24h');
   for (const p of ['7d', '30d']) {
@@ -256,7 +256,7 @@ try {
     await av(`document.querySelector('.graf-disco').scrollIntoView({ block: 'center' })`);
     await dormir(400);
     conferir(await av(`document.documentElement.scrollWidth <= innerWidth`), w + ' px: sem rolagem horizontal', await av('[document.documentElement.scrollWidth, innerWidth]'));
-    conferir(await av(`(() => { const c = document.querySelector('.graf-disco').getBoundingClientRect(), u = document.querySelector('.graf-uso').getBoundingClientRect(); return Math.abs(c.left - u.left) < 1 && Math.abs(c.width - u.width) < 1; })()`), w + ' px: alinhado ao card de uso');
+    conferir(await av(`(() => { const c = document.querySelector('.graf-disco').getBoundingClientRect(), g = document.querySelector('.geral-grade').getBoundingClientRect(); return c.left >= g.left - 1 && c.right <= g.right + 1 && [...document.querySelectorAll('.geral-grade > .graf')].every((o) => { if (o.classList.contains('graf-disco')) return true; const r = o.getBoundingClientRect(); return r.right <= c.left + 1 || r.left >= c.right - 1 || r.bottom <= c.top + 1 || r.top >= c.bottom - 1; }); })()`), w + ' px: dentro da grade, sem sobrepor outro widget'); // 21/10: grade (widgets.js)
     await fotoCard('06-card-' + w); // o headless só gera quadro na captura: o ResizeObserver dispara nela
     conferir(await av(`(() => { const s = document.querySelector('#gd-svg'); return Math.abs(s.viewBox.baseVal.width - s.getBoundingClientRect().width) < 2; })()`), w + ' px: gráfico redesenhado na largura certa', await av(`[document.querySelector('#gd-svg').getAttribute('viewBox'), document.querySelector('#gd-svg').getBoundingClientRect().width]`));
     await fotoTela('07-tela-' + w);

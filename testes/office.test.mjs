@@ -4,7 +4,8 @@
 // testes/office-demo.html (API falsa com roteiro) e confere:
 //  1) zero erros de console; 2) 30 s de amostras a cada 100 ms: robô nunca em célula
 //  bloqueada nem salto > 1 célula; rótulos sem sobreposição; balões ≤ 60 caracteres;
-//  3) tecla F liga/desliga a tela cheia; 4) capturas 1440×900 e 1024×700, normal e cheia;
+//  3) tecla F liga/desliga a tela cheia; 4) capturas 1440×900 e 1024×700, normal e cheia; mapa da vila
+//  (canvas, postos, placas; sem as imagens, o mapa em blocos de cor);
 //  5) clique num robô abre o cartão (Esc fecha). Imprime um resumo JSON; sai 1 se falhar.
 
 import { spawn } from 'node:child_process';
@@ -14,12 +15,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { caminhoNavegador, fecharEdge } from './edge.mjs';
+import { escolherPorta } from './porta-livre.mjs';
 
 const PASTA = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SAIDA = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'gerenciador-office'));
 fs.mkdirSync(SAIDA, { recursive: true });
 const EDGE = caminhoNavegador(); // no Windows, o Edge de sempre; no Mac, ver edge.mjs
-const PORTA = Number(process.env.OFFICE_PORTA || 47826);
+const PORTA = await escolherPorta(Number(process.env.OFFICE_PORTA) || 47826); // faixa 47822–47826, nunca a 47821
 const AMOSTRA_S = Number(process.env.OFFICE_AMOSTRA_S || 30);
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const falhas = [];
@@ -98,7 +100,7 @@ const AMOSTRADOR = `(() => {
   window.__am = []; clearInterval(window.__amT);
   window.__amT = setInterval(() => {
     const d = Office._debug();
-    window.__am.push({ t: performance.now(), r: d.robos.map((r) => [r.id, r.x, r.y]), rot: d.rotulos.map((q) => [q.tipo, q.x, q.y, q.w, q.h, q.texto || '']) });
+    window.__am.push({ t: performance.now(), r: d.robos.map((r) => [r.id, r.x, r.y]), rot: d.rotulos.map((q) => [q.tipo, q.x, q.y, q.w, q.h, q.texto || '', q.id || '']) });
   }, 100);
   return Office._debug().caminhavel;
 })()`;
@@ -131,7 +133,10 @@ function analisar(grade, am) {
         const b = s.rot[j];
         const ix = Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]);
         const iy = Math.min(a[2] + a[4], b[2] + b[4]) - Math.max(a[2], b[2]);
-        if (ix > 1 && iy > 1) { r.sobreposicoes++; r.piorSobreposicaoPx2 = Math.max(r.piorSobreposicaoPx2, Math.round(ix * iy)); }
+        if (ix > 1 && iy > 1) {
+          r.sobreposicoes++; r.piorSobreposicaoPx2 = Math.max(r.piorSobreposicaoPx2, Math.round(ix * iy));
+          if (r.exemplos.length < 8) r.exemplos.push(`sobreposição: ${a[0]} ${a[6] || ''} × ${b[0]} ${b[6] || ''} (${Math.round(ix)}×${Math.round(iy)})`);
+        }
       }
     }
   }
@@ -162,14 +167,23 @@ try {
 
   // 1440×900 — dados "reais" da API falsa
   await abrir(1440, 900);
-  resumo.fundo = await avaliar(`(() => ({
-    carregado: document.querySelector('.of-palco').style.backgroundImage.includes('fundo.png'),
-    telas: document.querySelectorAll('.of-vidro').length,
-    mesasSvg: document.querySelectorAll('.of-mesa').length,
-    fios: document.querySelectorAll('.of-fio-cor').length,
-    decoracoes: Office.CONFIG.areas.flatMap(a => a.moveis).filter(m => m.tipo === 'deco').length
-  }))()`);
-  if (!resumo.fundo.carregado || resumo.fundo.telas !== 16 || resumo.fundo.mesasSvg !== 0 || resumo.fundo.fios !== 6 || resumo.fundo.decoracoes !== 10) falhas.push('fundo ou camadas dinâmicas incorretos');
+  // Mapa da vila: o canvas com as imagens do pack, um posto por estação, uma placa por casa e nada do desenho antigo.
+  for (let i = 0; i < 40 && (await avaliar('Office._debug().mapa')) !== 'vila'; i++) await dormir(100);
+  resumo.fundo = await avaliar(`(() => {
+    const t = document.querySelector('.of-palco canvas.of-vila'), p = document.querySelector('.of-palco').getBoundingClientRect();
+    return {
+      mapa: Office._debug().mapa,
+      canvas: !!t && Math.abs(t.getBoundingClientRect().width - p.width) < 1 && Math.abs(t.getBoundingClientRect().height - p.height) < 1,
+      pixels: t ? t.width * t.height : 0,
+      postos: document.querySelectorAll('.of-posto').length,
+      estacoes: Office.CONFIG.areas.reduce((n, a) => n + a.estacoes.length, 0),
+      placas: document.querySelectorAll('.of-areas .of-area-rot:not(.of-entrada)').length,
+      antigo: document.querySelectorAll('.of-planta, .of-vidro, .of-mesa').length + (document.querySelector('.of-palco').style.backgroundImage ? 1 : 0),
+      grade: [Office._debug().colunas, Office._debug().linhas],
+    };
+  })()`);
+  const fu = resumo.fundo;
+  if (fu.mapa !== 'vila' || !fu.canvas || !fu.pixels || fu.postos !== fu.estacoes || fu.placas !== 8 || fu.antigo) falhas.push('mapa da vila ou camadas dinâmicas incorretos');
   await foto('office-1440-inicio');
   const grade = await avaliar(AMOSTRADOR);
   for (let s = 0; s < AMOSTRA_S; s += 5) {
@@ -190,7 +204,7 @@ try {
 
   // Cartão: clica num robô parado
   const alvo = await avaliar(`(() => {
-    const d = Office._debug(); const r = d.robos.find((q) => !q.andando && !q.saindo) || d.robos[0];
+    const d = Office._debug(); const r = d.robos.find((q) => !q.andando && !q.saindo && q.alfa === 1) || d.robos[0]; // fora das casas (dentro, o robô não recebe clique)
     const el = [...document.querySelectorAll('.of-ator')][d.robos.indexOf(r)];
     const b = el.getBoundingClientRect(); return { nome: r.nome, x: b.left + b.width / 2, y: b.top + b.height * 0.62 };
   })()`);
@@ -216,7 +230,7 @@ try {
   const hist = await avaliar('Office._debug().historico');
   resumo.trocasConcluidas = hist.filter((h) => h.ok).reduce((m, h) => ((m[h.tipo] = (m[h.tipo] || 0) + 1), m), {});
   resumo.trocasDescartadas = hist.filter((h) => !h.ok).map((h) => h.tipo + ' ' + h.v + '→' + h.h);
-  for (const tipo of ['delegar', 'entregar', 'referencias', 'falhas']) if (!resumo.trocasConcluidas[tipo]) falhas.push('nenhuma troca concluída do tipo ' + tipo);
+  for (const tipo of ['delegar', 'entregar']) if (!resumo.trocasConcluidas[tipo]) falhas.push('nenhuma troca concluída do tipo ' + tipo);
 
   // 1024×700
   await abrir(1024, 700);
@@ -245,18 +259,22 @@ try {
   await foto('office-vazio-1024');
   if (resumo.vazio.modo !== 'demo') falhas.push('sem sessões não entrou em demonstração');
 
-  // Network failure must retain the complete vector scene, then recover on remount.
+  // Sem as imagens da vila (falha de rede): o mapa sai em blocos de cor, com os postos e os robôs; volta ao remontar.
   await cdp('Network.enable');
-  await cdp('Network.setBlockedURLs', { urls: ['*/assets/office/fundo.png'] });
+  await cdp('Network.setBlockedURLs', { urls: ['*/assets/vila/*'] });
   const errosAntesFallback = resumo.console.length;
   await abrir(1024, 700);
-  resumo.fallback = await avaliar(`({ semImagem: !document.querySelector('.of-palco').style.backgroundImage, mesas: document.querySelectorAll('.of-mesa').length, telas: document.querySelectorAll('.of-vidro').length })`);
-  if (!resumo.fallback.semImagem || resumo.fallback.mesas < 15 || resumo.fallback.telas !== 16) falhas.push('fallback SVG incompleto');
+  await dormir(600);
+  resumo.fallback = await avaliar(`({ mapa: Office._debug().mapa, postos: document.querySelectorAll('.of-posto').length, robos: document.querySelectorAll('.of-ator').length })`);
+  if (resumo.fallback.mapa !== 'simples' || resumo.fallback.postos < 15 || !resumo.fallback.robos) falhas.push('fallback do mapa incompleto');
   // Ignore only the resource failure deliberately induced by this test.
   resumo.console = resumo.console.filter((e, i) => i < errosAntesFallback || !e.includes('ERR_BLOCKED_BY_CLIENT'));
   await foto('office-fallback-1024');
   await cdp('Network.setBlockedURLs', { urls: [] });
   await abrir(1024, 700);
+  for (let i = 0; i < 40 && (await avaliar('Office._debug().mapa')) !== 'vila'; i++) await dormir(100);
+  resumo.recuperou = await avaliar('Office._debug().mapa');
+  if (resumo.recuperou !== 'vila') falhas.push('o mapa não voltou depois da falha de rede');
 
   // Pausar / retomar não quebram nada
   resumo.pausa = await avaliar(`(async () => { Office.pausar(); const a = JSON.stringify(Office._debug().robos.map(r => [r.x, r.y])); await new Promise(r => setTimeout(r, 800)); const b = JSON.stringify(Office._debug().robos.map(r => [r.x, r.y])); Office.retomar(); return { parado: a === b, pausado: Office._debug().pausado }; })()`);

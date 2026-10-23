@@ -2,7 +2,7 @@
 
 `fundo.png`: 1920 × 1120; `fundo@2x.png`: 3840 × 2240. Pixel art desenhada por código, sem serviços de geração externos. A versão padrão está em `Office.CONFIG.fundo`.
 
-O bitmap contém apenas o ambiente. As 16 telas, os fios das salas, os rótulos e os robôs continuam dinâmicos. O SVG completo aparece enquanto o PNG carrega e permanece disponível se o carregamento falhar. As 11 novas peças de decoração bloqueiam a grade pelo CONFIG.
+O bitmap contém apenas o ambiente. As 16 telas, os fios das salas, os rótulos e os robôs continuam dinâmicos. O SVG completo aparece enquanto o PNG carrega e permanece disponível se o carregamento falhar. As 9 peças de decoração bloqueiam a grade pelo CONFIG.
 
 Para regenerar, na raiz do projeto (Python com Pillow e Node no PATH):
 

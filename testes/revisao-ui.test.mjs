@@ -1,7 +1,8 @@
 // Teste do modelo de revisão (16/10): toda sessão que termina entra em "Concluídas" e fica lá mesmo aberta
 // (no detalhe, na Conversa e depois do F5); só "Marcar como revisada" passa para "Revisadas"; o Desfazer volta;
 // "⋯ › Marcar todas como revisadas" pede confirmação; terminar de novo volta para Concluídas; a rosca e as
-// contagens seguem os grupos novos; ordem e recolhimento gravados no modelo antigo migram.
+// contagens seguem os grupos novos. 21/10: a revisão mora no servidor (s.revisadaEm + POST /sessao/:id/revisada); o
+// 'gi.revisadas' antigo do navegador migra para lá e a chave é apagada.
 // Servidor de teste numa porta livre (47822–47826) + Edge headless mudo; nunca toca a 47821.
 // node testes/revisao-ui.test.mjs <pasta-de-saida>   (~25 s; capturas 01–04 na pasta de saída)
 import { spawn } from 'node:child_process';
@@ -20,6 +21,9 @@ const DADOS = path.join(SAIDA, 'dados'), PERFIL = path.join(SAIDA, 'perfil'), SE
 for (const d of [DADOS, PERFIL, SESS, FALSO, path.join(SAIDA, 'edge')]) fs.rmSync(d, { recursive: true, force: true });
 for (const d of [DADOS, PERFIL, SESS, FALSO]) fs.mkdirSync(d, { recursive: true });
 fs.writeFileSync(path.join(DADOS, 'config.json'), '{}\n'); // config padrão de teste (nunca a do usuário)
+for (const d of ['casa', 'projetos']) fs.mkdirSync(path.join(SAIDA, d), { recursive: true }); // isola ~/.claude: só as sessões do teste
+const sessaoSrv = async (id) => ((await (await fetch(BASE + '/estado')).json()).sessoes || []).find((x) => x.id === id);
+const postRev = (id, revisada) => fetch(BASE + '/sessao/' + id + '/revisada', { method: 'POST', headers: { 'x-gerenciador': '1', 'content-type': 'application/json' }, body: JSON.stringify({ revisada }) });
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const res = { ok: [], falhas: [] };
 const conferir = (cond, nome, extra) => { (cond ? res.ok : res.falhas).push(nome + (cond || extra === undefined ? '' : ' → ' + JSON.stringify(extra))); };
@@ -28,7 +32,7 @@ let srv, pcdp;
 try {
   srv = spawn(process.execPath, [path.join(PROJ, 'servidor.mjs')], {
     cwd: PROJ, stdio: 'ignore',
-    env: { ...process.env, GERENCIADOR_PORTA: String(PORTA), GERENCIADOR_DADOS: DADOS, GERENCIADOR_SESSOES_DIR: SESS, ORBIT_PERFIL_DIR: PERFIL },
+    env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'teste', CLAUDE_CODE_HOST_SESSION_ID: '', CLAUDECODE: '', GERENCIADOR_PORTA: String(PORTA), GERENCIADOR_DADOS: DADOS, GERENCIADOR_SESSOES_DIR: SESS, ORBIT_PERFIL_DIR: PERFIL, GERENCIADOR_CASA: path.join(SAIDA, 'casa'), ORBIT_PROJETOS_DIR: path.join(SAIDA, 'projetos'), ORBIT_MODELOS: '0' },
   });
   for (let i = 0; i < 50; i++) { try { if ((await fetch(BASE + '/saude')).ok) break; } catch {} await dormir(150); }
   const hook = (corpo) => fetch(BASE + '/evento', { method: 'POST', headers: { 'x-gerenciador': '1', 'content-type': 'application/json' }, body: JSON.stringify({ cwd: FALSO, ...corpo }) });
@@ -41,6 +45,8 @@ try {
   conferir((await turno('rev-a', 'Escrever o relatório A')).ok, 'sessão A concluiu');
   conferir((await turno('rev-b', 'Escrever o relatório B')).ok, 'sessão B concluiu');
 
+  // Sessões alheias (processos reais do Claude Code lidos pelo servidor) tirariam as contagens do teste: fora.
+  for (const x of (await (await fetch(BASE + '/estado')).json()).sessoes || []) if (!String(x.id).startsWith('rev-')) await fetch(BASE + '/remover', { method: 'POST', headers: { 'x-gerenciador': '1', 'content-type': 'application/json' }, body: JSON.stringify({ id: x.id }) });
   const EDGE = caminhoNavegador(); // no Windows, o Edge de sempre; no Mac, ver edge.mjs
   pcdp = 9800 + Math.floor(Math.random() * 150);
   spawn(EDGE, ['--headless=new', `--remote-debugging-port=${pcdp}`, `--user-data-dir=${path.join(SAIDA, 'edge')}`, '--no-first-run', '--disable-gpu', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
@@ -76,18 +82,18 @@ try {
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: BASE + '/' });
   await dormir(2200);
-  // Estado gravado no modelo antigo: a ordem e o recolhimento devem migrar, e "vistos" não vira "revisada".
-  await av(`localStorage.setItem('gi.ordemGrupos', JSON.stringify(['naovistas', 'precisa', 'trabalhando', 'novas', 'concluidas', 'encerradas']));
-    localStorage.setItem('gi.grupos', JSON.stringify({ concluidas: true }));
-    localStorage.setItem('gi.vistos', JSON.stringify({ 'rev-a': Date.now() + 1e9, 'rev-b': Date.now() + 1e9 }));
-    localStorage.removeItem('gi.revisadas'); localStorage.setItem('gi.agrupar', 'false'); localStorage.setItem('gi.pk-aba', '"resumo"'); true`);
+  // 0) Migração: o 'gi.revisadas' do navegador (rev-a válida, rev-b velha demais, id que não existe) vai para o servidor e a chave some.
+  const agora0 = Date.now();
+  await av(`localStorage.setItem('gi.revisadas', JSON.stringify({ 'rev-a': ${agora0 + 5000}, 'rev-b': 1000, 'nao-existe': ${agora0 + 5000} })); localStorage.setItem('gi.agrupar', 'false'); localStorage.setItem('gi.pk-aba', '"resumo"'); true`);
   await recarregar();
-
-  // 0) Migração.
-  const ordemSalva = await av(`localStorage.getItem('gi.ordemGrupos')`);
-  conferir(ordemSalva === JSON.stringify(['concluidas', 'precisa', 'trabalhando', 'novas', 'revisadas', 'encerradas']), 'a ordem antiga migra (não vistas → Concluídas, Concluídas → Revisadas)', ordemSalva);
-  conferir(await av(`JSON.parse(localStorage.getItem('gi.grupos')).revisadas === true && !('concluidas' in JSON.parse(localStorage.getItem('gi.grupos')))`), 'o recolhimento de "Concluídas" antigo passa para Revisadas', await av(`localStorage.getItem('gi.grupos')`));
-  conferir(await av(`localStorage.getItem('gi.vistos') === null`), 'o "vistos" antigo sai');
+  await dormir(500);
+  conferir(await av(`localStorage.getItem('gi.revisadas') === null`), "a migração apaga a chave 'gi.revisadas'", await av(`localStorage.getItem('gi.revisadas')`));
+  const ma = await sessaoSrv('rev-a'), mb = await sessaoSrv('rev-b');
+  conferir(ma && ma.revisadaEm >= agora0, 'a marca válida foi para o servidor (revisadaEm)', ma && ma.revisadaEm);
+  conferir(mb && !mb.revisadaEm, 'a marca velha demais não migra', mb && mb.revisadaEm);
+  conferir(await grupoDe('rev-a') === 'revisadas' && await grupoDe('rev-b') === 'concluidas', 'a migrada aparece em Revisadas', [await grupoDe('rev-a'), await grupoDe('rev-b')]);
+  await postRev('rev-a', false); await dormir(500); // volta ao ponto de partida dos passos seguintes
+  conferir(!(await sessaoSrv('rev-a')).revisadaEm, 'POST revisada:false apaga o campo no servidor');
   await av(`localStorage.removeItem('gi.ordemGrupos'); localStorage.removeItem('gi.grupos'); true`);
   await recarregar();
 
@@ -126,7 +132,9 @@ try {
   conferir(await av(`document.querySelector('#lista .linha[data-id="rev-a"] .nv').hidden`), 'revisada perde o ponto');
   fx = await faixa();
   conferir(fx.vis && fx.feita && fx.tit === 'Revisada' && fx.btn.includes('Desfazer'), 'a faixa vira "Revisada" com Desfazer', fx);
-  conferir(await av(`!!JSON.parse(localStorage.getItem('gi.revisadas'))['rev-a']`), 'a revisão fica gravada');
+  const sa = await sessaoSrv('rev-a');
+  conferir(sa && sa.revisadaEm > 0, 'a revisão fica gravada no servidor (revisadaEm)', sa && sa.revisadaEm);
+  conferir(await av(`localStorage.getItem('gi.revisadas') === null`), "e nada em 'gi.revisadas' no navegador");
   r = await rosca();
   conferir(r.concluidas === 1 && r.revisadas === 1, 'a rosca acompanha', r);
   await foto('03-revisada');
@@ -135,6 +143,7 @@ try {
   await av(`document.querySelector('#lista .linha[data-id="rev-a"]').click(); true`); await dormir(500);
   await av(`document.getElementById('pk-rv-btn').click(); true`); await dormir(700);
   conferir(await grupoDe('rev-a') === 'concluidas', 'Desfazer volta para Concluídas', await grupoDe('rev-a'));
+  conferir(!(await sessaoSrv('rev-a')).revisadaEm, 'Desfazer apaga o revisadaEm no servidor');
   fx = await faixa();
   conferir(fx.btn.includes('Marcar como revisada') && !fx.feita, 'a faixa volta a "Marcar como revisada"', fx);
   conferir(await av(`(() => { const t = document.getElementById('pk-rv-tit').parentElement; return t.scrollWidth <= t.clientWidth && !document.querySelector('#pk-revisao .rv-ico'); })()`), 'a faixa é uma linha, sem a caixa do ícone e sem corte');
@@ -183,6 +192,7 @@ try {
   // 6) Trabalhar e terminar de novo: volta para Concluídas.
   await turno('rev-b', 'Revisar o relatório B'); await dormir(600);
   conferir(await grupoDe('rev-b') === 'concluidas', 'terminar de novo volta para Concluídas', await grupoDe('rev-b'));
+  conferir(!(await sessaoSrv('rev-b')).revisadaEm, 'terminar de novo: o servidor apaga o revisadaEm', (await sessaoSrv('rev-b')).revisadaEm);
   conferir(await grupoDe('rev-a') === 'revisadas', 'a outra continua revisada');
 
   // 7) Agrupado por projeto: o card do projeto separa Concluídas e Revisadas em barras de estado.
@@ -191,6 +201,9 @@ try {
   conferir(subs === 'concluidas:rev-b,revisadas:rev-a', 'agrupado por projeto, as barras Concluídas e Revisadas separam as sessões', subs);
   await av(`document.getElementById('btn-agrupar').click(); true`); await dormir(300);
 
+  // Ícones comuns (assets/comum/icones.js): na tela, todo svg[data-i] tem traço desenhado (nome existente ou fallback local do 'atualizar'), com currentColor.
+  const ic = await av(`(() => { const vs = [...document.querySelectorAll('svg[data-i]')]; const v = vs.find((x) => x.dataset.i === 'check'); return { orbit: typeof OrbitIcones.icone === 'function' && OrbitIcones.nomes.includes('check'), n: vs.length, vazios: [...new Set(vs.filter((x) => !x.children.length).map((x) => x.dataset.i))], traco: v && v.getAttribute('stroke'), larg: v && v.getAttribute('stroke-width'), vb: v && v.getAttribute('viewBox') }; })()`);
+  conferir(ic && ic.orbit && ic.n > 10 && ic.vazios.length === 0 && ic.traco === 'currentColor' && ic.larg === '1.5' && ic.vb === '0 0 16 16', 'ícones comuns: nenhum svg vazio na tela, traço 1,5 currentColor', ic);
   conferir(consoleErros.length === 0, 'console sem erros', consoleErros);
   ws.close();
 } catch (e) {

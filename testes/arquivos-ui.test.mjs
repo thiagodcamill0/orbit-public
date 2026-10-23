@@ -176,7 +176,7 @@ try {
   // ── 4. Menus dos 3 tipos ──
   await av(`__aj.menu(__aj.proj('Gerenciador'))`);
   r = await av(`({ itens: __aj.itensMenu(), foco: document.activeElement?.querySelector?.('.arq-mi-rot')?.textContent, teclas: [...document.querySelectorAll('.arq-mi-tecla')].map((x) => x.textContent) })`);
-  conferir(r.itens.join('|') === 'Editar projeto|—|Novo arquivo|Nova pasta|—|Localizar na pasta|—|Colar(off)|—|Copiar caminho|Copiar caminho relativo|—|Revelar no Explorador|Remover projeto da lista', 'menu do projeto', r.itens);
+  conferir(r.itens.join('|') === 'Editar projeto|—|Novo arquivo|Nova pasta|—|Localizar na pasta|—|Colar(off)|—|Copiar caminho|Copiar caminho relativo|—|Abrir na pasta|Revelar no Explorador|Remover projeto da lista', 'menu do projeto', r.itens);
   conferir(r.foco === 'Editar projeto' && r.teclas.length === 0, 'menu foca o 1º item; sem dica de tecla nos itens', r);
   await tecla('ArrowDown'); await tecla('ArrowDown');
   conferir((await av(`document.activeElement?.querySelector('.arq-mi-rot')?.textContent`)) === 'Nova pasta', 'setas navegam no menu');
@@ -187,7 +187,7 @@ try {
   conferir(await av(`demo.log.some((x) => Array.isArray(x) && x[0] === 'editar' && x[1] === 'Gerenciador' && x[2] === true)`), 'Editar projeto chama o gancho com a linha como âncora');
   await av(`__aj.menu(__aj.linha('Gerenciador', 'assets'))`);
   r = await av(`__aj.itensMenu()`);
-  conferir(r.join('|') === 'Novo arquivo|Nova pasta|—|Localizar na pasta|—|Recortar|Copiar|Colar(off)|—|Copiar caminho|Copiar caminho relativo|—|Renomear|Excluir', 'menu da pasta', r);
+  conferir(r.join('|') === 'Novo arquivo|Nova pasta|—|Localizar na pasta|—|Recortar|Copiar|Colar(off)|—|Copiar caminho|Copiar caminho relativo|—|Abrir na pasta|Renomear|Excluir', 'menu da pasta', r);
   await tecla('Escape');
   await av(`__aj.menu(__aj.linha('Gerenciador', 'README.md'))`);
   r = await av(`__aj.itensMenu()`);
@@ -202,6 +202,9 @@ try {
   conferir((await av(`demo.area`)) === 'D:\\Dev\\Projetos\\Gerenciador\\assets\\arquivos.js', 'Shift+Alt+C copia o caminho absoluto', await av(`demo.area`));
   await av(`__aj.menu(__aj.proj('Gerenciador'))`); await av(`__aj.escolher('Revelar no Explorador')`); await dormir(80);
   conferir((await av(`demo.revelados.join()`)) === 'Gerenciador:', 'Revelar no Explorador (projeto)');
+  await av(`__aj.menu(__aj.proj('Gerenciador'))`); await av(`__aj.escolher('Abrir na pasta')`); await dormir(80);
+  await av(`__aj.menu(__aj.linha('Gerenciador', 'assets'))`); await av(`__aj.escolher('Abrir na pasta')`); await dormir(80);
+  conferir((await av(`demo.abertas.join()`)) === 'Gerenciador:,Gerenciador:assets', 'Abrir na pasta (projeto e pasta)', await av(`demo.abertas`));
 
   // ── 5. Copiar / recortar / colar ──
   await av(`__aj.clicar(__aj.linha('Gerenciador', 'brain'))`);

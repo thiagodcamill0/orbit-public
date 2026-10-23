@@ -1,0 +1,56 @@
+/* Orbit no celular — markdown (OrbitMd: .md-h, .md-codigo, .md-copiar, .md-tabela, .md-link…), usado pela conversa, cartões e ideias. Dono: tela Conversa (onda 3). Só tokens de base.css. */
+/* Convenção: o contêiner leva a classe .md (os elementos genéricos só são tocados dentro dele); as classes md-* valem em qualquer lugar.
+   Visual do PC (index.html, .md): texto #cfcfcf 1.6, code #1f1f1f/#2a2a2a mono, pre #0f0f0f com borda --fio e raio 8. Nada rola na horizontal
+   além do próprio bloco de código ou tabela. */
+
+.md { min-width: 0; max-width: 100%; color: var(--t-texto); font-size: var(--fs-5); line-height: 1.6; overflow-wrap: anywhere; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p { margin: 0 0 .7em; }
+.md strong { color: var(--t1); font-weight: 600; }
+.md em { font-style: italic; }
+.md a { color: var(--foco); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.md ul, .md ol { margin: 0 0 .7em; padding-left: 1.4em; }
+.md li { margin: .2em 0; }
+.md li > ul, .md li > ol { margin: .2em 0 0; }
+.md li::marker { color: var(--t3); }
+.md hr { margin: 1em 0; border: 0; border-top: 1px solid var(--fio); }
+.md blockquote { margin: 0 0 .7em; padding: 2px 0 2px var(--esp-3); border-left: 2px solid var(--fio-2); color: var(--t2); }
+.md code { padding: 1px 5px; border: 1px solid var(--codigo-borda); border-radius: var(--r-1); background: var(--codigo-inline); color: var(--codigo-t); font-family: var(--mono); font-size: var(--fs-3); overflow-wrap: anywhere; }
+
+/* Títulos (div.md-h.md-h1..6). */
+.md-h { margin: 1em 0 .4em; color: var(--t1); font-weight: 600; line-height: 1.3; }
+.md-h1 { font-size: 19px; }
+.md-h2 { font-size: var(--fs-6); }
+.md-h3 { font-size: var(--fs-5); }
+.md-h4, .md-h5, .md-h6 { font-size: var(--fs-4); color: var(--t2); }
+
+/* Bloco de código: cabeçalho (linguagem + Copiar) e pre que rola sozinho. */
+.md-codigo { min-width: 0; max-width: 100%; margin: 0 0 .8em; border: 1px solid var(--fio); border-radius: var(--r-2); background: var(--codigo-fundo); overflow: hidden; }
+.md-codigo-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); min-height: 32px; padding: 0 4px 0 var(--esp-3); border-bottom: 1px solid var(--fio); color: var(--t3); font: 11.5px var(--mono); }
+.md-lang { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.md-copiar {
+  position: relative; flex: none; height: 28px; padding: 0 10px; border: 0; border-radius: var(--r-1); background: none;
+  color: var(--t2); font: 500 12px var(--sans); transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+button.md-copiar::after { content: ""; position: absolute; inset: -8px -4px; }   /* alvo de toque de 44 px */
+button.md-copiar:active { background: var(--bloco); color: var(--t1); }
+.md-codigo pre, .md pre {
+  margin: 0; max-width: 100%; padding: var(--esp-2) var(--esp-3); overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  background: var(--codigo-fundo); color: var(--codigo-t); font-family: var(--mono); font-size: var(--fs-3); line-height: 1.55; white-space: pre; tab-size: 2;
+}
+.md-codigo pre code, .md pre code { padding: 0; border: 0; border-radius: 0; background: none; font-size: inherit; overflow-wrap: normal; }
+
+/* Tabela: a caixa rola na horizontal, a página não. */
+.md-tabela { max-width: 100%; margin: 0 0 .8em; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; border: 1px solid var(--fio); border-radius: var(--r-2); }
+.md-tabela table { border-collapse: collapse; min-width: 100%; font-size: var(--fs-3); line-height: 1.45; }
+.md-tabela th, .md-tabela td { padding: 6px 10px; border-bottom: 1px solid var(--fio); text-align: left; vertical-align: top; overflow-wrap: normal; word-break: normal; }
+.md-tabela th { background: var(--bloco); color: var(--t1); font-weight: 600; white-space: nowrap; }
+.md-tabela tr:last-child td { border-bottom: 0; }
+.md-tabela td { min-width: 6ch; max-width: 32ch; overflow-wrap: anywhere; }
+
+/* Link sem URL segura: texto + URL em mono. */
+.md-link { color: var(--foco); }
+.md-url { color: var(--t3); font: 12px var(--mono); overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) { button.md-copiar { transition: none; } }

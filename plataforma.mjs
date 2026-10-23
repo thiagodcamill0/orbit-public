@@ -168,6 +168,14 @@ export function comandoMostrar(abs, o) {
   return { cmd: 'xdg-open', args: [caminho(so).dirname(String(abs))] };
 }
 
+// Comando que abre a própria pasta (por dentro) no Explorer/Finder: { cmd, args, verbatim }.
+export function comandoAbrirPasta(abs, o) {
+  const { so } = opcoes(o);
+  if (so === 'win32') return { cmd: 'explorer.exe', args: [`"${abs}"`], verbatim: true };
+  if (so === 'darwin') return { cmd: '/usr/bin/open', args: [String(abs)] };
+  return { cmd: 'xdg-open', args: [String(abs)] };
+}
+
 // Roda um comando destacado, sem janela, e esquece. Devolve uma Promise que rejeita se não abriu.
 export function soltar({ cmd, args, verbatim }) {
   return new Promise((resolve, reject) => {
@@ -187,6 +195,7 @@ export function soltar({ cmd, args, verbatim }) {
 
 export const abrirExterno = (alvo) => soltar(comandoAbrir(alvo));
 export const mostrarNaPasta = (abs) => soltar(comandoMostrar(abs));
+export const abrirPastaSO = (abs) => soltar(comandoAbrirPasta(abs));
 
 // Lê "pid ppid" de todos os processos (macOS/Linux). Separado para os testes.
 export function lerArvorePosix() {

@@ -127,7 +127,7 @@
 (() => {
   const P = new URLSearchParams(location.search);
   const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
-  const demo = window.demo = { log: [], lixeira: [], revelados: [], area: '', posts: [] };
+  const demo = window.demo = { log: [], lixeira: [], revelados: [], abertas: [], area: '', posts: [] };
 
   // ── Disco fictício ──
   const raiz = { tipo: 'pasta', filhos: new Map() };
@@ -396,6 +396,7 @@
       return json(200, { resultados, arquivos: lidos, ocorrencias, truncado: false });
     }
     if (rota === '/arquivos/revelar') { demo.revelados.push(corpo.projeto + ':' + corpo.caminho); return json(200, { ok: true }); }
+    if (rota === '/arquivos/abrir-pasta') { demo.abertas.push(corpo.projeto + ':' + corpo.caminho); return json(200, { ok: true }); }
     return erro(404, 'Rota desconhecida: ' + rota);
   }
   const fetchReal = window.fetch.bind(window);

@@ -1,8 +1,9 @@
 # Receita do Orbit Public
 
-Esta cópia nasceu do Orbit original (repositório privado do autor) no commit **`1462faa`** (21/10/2026). Os dois
-projetos não compartilham código. Para trazer uma melhoria do original, aplique a mudança aqui à mão e confira a
-lista abaixo.
+Esta cópia nasceu do Orbit original (repositório privado do autor) no commit **`1462faa`** (21/10/2026) e foi
+sincronizada de novo em **23/10/2026** com a árvore de trabalho do original (commit `ff64943` mais o trabalho sem commit
+daquele dia; alteração 13). Os dois projetos não compartilham código. Para trazer uma melhoria do original, aplique a
+mudança aqui à mão (ou refaça a mesclagem em 3 vias da alteração 13) e confira a lista abaixo.
 
 ## Fora da cópia
 - `CONTRATO.md`, `DIRECAO-VISUAL.md`, `DIRECAO-VISUAL-r2.md`, `MAC.md`.
@@ -97,3 +98,33 @@ lista abaixo.
      termos. Teste `enviar` com imagens montadas byte a byte.
    - `assets/robot-work-original.gif`: tirado o manifesto C2PA (ferramenta e data de criação), sem recodificar
      (os quadros são idênticos).
+13. **Sincronização de 23/10 (Grafo, Whiteboard, Codex, Escritórios, celular novo, Office da Vila):**
+   - Mesclagem em 3 vias (base `1462faa`, esta cópia, árvore do original): 232 arquivos copiados ou novos, 4 apagados
+     (`mobile/mobile.*` e `mobile/widgets.*`, substituídos pelo app novo em `mobile/*.js`), 27 mesclados; 17 conflitos
+     resolvidos a favor do original, mantendo as alterações 1 a 12 desta cópia.
+   - Novas funções: aba Grafo (`grafo.mjs`, `assets/grafo*`), Whiteboard (`whiteboard.mjs`, `assets/whiteboard*`;
+     quadros em `<dados>/whiteboard/`), Codex (`codex*.mjs`, `assets/codex*`; desligado até ligar em Configurações),
+     Escritórios (`escritorios.mjs`, `membro.mjs`, `escritorio-*.mjs`, `assets/escritorios-*`), app do celular refeito
+     (`mobile/`), Office com o mapa da Vila (`assets/office.js`, `assets/vila/`: Pixel Crawler Free Pack de Anokolisa,
+     termos em `assets/vila/Terms.txt`, casas em `assets/vila/casas/`), grade de widgets da Visão geral.
+   - Sem brain de fábrica: `servidor.mjs` cria o Grafo sem cofre (`ORBIT_COFRE` opcional) e nenhum projeto ganha brain
+     sozinho; cada um vincula a própria pasta de notas no Personalizar projeto. O teste `grafo` só lê um cofre real se
+     `ORBIT_COFRE` apontar para um.
+   - Sem sincronia do próprio Orbit (alteração 2 mantida): o bloco e a rota do `sincronia.mjs` ficaram fora do
+     `servidor.mjs`; no celular, o card Sincronização do Início está desligado (`SINC_ATIVA = false` em
+     `mobile/inicio.js`) e o teste `mobile-widgets` confere 5 cards. O card do PC segue o da alteração 5.
+   - Neutralização (alteração 7 aplicada ao que chegou): nomes, caminhos, projetos e referências ao contrato e ao cofre
+     do autor trocados por exemplos em comentários, prompts dos Escritórios ("aprovação do usuário") e testes
+     (`Cliente Exemplo`, `D:/Dev/Projetos/Orbit`, `iPhone do usuário`, `dono@exemplo.com`). `cayde` segue fora.
+   - `.gitignore`: além de `.env*`, `*.pem` e `*.key`, agora ficam fora `*.p12`, `*.pfx`, `*.jks`, `*.keystore`,
+     `*.tfstate*`, `*.sql`, `*.sqlite*`, `*.db`, `kubeconfig`, `.npmrc`, `.pypirc`, `credentials*`,
+     `service-account*.json` e `*-firebase-adminsdk-*.json`.
+   - Testes (23/10): rodada completa dos 135 arquivos de `testes/` nas portas 47822–47826 (duas filas em paralelo) e
+     segunda passada, um por vez, dos que falharam. Passam 125. Ficam com falha, iguais às do original no mesmo dia:
+     `backend` (1 caso: o SSE `inicio` sem `uso`), `card-sessao-ui` (2), `grupos-ui`, `revisao-ui`, `midia` (1, widget da
+     lateral), `projeto-foto-ui` (4), `temas-ui` (2) e `perfil` (3 de layout da lateral recolhida). `navegador-ui` e
+     `assistente-ui` dependem do tempo da abertura (a tela de abertura ainda cobre a lateral quando o teste clica, se a
+     máquina está carregada): passam sozinhos. Ajustes feitos nos testes desta cópia: config vazia em `grafo-app`,
+     `grafo-widget-ui`, `whiteboard-app` e `revisao-ui`; `escritorio-externas` pula o caminho sem aspas quando a pasta
+     tem espaço; `remoto` e `mobile-widgets` com os nomes de exemplo; `sincronia-card-ui` (o desta cópia) com a grade de
+     900 px; `grafo` só lê um cofre real por `ORBIT_COFRE`.

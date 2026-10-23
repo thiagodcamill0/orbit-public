@@ -1,11 +1,13 @@
-// Modo de edição dos widgets da Visão geral (19/10, assets/widgets.js + widgets.css). Sobe o mock (ROTEIRO=0) numa
-// porta livre de 47822–47826 e abre o index.html real no Edge headless (mudo). Ponteiro de verdade (CDP Input):
+// Grade da Visão geral e modo de edição dos widgets (19/10; grade de 21/10: assets/widgets.js + widgets.css). Sobe o
+// mock (ROTEIRO=0) numa porta livre de 47822–47826 e abre o index.html real no Edge headless (mudo). Ponteiro de
+// verdade (CDP Input):
+//  - fábrica: 12 colunas na largura toda (lista + lateral), 8/4/1 nas telas menores, sem sobreposição e sem vazar;
 //  - clique curto num filtro da rosca continua filtrando; segurar entra no modo de edição sem acionar o filtro;
-//  - arrastar um widget sobre outro troca os dois, grava gi.widgets e sobrevive ao F5;
-//  - cada widget em cada vaga (rotações), em 5 larguras: a vaga mantém a largura de fábrica e nada vaza do cartão;
-//  - Esc, clique fora e "Concluir" saem; "Padrão" volta à disposição de fábrica e apaga a chave;
-//  - Esc no meio do arrasto só cancela o arrasto; a lista de sessões não entra no modo de edição;
-//  - movimento reduzido: sem tremor; zero erros no console.
+//  - sobre outro widget entra antes dele, na largura da vaga; num espaço livre, na largura livre; vaga e colunas aparecem;
+//  - canto: redimensiona com encaixe, mínimo (sem cortar) e máximo; o grafo e o Uso de contexto usam a altura; a lista só a largura;
+//  - gi.widgets.grade sobrevive ao F5; a ordem antiga (gi.widgets) vira layout; "Padrão" volta e apaga a chave;
+//  - Esc no arrasto ou no redimensionar só cancela; Esc, clique fora e "Concluir" saem; a lista não entra no modo;
+//  - movimento reduzido: sem tremor nem animação; rolagem automática; zero erros no console.
 // Capturas em <pasta-de-saida>. Uso: node testes/widgets-ui.test.mjs [pasta-de-saida]
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -69,47 +71,73 @@ try {
   const mouse = (type, x, y, extra = {}) => cdp('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, pointerType: 'mouse', ...extra });
   const mover = async (x0, y0, x1, y1, passos = 12) => { for (let i = 1; i <= passos; i++) { await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + ((x1 - x0) * i) / passos, y: y0 + ((y1 - y0) * i) / passos, button: 'left', buttons: 1, pointerType: 'mouse' }); await dormir(16); } };
   const centro = (sel) => av(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + Math.min(r.height / 2, 40)) }; })()`);
-  const ordem = () => av(`[...document.querySelectorAll('.col-lado > .graf[data-widget], .col-pe > .graf[data-widget]')].map((c) => c.dataset.widget).join()`);
   const editando = () => av(`document.getElementById('vista-geral').classList.contains('wd-editando')`);
   const barraAberta = () => av(`(() => { const b = document.querySelector('.wd-barra'); return !!b && !b.classList.contains('fechada') && !b.inert; })()`);
-  const PADRAO = 'estado,ctx,sinc,uso,disco';
   const filtroAtivo = () => av(`(document.querySelector('#ge-leg .gl-item[aria-pressed="true"]') || {}).dataset?.g || ''`);
-  // Larguras de cada vaga (ordem: lateral 1–3, pé 1–2) e cartões com algo vazando para fora deles.
-  const vagas = () => av(`[...document.querySelectorAll('.col-lado > .graf[data-widget], .col-pe > .graf[data-widget]')].map((c) => Math.round(c.getBoundingClientRect().width))`);
+  const esc = async () => { await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); };
+  // Layout aplicado ({ item: {x, y, w, h, a} }), colunas e a chave gravada.
+  const lay = () => av(`Object.fromEntries(OrbitGrade.layout().map((i) => [i.k, i]))`);
+  const pos = (L) => Object.keys(L).sort().map((k) => `${k}:${L[k].x},${L[k].w}`).join(' ');
+  const colunas = () => av(`OrbitGrade.colunas()`);
+  const chave = () => av(`localStorage.getItem('gi.widgets.grade')`);
+  const caixa = (sel) => av(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; })()`);
+  // Itens que se sobrepõem na tela (sem animação em curso) e itens com algo vazando para fora do cartão.
+  const sobrepostos = () => av(`(() => {
+    const els = [...document.querySelectorAll('.geral-grade > [data-widget], .geral-grade > [data-wd]')].filter((e) => e.getClientRects().length);
+    const R = els.map((e) => [e.dataset.widget || e.dataset.wd, e.getBoundingClientRect()]), out = [];
+    for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) {
+      const [a, p] = R[i], [b, q] = R[j];
+      if (p.left < q.right - 1 && q.left < p.right - 1 && p.top < q.bottom - 1 && q.top < p.bottom - 1) out.push(a + '×' + b);
+    }
+    return out;
+  })()`);
   const vazando = () => av(`(() => {
-    const out = [];
-    for (const c of document.querySelectorAll('.graf[data-widget]')) {
+    const out = [], alcas = [...document.querySelectorAll('.wd-alca')];
+    for (const x of alcas) x.style.display = 'none'; // a alça da lista fica no vão, de propósito
+    queueMicrotask(() => { for (const x of alcas) x.style.display = ''; });
+    for (const c of document.querySelectorAll('.geral-grade > .graf[data-widget], .geral-grade > .col-lista')) {
       if (!c.getClientRects().length) continue;
-      const r = c.getBoundingClientRect();
-      if (c.scrollWidth > c.clientWidth + 1) out.push(c.dataset.widget + ': scrollWidth ' + c.scrollWidth + '>' + c.clientWidth);
+      const r = c.getBoundingClientRect(), nome = c.dataset.widget || c.dataset.wd;
+      if (c.scrollWidth > c.clientWidth + 1) out.push(nome + ': scrollWidth ' + c.scrollWidth + '>' + c.clientWidth);
       for (const el of c.querySelectorAll('*')) {
-        if (!el.getClientRects().length || el.closest('svg') && el.tagName !== 'svg') continue;
+        if (!el.getClientRects().length || el.closest('svg') && el.tagName !== 'svg' || el.classList.contains('wd-alca')) continue;
         // Dentro de quem corta com reticências, o filho pode passar (o texto inteiro fica no title).
-        const pai = el.parentElement; if (pai && pai !== c && getComputedStyle(pai).overflow === 'hidden' && pai.closest('.graf[data-widget]') === c && el !== pai) { const p = pai.getBoundingClientRect(); if (p.right <= r.right + 1 && p.left >= r.left - 1) continue; }
+        const pai = el.parentElement; if (pai && pai !== c && getComputedStyle(pai).overflow === 'hidden' && el !== pai) { const p = pai.getBoundingClientRect(); if (p.right <= r.right + 1 && p.left >= r.left - 1 && p.bottom <= r.bottom + 1) continue; }
         const q = el.getBoundingClientRect();
         if (!q.width || !q.height) continue;
-        if (q.left < r.left - 1 || q.right > r.right + 1 || q.bottom > r.bottom + 1) out.push(c.dataset.widget + ': ' + el.tagName.toLowerCase() + '.' + String(el.getAttribute('class') || el.id) + ' ' + Math.round(q.left - r.left) + '/' + Math.round(r.right - q.right) + '/' + Math.round(r.bottom - q.bottom));
+        if (q.left < r.left - 1 || q.right > r.right + 1 || q.bottom > r.bottom + 1) out.push(nome + ': ' + el.tagName.toLowerCase() + '.' + String(el.getAttribute('class') || el.id) + ' ' + Math.round(q.left - r.left) + '/' + Math.round(r.right - q.right) + '/' + Math.round(r.bottom - q.bottom));
       }
     }
     return out.slice(0, 12);
   })()`);
-  const gravarOrdem = (o) => av(`localStorage.setItem('gi.widgets', ${JSON.stringify(JSON.stringify(o))}); true`);
+  const segurarEntrar = async (sel) => { const c = await centro(sel); await mouse('mousePressed', c.x, c.y); await dormir(650); await mouse('mouseReleased', c.x, c.y); await dormir(250); };
+  const arrastar = async (de, para, passos = 14) => {
+    await mouse('mousePressed', de.x, de.y); await mover(de.x, de.y, para.x, para.y, passos); await dormir(120);
+    await mouse('mouseReleased', para.x, para.y); await dormir(550);
+  };
+  const alca = async (sel) => { const r = await caixa(sel + ' > .wd-alca'); return { x: Math.round(r.l + r.w / 2), y: Math.round(r.t + r.h / 2) }; };
 
-  // ───── 1. Disposição de fábrica intacta ─────
+  // ───── 1. Disposição de fábrica: grade de 12 colunas na largura toda ─────
   await tela(1500);
   await abrir();
-  await av(`localStorage.removeItem('gi.widgets'); true`);
+  await av(`localStorage.removeItem('gi.widgets.grade'); localStorage.removeItem('gi.widgets'); true`);
   await abrir();
-  conferir((await ordem()) === PADRAO, 'ordem de fábrica', await ordem());
-  const LARGURAS = [1500, 1000, 700, 560, 420];
-  const fabrica = {};
-  for (const w of LARGURAS) { await tela(w); fabrica[w] = await vagas(); conferir(!(await vazando()).length, `fábrica ${w}px: nada vaza`, await vazando()); }
-  await tela(1500);
-  const lay = await av(`(() => { const l = document.querySelector('.col-lado').getBoundingClientRect(), p = document.querySelector('.col-pe').getBoundingClientRect(); return { ladoDir: l.left > p.right, gu: getComputedStyle(document.getElementById('gu-barras')).display, gs: getComputedStyle(document.querySelector('#sincronia-card .gs-repos')).display }; })()`);
-  conferir(lay.ladoDir && lay.gu === 'grid' && lay.gs !== 'grid', '1500px: lateral à direita, Uso do plano em 2 colunas, Sincronização em 1', lay);
-  await tela(1000);
-  const lay2 = await av(`(() => { const c = document.querySelectorAll('.col-lado > .graf'); const a = c[0].getBoundingClientRect(), b = c[1].getBoundingClientRect(), s = c[2].getBoundingClientRect(); return { par: Math.abs(a.top - b.top) < 1 && b.left > a.right, larga: s.width > a.width * 1.8, gs: getComputedStyle(document.querySelector('#sincronia-card .gs-repos')).display, gu: getComputedStyle(document.getElementById('gu-barras')).display }; })()`);
-  conferir(lay2.par && lay2.larga && lay2.gs === 'grid' && lay2.gu === 'grid', '1000px: dois lado a lado e a 3ª vaga na linha toda (2 colunas)', lay2);
+  const FAB = await lay();
+  conferir((await colunas()) === 12, '1500px: 12 colunas', await colunas());
+  conferir(FAB.lista.x === 0 && FAB.lista.w === 9 && ['estado', 'ctx', 'sinc', 'disco', 'cena'].every((k) => FAB[k].x === 9 && FAB[k].w === 3) && FAB.uso.w === 9 && FAB.grafo.w === 9, 'fábrica: lista + lateral de 3 colunas; Uso do plano e Grafo embaixo da lista', pos(FAB));
+  const g = await av(`(() => { const g = document.querySelector('.geral-grade').getBoundingClientRect(), l = document.querySelector('.col-lista').getBoundingClientRect(), e = document.querySelector('.graf-estado').getBoundingClientRect(); return { esq: Math.round(l.left - g.left), dir: Math.round(g.right - e.right), topo: Math.abs(l.top - e.top) < 1, larg: Math.round(e.width) }; })()`);
+  conferir(g.esq === 0 && g.dir === 0 && g.topo && Math.abs(g.larg - 296) < 12, 'a grade ocupa a largura toda; lateral ≈ 300 px, no topo da lista', g);
+  conferir(await av(`document.getElementById('cena').classList.contains('em-pe')`), 'a Cena do dia em pé na lateral (versão vertical)');
+  const LARGURAS = [[1500, 12], [1000, 8], [700, 4], [560, 4], [420, 1]];
+  for (const [w, n] of LARGURAS) {
+    await tela(w); await dormir(300);
+    const cs = await colunas();
+    conferir(cs === n, `${w}px: ${n} coluna(s)`, cs);
+    conferir(!(await sobrepostos()).length, `fábrica ${w}px: nada se sobrepõe`, await sobrepostos());
+    conferir(!(await vazando()).length, `fábrica ${w}px: nada vaza`, await vazando());
+  }
+  const um = await lay();
+  conferir(Object.values(um).every((i) => i.x === 0 && i.w === 1), '420px: tudo numa coluna', pos(um));
   await tela(1500);
 
   // ───── 2. Clique curto filtra; segurar entra no modo de edição sem filtrar ─────
@@ -119,7 +147,7 @@ try {
   await dormir(200);
   const filtro1 = await filtroAtivo();
   conferir(!!filtro1 && !(await editando()), 'clique curto num estado da rosca filtra a lista', filtro1);
-  await mouse('mousePressed', c.x, c.y); await dormir(60); await mouse('mouseReleased', c.x, c.y); // desliga o filtro
+  await mouse('mousePressed', c.x, c.y); await dormir(60); await mouse('mouseReleased', c.x, c.y);
   await dormir(200);
   conferir(!(await filtroAtivo()), 'segundo clique tira o filtro');
   await mouse('mousePressed', c.x, c.y); await dormir(250);
@@ -132,126 +160,172 @@ try {
   conferir(await barraAberta(), 'barra "Concluir" aberta');
   conferir(await av(`document.querySelector('.wd-padrao').disabled`), '"Padrão" desligado na disposição de fábrica');
   const trem = await av(`[...document.querySelectorAll('.graf[data-widget]')].map((x) => getComputedStyle(x).animationName)`);
-  conferir(trem.every((n) => n === 'wd-tremor'), 'os 5 widgets tremem', trem);
-  conferir(await av(`getComputedStyle(document.getElementById('lista').closest('.col-lista')).animationName === 'none' && document.querySelector('.col-lista').classList.contains('wd-fora')`), 'a lista de sessões não treme (fica apagada, de fora)');
+  conferir(trem.length === 7 && trem.every((n) => n === 'wd-tremor'), 'os 7 widgets tremem', trem);
+  conferir(await av(`getComputedStyle(document.querySelector('.col-lista')).animationName === 'none' && document.querySelector('.col-lista').classList.contains('wd-fora')`), 'a lista de sessões não treme (fica apagada, de fora)');
+  conferir(await av(`[...document.querySelectorAll('.geral-grade > * > .wd-alca')].filter((a) => a.getClientRects().length).length`) === 8, 'alça de redimensionar em cada item (e na lista)');
   await foto('1-edicao-1500');
-
-  // ───── 3. Esc sai ─────
-  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await dormir(300);
+  await esc(); await dormir(300);
   conferir(!(await editando()) && !(await barraAberta()), 'Esc sai do modo de edição');
 
-  // ───── 4. Segurar e já arrastar: Sessões agora sobre o Espaço em disco ─────
+  // ───── 3. Sobre outro widget: entra antes dele, na largura daquela vaga ─────
   c = await centro('.graf-estado .gf-topo');
-  const d = await centro('.graf-disco');
+  let u = await caixa('.graf-uso');
   await mouse('mousePressed', c.x, c.y); await dormir(650);
-  await mover(c.x, c.y, d.x, d.y, 16);
-  await dormir(120);
-  conferir(await av(`document.querySelector('.graf-disco').classList.contains('wd-alvo')`), 'arrastando: o Espaço em disco vira o alvo');
+  await mover(c.x, c.y, u.l + 200, u.t + 30, 16); await dormir(150);
+  const vg = await av(`(() => { const v = document.querySelector('.wd-vaga'); return { on: !v.hidden && document.querySelector('.geral-grade').classList.contains('wd-movendo'), guias: getComputedStyle(document.querySelector('.geral-grade'), '::before').opacity }; })()`);
+  conferir(vg.on && vg.guias === '1', 'arrastando: a vaga e as colunas aparecem', vg);
+  const larg = await caixa('.graf-estado');
+  conferir(larg.w > 800, 'o widget já assume a largura da vaga (9 colunas) enquanto arrasta', larg.w);
   await foto('2-arrastando');
-  await mouse('mouseReleased', d.x, d.y);
-  await dormir(80);
-  const flip = await av(`document.querySelector('.graf-estado').getAnimations().length`);
-  conferir(flip > 0, 'troca animada (FLIP)', flip);
-  await dormir(500);
-  conferir((await ordem()) === 'disco,ctx,sinc,uso,estado', 'os dois trocaram de lugar', await ordem());
-  conferir(await av(`localStorage.getItem('gi.widgets')`) === JSON.stringify(['disco', 'ctx', 'sinc', 'uso', 'estado']), 'ordem gravada em gi.widgets');
-  conferir(await editando(), 'continua no modo de edição depois da troca');
+  await mouse('mouseReleased', u.l + 200, u.t + 30); await dormir(80);
+  conferir(await av(`document.querySelector('.graf-uso').getAnimations().length > 0`), 'os outros abrem espaço com animação (FLIP)');
+  await dormir(550);
+  let L = await lay();
+  conferir(L.estado.x === 0 && L.estado.w === 9 && L.estado.y === FAB.uso.y && L.uso.y >= L.estado.y + L.estado.h, 'Sessões agora entrou antes do Uso do plano, na largura dele', pos(L));
+  conferir(L.ctx.y === 0 && L.ctx.x === 9, 'a lateral subiu para o lugar vago', pos(L));
+  const gEst = await av(`(() => { const r = document.querySelector('.graf-estado .ge-rosca').getBoundingClientRect(), l = document.getElementById('ge-leg').getBoundingClientRect(); return l.left > r.right; })()`);
+  conferir(gEst, 'Sessões agora largo: rosca à esquerda, legenda à direita');
+  conferir(JSON.parse(await chave())?.['12']?.estado?.join() === [0, L.estado.y, 9, 0].join(), 'layout gravado em gi.widgets.grade', await chave());
+  conferir(await editando(), 'continua no modo de edição');
   conferir(!(await av(`document.querySelector('.wd-padrao').disabled`)), '"Padrão" ligado fora da disposição de fábrica');
-  const gEst = await av(`(() => { const e = document.querySelector('.graf-estado'); const r = e.querySelector('.ge-rosca').getBoundingClientRect(), l = document.getElementById('ge-leg').getBoundingClientRect(); return { lado: l.left > r.right }; })()`);
-  conferir(gEst.lado, 'Sessões agora na vaga larga: rosca à esquerda, legenda à direita', gEst);
-  await foto('3-trocado');
+  conferir(!(await sobrepostos()).length && !(await vazando()).length, 'sem sobreposição e nada vaza', [await sobrepostos(), await vazando()]);
 
-  // ───── 5. Arrastar sem alvo volta; Esc no arrasto só cancela ─────
-  c = await centro('.graf-ctx');
-  await mouse('mousePressed', c.x, c.y); await mover(c.x, c.y, c.x - 40, c.y + 30, 6);
-  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await mouse('mouseReleased', c.x - 40, c.y + 30);
-  await dormir(400);
-  conferir((await ordem()) === 'disco,ctx,sinc,uso,estado' && (await editando()), 'Esc no arrasto cancela só o arrasto', await ordem());
-  conferir(await av(`!document.querySelector('.graf-ctx').style.translate`), 'o cartão voltou para a vaga');
+  // ───── 4. Num espaço livre: ocupa a largura livre daquela linha ─────
+  const cn = await caixa('.graf-cena'), li = await caixa('.col-lista');
+  c = await centro('.graf-uso .gf-topo');
+  const livre = { x: Math.round(cn.l + cn.w / 2), y: Math.round(Math.min(cn.b + 140, li.b - 60)) };
+  await arrastar(c, livre, 18);
+  L = await lay();
+  conferir(L.uso.x === 9 && L.uso.w === 3 && L.uso.y >= L.cena.y + L.cena.h, 'Uso do plano no vão da lateral: 3 colunas, embaixo da cena', pos(L));
+  conferir(await av(`getComputedStyle(document.querySelector('.graf-uso .gf-topo')).flexDirection === 'column'`), 'Uso do plano estreito: versão de coluna');
+  conferir(!(await sobrepostos()).length && !(await vazando()).length, 'sem sobreposição e nada vaza', [await sobrepostos(), await vazando()]);
+  await foto('3-movidos');
 
-  // ───── 6. F5 mantém a ordem; clique fora sai ─────
+  // ───── 5. Redimensionar pelo canto: encaixe na grade, mínimo e máximo ─────
+  const gr0 = await caixa('.graf-grafo'), area0 = await caixa('.gg-area');
+  let a = await alca('.graf-grafo');
+  await arrastar(a, { x: a.x - 312, y: a.y + 200 }, 12);
+  L = await lay();
+  const gr1 = await caixa('.graf-grafo'), area1 = await caixa('.gg-area');
+  conferir(L.grafo.w === 6, 'mais estreito: 6 colunas (encaixe)', L.grafo);
+  conferir(Math.abs(gr1.h - gr0.h - 200) <= 8 && area1.h > area0.h + 150, 'mais alto: a área do grafo cresce junto', { h0: gr0.h, h1: gr1.h, a0: area0.h, a1: area1.h });
+  conferir(!(await sobrepostos()).length, 'redimensionado: sem sobreposição', await sobrepostos());
+  a = await alca('.graf-grafo');
+  await arrastar(a, { x: a.x - 2000, y: a.y - 2000 }, 12);
+  L = await lay();
+  const mn = await av(`document.querySelector('.graf-grafo').getBoundingClientRect().width >= 260`);
+  conferir(L.grafo.w === 3 && mn && L.grafo.a === 0, 'no mínimo: 3 colunas (≥ 260 px) e a altura do conteúdo', L.grafo);
+  conferir(!(await vazando()).length, 'no mínimo, nada é cortado', await vazando());
+  a = await alca('.graf-grafo');
+  await arrastar(a, { x: a.x, y: a.y + 3000 }, 10);
+  conferir(Math.abs((await caixa('.graf-grafo')).h - 1100) <= 8, 'no máximo: 1100 px de altura', (await caixa('.graf-grafo')).h);
+  // Uso de contexto mais alto: mais sessões na sobra.
+  const n0 = await av(`document.querySelectorAll('#gc-barras .gc-linha').length`);
+  a = await alca('.graf-ctx');
+  await arrastar(a, { x: a.x, y: a.y + 260 }, 10);
+  await dormir(200);
+  const n1 = await av(`document.querySelectorAll('#gc-barras .gc-linha').length`);
+  conferir(n0 === 5 && n1 > 5, 'Uso de contexto mais alto: mais sessões na lista', { n0, n1 });
+  conferir(!(await vazando()).length, 'linhas a mais sem vazar', await vazando());
+  // A lista: só a largura.
+  const l0 = await lay();
+  a = await alca('.col-lista');
+  await arrastar(a, { x: a.x - 210, y: a.y + 300 }, 10);
+  L = await lay();
+  conferir(L.lista.w === 7 && L.lista.a === 0, 'a lista: 2 colunas a menos, sem altura escolhida', [l0.lista, L.lista]);
+  conferir(!(await sobrepostos()).length && !(await vazando()).length, 'lista mais estreita: sem sobreposição e nada vaza', [await sobrepostos(), await vazando()]);
+  await foto('4-redimensionado');
+
+  // ───── 6. Esc no meio do arrasto (ou do redimensionar) só cancela ─────
+  const antes = pos(await lay());
+  c = await centro('.graf-sinc .gf-topo');
+  await mouse('mousePressed', c.x, c.y); await mover(c.x, c.y, c.x - 600, c.y + 400, 10); await dormir(100);
+  await esc();
+  await mouse('mouseReleased', c.x - 600, c.y + 400); await dormir(500);
+  conferir(pos(await lay()) === antes && (await editando()), 'Esc no arrasto cancela só o arrasto', pos(await lay()));
+  conferir(await av(`!document.querySelector('.graf-sinc').style.translate && document.querySelector('.wd-vaga').hidden`), 'o cartão voltou e a vaga sumiu');
+  a = await alca('.graf-disco');
+  await mouse('mousePressed', a.x, a.y); await mover(a.x, a.y, a.x + 300, a.y + 300, 6); await dormir(100);
+  await esc();
+  await mouse('mouseReleased', a.x + 300, a.y + 300); await dormir(500);
+  conferir(pos(await lay()) === antes && (await editando()), 'Esc no redimensionar cancela só ele', pos(await lay()));
+
+  // ───── 7. F5 mantém o layout; clique fora sai ─────
+  const salvo = await lay();
   await abrir();
-  conferir((await ordem()) === 'disco,ctx,sinc,uso,estado', 'F5 mantém as posições', await ordem());
-  c = await centro('.graf-ctx');
-  await mouse('mousePressed', c.x, c.y); await dormir(650); await mouse('mouseReleased', c.x, c.y); await dormir(200);
+  L = await lay();
+  conferir(pos(L) === pos(salvo) && L.grafo.a === salvo.grafo.a && L.ctx.a === salvo.ctx.a, 'F5 mantém posições e tamanhos', pos(L));
+  await segurarEntrar('.graf-ctx');
   conferir(await editando(), 'segurar de novo entra');
   const fora = await av(`(() => { const r = document.querySelector('.cab-pagina').getBoundingClientRect(); return { x: Math.round(r.left + 40), y: Math.round(r.top + 8) }; })()`);
   await mouse('mousePressed', fora.x, fora.y); await mouse('mouseReleased', fora.x, fora.y); await dormir(300);
   conferir(!(await editando()), 'clique fora sai');
 
-  // ───── 7. "Padrão" volta à disposição de fábrica; "Concluir" sai ─────
-  await mouse('mousePressed', c.x, c.y); await dormir(650); await mouse('mouseReleased', c.x, c.y); await dormir(300);
+  // ───── 8. Telas menores: menos colunas, sem perder o layout largo ─────
+  for (const [w, n] of LARGURAS.slice(1)) {
+    await tela(w); await dormir(300);
+    conferir((await colunas()) === n && !(await sobrepostos()).length && !(await vazando()).length, `editado, ${w}px: ${n} coluna(s), sem sobreposição e nada vaza`, [await colunas(), await sobrepostos(), await vazando()]);
+    if (w === 700) await foto('5-editado-700');
+  }
+  await tela(1500); await dormir(300);
+  conferir(pos(await lay()) === pos(salvo), 'de volta a 1500px: o layout largo como estava');
+
+  // ───── 9. "Padrão" volta à fábrica; "Concluir" sai ─────
+  await segurarEntrar('.graf-ctx');
   let b = await centro('.wd-padrao');
-  await mouse('mousePressed', b.x, b.y); await mouse('mouseReleased', b.x, b.y); await dormir(500);
-  conferir((await ordem()) === PADRAO && (await av(`localStorage.getItem('gi.widgets')`)) === null, '"Padrão" restaura e apaga a chave', await ordem());
+  await mouse('mousePressed', b.x, b.y); await mouse('mouseReleased', b.x, b.y); await dormir(550);
+  conferir(pos(await lay()) === pos(FAB) && (await chave()) === null, '"Padrão" restaura e apaga a chave', pos(await lay()));
   conferir(await editando(), '"Padrão" não sai do modo de edição');
   b = await centro('.wd-concluir');
   await mouse('mousePressed', b.x, b.y); await mouse('mouseReleased', b.x, b.y); await dormir(300);
   conferir(!(await editando()) && !(await barraAberta()), '"Concluir" sai');
 
-  // ───── 8. A lista não entra no modo de edição ─────
+  // ───── 10. A lista não entra no modo de edição ─────
   c = await centro('#lista .linha[data-id]');
   await mouse('mousePressed', c.x, c.y); await dormir(650); await mouse('mouseReleased', c.x, c.y); await dormir(200);
   conferir(!(await editando()), 'segurar uma sessão da lista não entra no modo de edição');
-  for (let i = 0; i < 6 && !(await av("document.getElementById('peek').hidden")); i++) {
-    await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-    await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-    await dormir(300);
-  }
+  for (let i = 0; i < 6 && !(await av("document.getElementById('peek').hidden")); i++) { await esc(); await dormir(300); }
   conferir(await av("document.getElementById('peek').hidden"), 'detalhe da sessão fechado de novo');
 
-  // ───── 9. Cada widget em cada vaga, em cada largura ─────
-  const base = PADRAO.split(',');
-  for (let k = 1; k < base.length; k++) {
-    const o = [...base.slice(k), ...base.slice(0, k)];
-    await gravarOrdem(o);
-    await tela(1500);
-    await abrir();
-    conferir((await ordem()) === o.join(), `rotação ${k}: ordem aplicada no carregamento`, { tem: await ordem(), quer: o.join(), ls: await av(`localStorage.getItem('gi.widgets')`) });
-    for (const w of LARGURAS) {
-      await tela(w);
-      const v = await vagas();
-      conferir(v.every((x, i) => Math.abs(x - fabrica[w][i]) <= 1), `rotação ${k}, ${w}px: cada vaga mantém a largura`, { v, f: fabrica[w] });
-      const vz = await vazando();
-      conferir(!vz.length, `rotação ${k}, ${w}px: nada vaza`, vz);
-      if (k === 3 && (w === 1500 || w === 420)) await foto(`4-rotacao${k}-${w}`);
-    }
-  }
-  await tela(1500);
-  await av(`localStorage.setItem('gi.widgets', '"lixo"'); true`);
+  // ───── 11. A ordem antiga (gi.widgets, vagas fixas) vira o layout de 12 colunas ─────
+  await av(`localStorage.setItem('gi.widgets', JSON.stringify(['disco', 'ctx', 'sinc', 'uso', 'estado'])); true`);
   await abrir();
-  conferir((await ordem()) === PADRAO, 'gi.widgets inválido: disposição de fábrica');
+  L = await lay();
+  conferir(L.disco.x === 9 && L.disco.y === 0 && L.estado.x === 9 && L.estado.y > L.sinc.y, 'ordem antiga: Espaço em disco no topo da lateral, Sessões agora na vaga dele', pos(L));
+  conferir((await av(`localStorage.getItem('gi.widgets')`)) === null && !!JSON.parse(await chave())?.['12'], 'gi.widgets sai; vira gi.widgets.grade');
+  await av(`localStorage.setItem('gi.widgets.grade', '"lixo"'); true`);
+  await abrir();
+  conferir(pos(await lay()) === pos(FAB), 'gi.widgets.grade inválido: disposição de fábrica');
+  await av(`localStorage.removeItem('gi.widgets.grade'); true`);
+  await abrir();
 
-  // ───── 10. Movimento reduzido ─────
+  // ───── 12. Movimento reduzido ─────
   await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  c = await centro('.graf-ctx');
-  await mouse('mousePressed', c.x, c.y); await dormir(650); await mouse('mouseReleased', c.x, c.y); await dormir(200);
+  await segurarEntrar('.graf-ctx');
   conferir(await editando(), 'reduzido: segurar entra');
   conferir(await av(`[...document.querySelectorAll('.graf[data-widget]')].every((x) => getComputedStyle(x).animationName === 'none')`), 'reduzido: sem tremor');
-  await foto('5-reduzido');
-  const s0 = await centro('.graf-sinc'), u0 = await centro('.graf-uso');
-  await mouse('mousePressed', s0.x, s0.y); await mover(s0.x, s0.y, u0.x, u0.y, 10); await mouse('mouseReleased', u0.x, u0.y); await dormir(60);
-  conferir((await ordem()) === 'estado,ctx,uso,sinc,disco' && (await av(`document.querySelector('.graf-sinc').getAnimations().length`)) === 0, 'reduzido: troca sem animação', await ordem());
+  await foto('6-reduzido');
+  c = await centro('.graf-sinc .gf-topo');
+  u = await caixa('.graf-ctx');
+  await mouse('mousePressed', c.x, c.y); await mover(c.x, c.y, u.l + 40, u.t + 20, 10); await mouse('mouseReleased', u.l + 40, u.t + 20); await dormir(60);
+  L = await lay();
+  conferir(L.sinc.y < L.ctx.y && (await av(`[...document.querySelectorAll('.geral-grade > *')].every((e) => !e.getAnimations().some((a) => a.id === 'wd-flip'))`)), 'reduzido: move sem animação', pos(L));
   await cdp('Emulation.setEmulatedMedia', { features: [] });
   b = await centro('.wd-padrao');
   await mouse('mousePressed', b.x, b.y); await mouse('mouseReleased', b.x, b.y); await dormir(400);
 
-  // ───── 11. Rolagem automática perto da borda ─────
+  // ───── 13. Rolagem automática perto da borda ─────
   await tela(1500, 760);
   c = await centro('.graf-estado .gf-topo');
-  // Quem rola é o <main> ou, com abas, o painel da aba.
   const topo = () => av(`(() => { for (let p = document.querySelector('.graf-estado').parentElement; p; p = p.parentElement) { const o = getComputedStyle(p).overflowY; if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight) return p.scrollTop; } return document.scrollingElement.scrollTop; })()`);
   const topo0 = await topo();
   await mouse('mousePressed', c.x, c.y); await dormir(650); await mover(c.x, c.y, c.x, 740, 10); await dormir(700);
   const topo1 = await topo();
-  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await esc();
   await mouse('mouseReleased', c.x, 740); await dormir(300);
   conferir(topo1 > topo0 + 50, 'arrastando perto da borda de baixo, a Home rola sozinha', { topo0, topo1 });
-  conferir((await ordem()) === PADRAO, 'arrasto cancelado não muda a ordem');
+  conferir(pos(await lay()) === pos(FAB), 'arrasto cancelado não muda o layout');
+  await esc();
 
   conferir(!erros.length, 'zero erros no console', erros);
 } catch (e) {

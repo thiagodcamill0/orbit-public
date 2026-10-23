@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Grafo — demo da vista</title>
+<link rel="stylesheet" href="../assets/comum/base.css">
+<link rel="stylesheet" href="../assets/grafo.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--fundo); color: var(--t1); font-family: var(--sans); }
+  #grafo { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<div id="grafo"></div>
+<script src="../assets/grafo-dados.js"></script>
+<script src="../assets/grafo-fisica.js"></script>
+<script src="../assets/grafo-vista.js"></script>
+<script>
+  // ~100 nós de exemplo, determinísticos: notas em agrupamentos, alguns hubs, anexos e links inexistentes.
+  (function () {
+    let s = 7;
+    const r = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const temas = ['Projeto', 'Ideia', 'Reunião', 'Pessoa', 'Diário', 'Referência'];
+    const nos = [], links = [];
+    for (let i = 0; i < 90; i++) {
+      const t = temas[i % temas.length];
+      nos.push({ id: `${t}/${t} ${i}.md`, nome: i % 17 === 0 ? `${t} ${i} com um título bem mais comprido para quebrar a linha` : `${t} ${i}`, tipo: 'nota', tags: [t.toLowerCase()],
+        criado: Date.UTC(2026, 0, 1) + i * 86400000 });
+    }
+    for (let i = 0; i < 4; i++) nos.push({ id: `anexos/imagem ${i}.png`, nome: `imagem ${i}.png`, tipo: 'anexo', tags: [] });
+    for (let i = 0; i < 6; i++) nos.push({ id: `Nota que falta ${i}`, nome: `Nota que falta ${i}`, tipo: 'inexistente', tags: [] });
+    const ligar = (a, b) => links.push({ origem: nos[a].id, destino: nos[b].id });
+    for (let i = 1; i < 90; i++) {
+      ligar(i, i % 6 === 0 ? 0 : i - (i % 6)); // cada nota liga ao "chefe" do seu tema
+      if (r() < 0.35) ligar(i, Math.floor(r() * 90));
+    }
+    for (let i = 0; i < 12; i++) ligar(Math.floor(r() * 90), 6 * Math.floor(r() * 15)); // hubs
+    ligar(10, 11); ligar(11, 10); // dois sentidos
+    for (let i = 0; i < 4; i++) ligar(Math.floor(r() * 90), 90 + i);
+    for (let i = 0; i < 6; i++) ligar(Math.floor(r() * 90), 94 + i);
+    nos.push({ id: 'Órfã 1.md', nome: 'Órfã 1', tipo: 'nota', tags: [] }, { id: 'Órfã 2.md', nome: 'Órfã 2', tipo: 'nota', tags: [] });
+    window.demo = { nos, links, abertos: [], menus: [] };
+  })();
+  window.vista = GrafoVista.criar(document.getElementById('grafo'), {
+    aoAbrir: (id, info) => demo.abertos.push([id, info && info.novaAba]),
+    aoLocal: (id) => demo.abertos.push(['local', id]),
+    aoMenu: (id, x, y) => demo.menus.push([id, x, y]),
+  });
+  vista.definirOpcoes({ anexos: true }); // a demo mostra os anexos (padrão do filtro: ocultos)
+  vista.definirDados({ nos: demo.nos, links: demo.links }, demo.nos[0].id);
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+/* Orbit — Whiteboard, etapa 5: times (assets/whiteboard-times.js). Tokens só do assets/comum/base.css.
+   Fundo, borda e linhas do quadro são desenhados no canvas; aqui ficam o cabeçalho HTML e os cards de subagente. */
+
+/* Quadro do time: só o cabeçalho (o miolo é livre). */
+.wb-tm { pointer-events: none; font-family: var(--sans); color: var(--t1); }
+.wb-tm-cab { position: absolute; left: 0; right: 0; top: 0; height: 44px; box-sizing: border-box; padding: 0 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.wb-tm-nome { font-size: 13px; font-weight: 500; line-height: 1.25; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-tm-ativos { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.wb-tm-ponto { flex: none; width: 7px; height: 7px; border-radius: 999px; background: var(--enc); transition: background .18s var(--ease-press); }
+.wb-tm.wb-tm-vivo .wb-tm-ponto { background: var(--trab); }
+.wb-tm-n { font-size: 11.5px; color: var(--t2); white-space: nowrap; }
+
+/* Card de subagente (visual dos cards de agente, mais compacto). */
+.wb-sa { pointer-events: none; font-family: var(--sans); color: var(--t1); }
+.wb-sa-c { box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px;
+  background: var(--lat-fundo); border: 1px solid var(--fio-2); border-radius: 14px; box-shadow: var(--sombra), var(--luz-topo);
+  overflow: hidden; transition: opacity .18s var(--ease-press), border-color .18s var(--ease-press), box-shadow .18s var(--ease-press); }
+.wb-sa.wb-sa-sel .wb-sa-c { border-color: var(--anel); box-shadow: 0 0 0 1px var(--anel), var(--sombra); }
+.wb-sa.wb-sa-fim .wb-sa-c { opacity: .55; }
+.wb-sa.wb-sa-fim .wb-sa-img { filter: grayscale(1); }
+
+.wb-sa-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wb-sa-spr { position: relative; flex: none; width: 30px; height: 30px; border-radius: 10px; background: var(--poco); box-shadow: var(--poco-sombra); overflow: hidden; }
+.wb-sa-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.wb-sa-ident { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wb-sa-tipo { font-size: 13px; font-weight: 500; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-sa-desc { font-size: 11.5px; color: var(--t2); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-sa-desc:empty { display: none; }
+
+.wb-sa-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.wb-sa-st { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--t2); white-space: nowrap; }
+.wb-sa-ponto { flex: none; width: 7px; height: 7px; border-radius: 999px; background: var(--enc); }
+[data-status="trabalhando"] .wb-sa-ponto { background: var(--trab); }
+[data-status="aguardando"] .wb-sa-ponto { background: var(--agu); }
+[data-status="concluida"] .wb-sa-ponto, [data-status="concluido"] .wb-sa-ponto { background: var(--ok); }
+[data-status="erro"] .wb-sa-ponto { background: var(--erro); }
+[data-status="interrompida"] .wb-sa-ponto { background: var(--int); }
+[data-status="nova"] .wb-sa-ponto { background: var(--t2); }
+.wb-sa[data-status="trabalhando"] .wb-sa-st-t { color: var(--trab-t); }
+.wb-sa[data-status="aguardando"] .wb-sa-st-t { color: var(--agu-t); }
+.wb-sa-ativ { min-width: 0; font-size: 11.5px; color: var(--t3); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Entrada ao vivo: anima o filho, nunca o transform do próprio nó (o núcleo o usa para posicionar). */
+.wb-tm-entra > * { animation: wb-tm-entra .26s var(--ease-press) both; }
+@keyframes wb-tm-entra { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+
+/* Popover de detalhes: reaproveita .wb-ag-pop*; o pop do time só ajusta o ponto de status. */
+.wb-tm-pop .wb-sa-ponto { margin-right: 0; }
+.wb-ag-pop-st[data-status="trabalhando"] .wb-sa-ponto { background: var(--trab); }
+.wb-ag-pop-st[data-status="aguardando"] .wb-sa-ponto { background: var(--agu); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-sa-c, .wb-tm-ponto { transition: none; }
+  .wb-tm-entra > * { animation: none; }
+}

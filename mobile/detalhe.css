@@ -1,0 +1,97 @@
+/* Orbit no celular — tela detalhe (onda 3). Só tokens de assets/comum/base.css e peças de componentes.css; o celular só ajusta tamanho. */
+
+.dt { display: grid; gap: var(--esp-5); padding-top: var(--esp-2); padding-bottom: var(--esp-5); }
+.dt-conteudo { display: grid; gap: var(--esp-5); min-width: 0; }
+
+/* ===== Cabeçalho ===== */
+.dt-hero { display: flex; align-items: center; gap: var(--esp-4); min-width: 0; }
+.dt-av {
+  flex: none; width: 72px; height: 72px; display: grid; place-items: center;
+  border-radius: var(--r-4); background: var(--sup); border: 1px solid var(--fio);
+}
+.dt-spr { width: 56px; height: 56px; image-rendering: pixelated; object-fit: contain; }
+.dt-spr.sem { visibility: hidden; }
+.dt-hero-txt { min-width: 0; display: grid; gap: var(--esp-1); }
+.dt-proj { color: var(--t2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-nome { font-size: 20px; line-height: 1.2; font-weight: 650; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.dt-hero-l3 { display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; min-width: 0; }
+.dt-det { color: var(--t2); font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+
+/* ===== Seções e cartões ===== */
+.dt-sec { display: grid; gap: var(--esp-2); min-width: 0; }
+.dt-sec-t {
+  padding: 0 var(--esp-1); font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-estr);
+  text-transform: uppercase; color: var(--t3);
+}
+.dt-cartao { background: var(--sup); border: 1px solid var(--fio); border-radius: var(--r-4); overflow: hidden; min-width: 0; }
+.dt-cartao > * + * { border-top: 1px solid var(--fio); }
+
+.dt-linha { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-4); min-height: var(--alvo); padding: var(--esp-3) var(--esp-4); }
+.dt-rot { flex: none; color: var(--t2); font-size: 14px; }
+.dt-val { min-width: 0; text-align: right; font-size: 14px; color: var(--t1); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.dt-val .ctx-l { min-width: 150px; justify-content: flex-end; }
+.dt-val .ctx-b { flex: 1 1 auto; min-width: 70px; }
+.dt-val .ctx-l span:last-child { font-size: 12px; white-space: nowrap; }
+
+/* ===== Ajustes (linhas tocáveis) ===== */
+.dt-item {
+  width: 100%; min-height: 56px; padding: var(--esp-3) var(--esp-4); display: flex; align-items: center; gap: var(--esp-4);
+  background: none; border: 0; border-radius: 0; text-align: left; color: var(--t1); cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease);
+}
+.dt-item:active { background: var(--sup-h); }
+.dt-item > svg { flex: none; color: var(--t3); }
+.dt-item-txt { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.dt-item-t { font-size: 15px; }
+.dt-item-s, .dt-apelido { font-size: 12.5px; color: var(--t2); line-height: 1.35; overflow-wrap: anywhere; }
+.dt-apelido { font-size: 14px; }
+.dt-apelido.vazio { color: var(--t3); }
+
+/* ===== Ações ===== */
+.dt-acoes { display: grid; gap: var(--esp-2); }
+.dt-btn { width: 100%; height: var(--alvo); font-size: 15px; }
+.dt-btn[hidden] { display: none; }
+
+/* ===== Agentes e tarefas ===== */
+.dt-lista { display: grid; gap: var(--esp-2); min-width: 0; }
+.dt-ag, .dt-ta { background: var(--sup); border: 1px solid var(--fio); border-radius: var(--r-4); padding: var(--esp-3) var(--esp-4); min-width: 0; }
+.dt-ag { display: grid; gap: var(--esp-1); }
+.dt-ag-l1 { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); min-width: 0; }
+.dt-ag-tipo { font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-ag-desc { font-size: 14px; line-height: 1.4; color: var(--t1); overflow-wrap: anywhere; }
+.dt-ag-meta { font-size: 12px; color: var(--t2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dt-ag-ferr { color: var(--trab-t); margin-right: var(--esp-2); }
+.dt-ta { display: flex; align-items: flex-start; gap: var(--esp-3); }
+.dt-ta-ico { flex: none; color: var(--t2); display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-2); background: var(--bloco); }
+.dt-ta-txt { min-width: 0; display: grid; gap: 2px; }
+.dt-ta-tipo { font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-estr); text-transform: uppercase; color: var(--t3); }
+.dt-ta-desc { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ===== Estados ===== */
+.dt-vazio { display: grid; justify-items: center; gap: var(--esp-4); padding: var(--esp-6) 0; text-align: center; }
+.dt-vazio-t { color: var(--t2); font-size: 14px; }
+.dt-carr { display: grid; gap: var(--esp-3); }
+.dt-esq1 { height: 88px; border-radius: var(--r-4); }
+.dt-esq2 { height: 56px; border-radius: var(--r-4); }
+
+/* ===== Folha do apelido ===== */
+.dt-campo-box { position: relative; margin-bottom: var(--esp-4); }
+.dt-campo {
+  width: 100%; min-height: var(--alvo); padding: 0 56px 0 var(--esp-3); font-size: 16px;
+  background: var(--poco); box-shadow: var(--poco-sombra); border: 1px solid var(--fio-2); border-radius: var(--r-2); color: var(--t1);
+}
+.dt-campo::placeholder { color: var(--t3); }
+.dt-campo:focus { outline: 0; border-color: var(--foco); box-shadow: 0 0 0 3px var(--anel); }
+.dt-cont { position: absolute; right: var(--esp-3); top: 50%; transform: translateY(-50%); font: var(--peso-texto) 11px var(--mono); color: var(--t3); pointer-events: none; }
+
+@media (max-width: 340px) {
+  .dt-hero { gap: var(--esp-3); }
+  .dt-av { width: 64px; height: 64px; }
+  .dt-linha { flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); }
+  .dt-val { text-align: left; }
+  .dt-val .ctx-l { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-item { transition: none; }
+}

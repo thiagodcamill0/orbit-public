@@ -1,0 +1,51 @@
+/* Grafo (vista): papéis de cor da spec §5 mapeados para os tokens do Orbit (assets/comum/base.css).
+   grafo-vista.js lê estas variáveis do elemento hospedeiro (cor + opacidade) e relê quando o tema muda. */
+.grafo-vista {
+  /* Visual do Graph View do Obsidian (tema escuro, spec §5): fundo cinza neutro, nós #b3b3b3, linhas #3f3f3f,
+     texto #dadada e destaque roxo (interactive-accent); só os grupos por pasta mantêm cor própria. */
+  --grafo-fundo: #1c1c1c;
+  --grafo-no: #b3b3b3;
+  --grafo-linha: #3f3f3f;
+  --grafo-link-destaque: rgba(176, 160, 232, 0.65); /* lavanda pastel, mais leve que o roxo do nó */
+  --grafo-halo: transparent;
+  --grafo-texto: #dadada;
+  --grafo-foco: #a68af9;
+  --grafo-destaque: #8a5cf5;
+  --grafo-inexistente: rgba(102, 102, 102, 0.5);
+  --grafo-anexo: #a89f91;
+  --grafo-tag: #38d0e0;
+  --grafo-seta: rgba(218, 218, 218, 0.5);
+  /* Grupos por pasta (grafo-dados.js escolhe o slot). Tag (ciano) e anexo (bege) ficam fora desta paleta. */
+  --grafo-g1: #b3b3b3; /* Decisões: cor de nó do Obsidian */
+  --grafo-g2: #10d981; /* Tarefas */
+  --grafo-g3: #ff8a24; /* Referências */
+  --grafo-g4: #facc15; /* Padrões aprovados */
+  --grafo-g5: #f43f7f; /* Diário */
+  --grafo-g6: #8b5cf6; /* Gestor e projeto */
+  --grafo-g-bastidores: #737d8c;
+  --grafo-g-outras: #666666;
+  --grafo-fonte: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; /* pilha do Obsidian (spec §4) */
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.grafo-vista > canvas.grafo-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+.grafo-vista > canvas.grafo-canvas:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--anel);
+}
+
+.grafo-vista.arrastando > canvas.grafo-canvas { cursor: grabbing; }
+.grafo-vista.sobre-no > canvas.grafo-canvas { cursor: pointer; }

@@ -1,6 +1,6 @@
-// Orbit — cálculo e formatação dos widgets da Visão geral, comuns ao PC (index.html) e ao celular (mobile/widgets.js).
+// Orbit — cálculo e formatação dos widgets da Visão geral, comuns ao PC (index.html) e ao celular (mobile/inicio.js).
 // Script clássico, sem DOM e sem dependências: define só window.OrbitWidgets (congelado). Carregar depois de base.js.
-// O PC desenha com os próprios elementos; o celular, com mobile/widgets.js. Aqui só vão as contas.
+// O PC desenha com os próprios elementos; o celular, com mobile/inicio.js. Aqui só vão as contas.
 (function () {
   'use strict';
 

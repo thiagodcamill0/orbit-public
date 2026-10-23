@@ -1,7 +1,8 @@
 /* Orbit — base visual comum ao PC (index.html) e ao celular (mobile/index.html).
    Só tokens e peças sem layout: quem carrega decide a página. O index.html carrega este arquivo ANTES do seu <style>
    (a ordem da cascata é a mesma de quando isto morava no topo dele); o celular, antes do mobile/mobile.css.
-   Não ponha aqui reset de elementos (body, button, svg...) nem .btn/.link/.card: o celular tem os seus. */
+   Não ponha aqui reset de elementos (body, button, svg...): cada página tem o seu. Botões, selo, tile, chave, toast,
+   menu flutuante e esqueleto moram em assets/comum/componentes.css (carregado logo depois deste). */
 
 /* ===== Tipografia: Geist + Geist Mono (locais, em assets/) ===== */
 @font-face { font-family: 'Geist'; src: url('../Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
@@ -68,11 +69,22 @@
   --mono: 'Geist Mono', ui-monospace, monospace;
   --peso-texto: 400;
   --rot-fs: 10px; --rot-fw: 600; --rot-ls-estr: .08em; --rot-ls-selo: .04em;
+  /* escala de texto (celular, 22/10; o PC pode adotar aos poucos) */
+  --fs-1: 11px; --fs-2: 12px; --fs-3: 13px; --fs-4: 14px; --fs-5: 15px; --fs-6: 17px; --fs-titulo: 30px;
+  --t-texto: #cfcfcf;             /* texto corrido (markdown) */
+  --codigo-fundo: #0f0f0f; --codigo-inline: #1f1f1f; --codigo-borda: #2a2a2a; --codigo-t: #e6e6e6;
+  --sombra-flut: inset 0 1px 0 rgba(255, 255, 255, .05), 0 8px 24px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4); /* toast, faixas flutuantes */
 
   /* Movimento */
   --ease: ease;
   --ease-press: cubic-bezier(.23, 1, .32, 1);
-  --dur-1: .15s; --dur-2: .2s;
+  --dur-1: .15s; --dur-2: .2s; --dur-3: .3s;
+  --ease-saida: cubic-bezier(.4, 0, 1, 1);   /* sair da tela: começa devagar e acelera (entrar usa --ease-press) */
+
+  /* Raios, espaços e alvo de toque (celular e PC usam os mesmos degraus; só o --alvo muda: 44px no celular) */
+  --r-1: 6px; --r-2: 8px; --r-3: 10px; --r-4: 14px; --r-5: 20px; --r-pilula: 999px;
+  --esp-1: 4px; --esp-2: 8px; --esp-3: 12px; --esp-4: 16px; --esp-5: 24px; --esp-6: 32px;
+  --alvo: 32px;
 }
 
 /* ===== Utilitários ===== */

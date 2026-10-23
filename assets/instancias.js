@@ -2,7 +2,8 @@
  *
  * Integração (index.html carrega sob demanda, no 1º clique em "Nova instância"):
  *   window.Instancias.montar(api)     prepara o módulo (não mostra nada)
- *   window.Instancias.abrir(ancora)   abre o popover junto ao botão; se já está aberto, fecha
+ *   window.Instancias.abrir(ancora, opcoes?)   abre o popover junto ao botão; se já está aberto, fecha.
+ *                                     opcoes { pai, nome, pasta } (só com a chave do Codex): "Novo membro Codex" do time de `pai`
  *   window.Instancias.fechar()        fecha (sem perder o rascunho)
  *   window.Instancias.aberto()        true com o popover na tela
  *
@@ -39,7 +40,10 @@
     modelos: null,       // lista do GET /modelos (null = indisponível)
     erroModelos: '',
     pasta: '', outra: '', modelo: '', esforco: '', permissao: 'auto', modoVisto: '',
-    iniciado: false, enviando: false, ancora: null, geracao: 0,
+    iniciado: false, enviando: false, ancora: null, geracao: 0, prov: 'claude', // prov: 'claude' | 'codex' (só com config.codex.ativo)
+    membro: null, provAntes: '', // "Novo membro Codex" (etapa 5): { pai, nome, pasta } enquanto o popover é de um membro
+    // Codex (etapa 4): mesmos campos do Claude, em separado; S() devolve o conjunto do agente escolhido.
+    cdx: { modelos: null, erroModelos: '', modelo: '', esforco: '', geracao: 0 },
     // Skills da instância (17/10): as ativas do projeto (GET /skills), todas marcadas. Com alguma desmarcada,
     // a lista vai no POST como allowlist (skills no initialize); com todas marcadas, nada vai (= todas).
     sk: { pasta: '', lista: null, marcadas: new Set(), aberto: false, erro: '', g: 0 },
@@ -97,8 +101,11 @@
     const s = alvo && alvo.closest ? alvo.closest('select') : null;
     try { return !!s && s.matches(':open'); } catch { return false; } // navegador sem :open
   }
-  function modeloPorValor(v) { return (st.modelos || []).find((m) => m.valor === v) || null; }
+  function cdxSel() { return st.prov === 'codex' && !!ui.prov; }
+  function S() { return cdxSel() ? st.cdx : st; } // conjunto modelos/erroModelos/modelo/esforco/geracao do agente escolhido
+  function modeloPorValor(v) { return (S().modelos || []).find((m) => m.valor === v) || null; }
   function rotuloModelo(m) {
+    if (cdxSel()) return (m.nome || m.valor) + (m.padrao ? ' · padrão' : '');
     if (m.valor !== 'default') return m.nome || m.valor;
     // "Default (recommended)" do binário: mostra o modelo que ele resolve.
     const alvo = (st.modelos || []).find((x) => x.valor !== 'default' && x.modelo === m.modelo);
@@ -164,12 +171,15 @@
     el.append(cab, ui.form, ui.erro, h('div', { class: 'ni-pe' }, ui.vscode, ui.criar));
     document.body.append(el);
     ui.el = el;
+    // Codex (etapa 2): o que é só do Claude (modelo, esforço, permissão, skills, imagens) some com o Codex escolhido.
+    ui.sub = cab.querySelector('small');
+    ui.soClaude = [ui.form.querySelector('#ni-rot-perm'), ui.perm, ui.permDica, ui.form.querySelector('#ni-rot-sk'), ui.form.querySelector('.ni-sk'), ui.skLista, ui.form.querySelector('.ni-anexos')].filter(Boolean);
 
     ui.fechar.addEventListener('click', () => fechar(true));
     ui.pasta.addEventListener('change', () => { st.pasta = ui.pasta.value; aplicarPasta(true); limparErro(); });
     ui.outra.addEventListener('input', () => { st.outra = ui.outra.value; atualizarVSCode(); limparErro(); });
-    ui.modelo.addEventListener('change', () => { st.modelo = ui.modelo.value; preencherEsforco(); limparErro(); });
-    ui.esforco.addEventListener('change', () => { st.esforco = ui.esforco.value; limparErro(); });
+    ui.modelo.addEventListener('change', () => { S().modelo = ui.modelo.value; preencherEsforco(); limparErro(); });
+    ui.esforco.addEventListener('change', () => { S().esforco = ui.esforco.value; limparErro(); });
     ui.perm.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) { definirPermissao(b.dataset.v); b.focus(); } });
     ui.perm.addEventListener('keydown', (e) => {
       const passo = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
@@ -210,10 +220,17 @@
   }
 
   // ───────────────────────────── abrir / fechar ─────────────────────────────
-  function abrir(ancora) {
+  // opcoes (Codex, etapa 5): { pai, nome, pasta } abre já como "Novo membro Codex" do time da sessão `pai`. Sem a chave, ignorado.
+  function abrir(ancora, opcoes) {
     if (!ui.el) return;
     if (!ui.el.hidden) { fechar(true); return; }
     st.ancora = ancora || null;
+    const m = opcoes && typeof opcoes.pai === 'string' && opcoes.pai && codexAtivo() ? opcoes : null;
+    if (m && !st.membro) st.provAntes = st.prov; // o popover normal seguinte volta à escolha de antes
+    if (!m && st.membro && st.provAntes) st.prov = st.provAntes;
+    if (!m) st.provAntes = '';
+    st.membro = m ? { pai: m.pai, nome: String(m.nome || ''), pasta: String(m.pasta || '') } : null;
+    if (st.membro) st.prov = 'codex';
     preparar();
     ui.el.hidden = false;
     if (st.ancora) st.ancora.setAttribute('aria-expanded', 'true');
@@ -253,6 +270,46 @@
     ui.el.style.maxHeight = Math.max(160, vh - y - m) + 'px';
   }
 
+  // ───────────────────────────── Codex (etapa 2) ─────────────────────────────
+  // Só com `config.codex.ativo`: sem a chave nenhum elemento novo entra no popover.
+  function codexAtivo() { try { const c = api.config(); return !!(c && c.codex && c.codex.ativo === true); } catch { return false; } }
+  function definirProvedor(v) {
+    st.prov = v === 'codex' ? 'codex' : 'claude';
+    if (ui.prov) for (const b of ui.prov.querySelectorAll('button[data-v]')) { const sim = b.dataset.v === st.prov; b.setAttribute('aria-checked', String(sim)); b.tabIndex = sim ? 0 : -1; }
+    const cdx = st.prov === 'codex' && !!ui.prov;
+    if (cdx) ui.el.dataset.prov = 'codex'; else delete ui.el.dataset.prov;
+    for (const e of ui.soClaude) { if (cdx) e.style.display = 'none'; else if (e.style.display) e.style.display = ''; }
+    if (ui.codexNota) ui.codexNota.hidden = !cdx;
+    preencherModelos(); // os seletores passam a ser do agente escolhido (Codex: GET /codex/modelos)
+    if (!ui.el.hidden) carregarModelos(false);
+    if (ui.sub) { if (ui.sub._orig == null) ui.sub._orig = ui.sub.textContent; txt(ui.sub, cdx ? 'Codex no Orbit' : ui.sub._orig); }
+    posicionar();
+  }
+  function ajustarProvedor() {
+    const ativo = codexAtivo();
+    if (ativo && !ui.prov) {
+      ui.prov = h('div', { class: 'ni-seg ni-prov', role: 'radiogroup', 'aria-labelledby': 'ni-rot-prov', style: 'grid-template-columns:repeat(2,minmax(0,1fr))' },
+        ...[['claude', 'Claude'], ['codex', 'Codex']].map(([v, rot]) => h('button', { type: 'button', role: 'radio', 'data-v': v, 'aria-checked': 'false', tabindex: '-1' }, rot)));
+      ui.provRot = h('div', { class: 'ni-rot', id: 'ni-rot-prov' }, 'Agente');
+      ui.codexNota = h('p', { class: 'ni-nota ni-codex-nota', hidden: true }, ico('info', 13), h('span', null, 'Permissão: pede aprovação e só escreve na pasta do projeto'));
+      ui.form.prepend(ui.provRot, ui.prov);
+      ui.permDica.after(ui.codexNota);
+      ui.prov.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b && !st.enviando) { definirProvedor(b.dataset.v); limparErro(); b.focus(); } });
+      ui.prov.addEventListener('keydown', (e) => {
+        const passo = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+        if (!passo || st.enviando) return;
+        e.preventDefault();
+        definirProvedor(st.prov === 'codex' ? 'claude' : 'codex');
+        ui.prov.querySelector('[data-v="' + st.prov + '"]').focus();
+      });
+    } else if (!ativo && ui.prov) {
+      for (const e of [ui.provRot, ui.prov, ui.codexNota]) e.remove();
+      ui.prov = ui.provRot = ui.codexNota = null;
+    }
+    if (!ativo) st.prov = 'claude';
+    definirProvedor(st.prov);
+  }
+
   // ───────────────────────────── preencher ─────────────────────────────
   function preparar() {
     const cfg = cfgNova();
@@ -262,6 +319,7 @@
       st.modelo = typeof cfg.modelo === 'string' ? cfg.modelo : '';
       st.esforco = typeof cfg.esforco === 'string' ? cfg.esforco : '';
       st.pasta = '';
+      st.cdx.modelo = st.cdx.esforco = ''; // Codex: cada popover novo começa no padrão
     }
     // Permissão: o padrão das Configurações; a escolha do rascunho vale até esse padrão mudar.
     const mp = modoPadrao();
@@ -273,7 +331,10 @@
     const ultima = typeof cfg.pasta === 'string' && cfg.pasta.trim() ? cfg.pasta.trim() : '';
     if (ultima && !st.pastas.some((p) => norm(p.pasta) === norm(ultima))) st.pastas.push({ projeto: baseDe(ultima), pasta: ultima, n: 0, ultima: true });
     const existe = (v) => v === OUTRA || st.pastas.some((p) => p.pasta === v);
-    if (doFiltro) st.pasta = doFiltro.pasta;
+    // Membro Codex: a pasta é a da sessão-líder (cwd), mesmo com outro filtro de projeto na lista.
+    const dm = st.membro && st.membro.pasta ? (st.pastas.find((p) => norm(p.pasta) === norm(st.membro.pasta)) || (st.pastas.push({ projeto: baseDe(st.membro.pasta), pasta: st.membro.pasta, n: 0 }), st.pastas[st.pastas.length - 1])) : null;
+    if (dm) st.pasta = dm.pasta;
+    else if (doFiltro) st.pasta = doFiltro.pasta;
     else if (!st.pasta || !existe(st.pasta)) {
       const u = ultima && st.pastas.find((p) => norm(p.pasta) === norm(ultima));
       st.pasta = u ? u.pasta : st.pastas.length ? st.pastas[0].pasta : OUTRA;
@@ -288,6 +349,32 @@
     definirPermissao(st.permissao);
     limparErro();
     definirEnviando(false);
+    ajustarProvedor();
+    ajustarMembro();
+  }
+  // "Novo membro Codex" (etapa 5): linha "Membro de: <nome>" + opção "Avisar o líder ao concluir". Só existe no DOM enquanto o popover é de um membro.
+  function ajustarMembro() {
+    const m = st.membro && ui.prov ? st.membro : null;
+    if (m) {
+      if (!ui.membro) {
+        ui.avisar = h('input', { type: 'checkbox', id: 'ni-avisar' });
+        ui.membroNome = h('b', null, '');
+        ui.membro = h('div', { class: 'ni-membro' },
+          h('p', { class: 'ni-nota ni-membro-de' }, h('span', null, 'Membro de: ', ui.membroNome)),
+          h('label', { class: 'ni-membro-avisar', for: 'ni-avisar', title: 'O aviso só chega se o líder for uma instância do Orbit' }, ui.avisar, h('span', null, 'Avisar o líder ao concluir')));
+        ui.form.prepend(ui.membro);
+      }
+      txt(ui.membroNome, m.nome || m.pai);
+      ui.membro.title = m.pai;
+      ui.avisar.checked = false; // cada popover de membro começa sem aviso
+      ui.avisar.disabled = false;
+    } else if (ui.membro) {
+      ui.membro.remove();
+      ui.membro = ui.avisar = ui.membroNome = null;
+    }
+    // Com o membro, o agente é sempre o Codex: o seletor Claude | Codex sai de cena.
+    if (ui.prov) for (const e of [ui.provRot, ui.prov]) e.style.display = m ? 'none' : '';
+    posicionar();
   }
   function aplicarPasta(focar) {
     const outra = st.pasta === OUTRA;
@@ -380,42 +467,56 @@
   }
 
   function preencherModelos() {
-    const l = st.modelos;
+    const s = S(), cdx = cdxSel(), l = s.modelos;
+    const aviso = !!s.erroModelos && !(l && l.length);
+    ui.avisoModelos.hidden = !aviso;
+    if (aviso) {
+      const tentar = h('button', { type: 'button', class: 'link' }, 'Tentar de novo');
+      tentar.addEventListener('click', () => carregarModelos(true));
+      ui.avisoModelos.replaceChildren(ico('info', 13), h('span', null, s.erroModelos + (cdx ? ' A instância usa o modelo padrão do Codex.' : ' A instância usa o modelo padrão.')), s.semRota ? null : tentar);
+    }
     if (!l || !l.length) {
-      ui.modelo.replaceChildren(h('option', { value: '' }, st.erroModelos ? 'Padrão do Claude Code' : 'Carregando modelos…'));
+      ui.modelo.replaceChildren(h('option', { value: '' }, s.erroModelos ? (cdx ? 'Padrão do Codex' : 'Padrão do Claude Code') : 'Carregando modelos…'));
       ui.modelo.value = '';
       ui.modelo.disabled = true;
-      ui.modelo.title = st.erroModelos || '';
+      ui.modelo.title = s.erroModelos || '';
       preencherEsforco();
       return;
     }
     ui.modelo.disabled = st.enviando;
-    ui.modelo.replaceChildren(...l.map((m) => h('option', { value: m.valor, title: m.descricao || m.modelo || '' }, rotuloModelo(m))));
-    if (!modeloPorValor(st.modelo)) st.modelo = modeloPorValor('default') ? 'default' : l[0].valor;
-    ui.modelo.value = st.modelo;
+    const opcoes = l.map((m) => h('option', { value: m.valor, title: m.descricao || m.modelo || '' }, rotuloModelo(m)));
+    if (cdx) opcoes.unshift(h('option', { value: '' }, 'Padrão do Codex')); // sem escolha: o Codex usa o dele
+    ui.modelo.replaceChildren(...opcoes);
+    if (cdx) { if (s.modelo && !modeloPorValor(s.modelo)) s.modelo = ''; }
+    else if (!modeloPorValor(s.modelo)) s.modelo = modeloPorValor('default') ? 'default' : l[0].valor;
+    ui.modelo.value = s.modelo;
     preencherEsforco();
   }
   function preencherEsforco() {
-    const m = modeloPorValor(st.modelo);
-    const niveis = m && Array.isArray(m.esforcos) ? m.esforcos.filter((x) => typeof x === 'string') : [];
-    if (!m || !niveis.length) {
-      const rot = !st.modelos ? (st.erroModelos ? 'Padrão' : '…') : 'Sem esforço';
+    const s = S(), cdx = cdxSel();
+    const m = modeloPorValor(s.modelo);
+    // Codex sem modelo escolhido: os esforços do modelo padrão da lista.
+    const base = m || (cdx && s.modelos ? s.modelos.find((x) => x.padrao) || null : null);
+    const niveis = base && Array.isArray(base.esforcos) ? base.esforcos.filter((x) => typeof x === 'string') : [];
+    if (!base || !niveis.length) {
+      const rot = !s.modelos ? (s.erroModelos ? 'Padrão' : '…') : 'Sem esforço';
       ui.esforco.replaceChildren(h('option', { value: '' }, rot));
       ui.esforco.value = '';
       ui.esforco.disabled = true;
       ui.esforco.title = m ? (m.nome || m.valor) + ' não tem nível de esforço' : '';
       ui.modelo.title = m ? m.descricao || '' : ui.modelo.title;
+      if (s.esforco) s.esforco = '';
       return;
     }
     ui.esforco.disabled = st.enviando;
     ui.esforco.title = 'Quanto o modelo pensa antes de agir';
-    ui.modelo.title = m.descricao || '';
+    ui.modelo.title = base.descricao || '';
     ui.esforco.replaceChildren(
       h('option', { value: '' }, 'Padrão do modelo'),
       ...niveis.map((n) => h('option', { value: n }, (ESFORCO_ROT[n] || n) + ' · ' + n)));
     // O nível que o modelo não aceita volta ao padrão do modelo.
-    if (st.esforco && !niveis.includes(st.esforco)) st.esforco = '';
-    ui.esforco.value = st.esforco;
+    if (s.esforco && !niveis.includes(s.esforco)) s.esforco = '';
+    ui.esforco.value = s.esforco;
   }
   function definirPermissao(v) {
     st.permissao = v;
@@ -429,29 +530,38 @@
   }
 
   async function carregarModelos(forcar) {
-    const g = ++st.geracao;
-    if (!st.modelos) { st.erroModelos = ''; ui.avisoModelos.hidden = true; preencherModelos(); }
+    const s = S(), cdx = cdxSel(); // a resposta é do agente de quando o pedido saiu, mesmo que o seletor mude no meio
+    if (cdx && s.modelos && !forcar) { preencherModelos(); return; } // lista do Codex: uma leitura por abertura da página
+    const g = ++s.geracao;
+    if (!s.modelos) { s.erroModelos = ''; if (s === S()) preencherModelos(); }
     try {
-      const d = await api.modelos(forcar);
-      if (g !== st.geracao) return;
+      const d = await (cdx ? buscarModelosCodex() : api.modelos(forcar));
+      if (g !== s.geracao) return;
       const l = d && Array.isArray(d.modelos) ? d.modelos.filter((m) => m && typeof m.valor === 'string' && m.valor) : [];
       if (!l.length) throw new Error('O servidor não devolveu nenhum modelo.');
-      st.modelos = l;
-      st.erroModelos = '';
-      ui.avisoModelos.hidden = true;
+      s.modelos = l;
+      s.erroModelos = '';
+      s.semRota = false;
     } catch (e) {
-      if (g !== st.geracao) return;
-      if (st.modelos) return; // fica com a lista que já tinha
-      st.erroModelos = e && e.status === 404 ? 'Este servidor ainda não lista os modelos.'
-        : e && e.status === 503 ? 'O servidor ainda está lendo os modelos.'
+      if (g !== s.geracao) return;
+      if (s.modelos) return; // fica com a lista que já tinha
+      s.semRota = !!(e && e.status === 404);
+      s.erroModelos = e && e.status === 404 ? (cdx ? 'Este servidor ainda não lista os modelos do Codex.' : 'Este servidor ainda não lista os modelos.')
+        : e && e.status === 503 ? (cdx ? 'O Codex ainda não informou os modelos.' : 'O servidor ainda está lendo os modelos.')
         : (e && e.message) || 'Não deu para ler os modelos.';
-      const tentar = h('button', { type: 'button', class: 'link' }, 'Tentar de novo');
-      tentar.addEventListener('click', () => carregarModelos(true));
-      ui.avisoModelos.replaceChildren(ico('info', 13), h('span', null, st.erroModelos + ' A instância usa o modelo padrão.'), e && e.status === 404 ? null : tentar);
-      ui.avisoModelos.hidden = false;
     }
+    if (s !== S()) return;
     preencherModelos();
     posicionar();
+  }
+  // Codex: GET /codex/modelos (mesmo formato do /modelos do Claude); 503 = o Codex ainda não informou.
+  async function buscarModelosCodex() {
+    let r;
+    try { r = await fetch('/codex/modelos', { cache: 'no-store', headers: { 'x-gerenciador': '1' } }); } catch { throw new Error('Sem resposta do servidor.'); }
+    let d = null;
+    try { d = await r.json(); } catch {}
+    if (!r.ok || !d || !Array.isArray(d.modelos)) throw Object.assign(new Error((d && typeof d.erro === 'string' && d.erro) || 'O servidor respondeu ' + r.status + ' em /codex/modelos.'), { status: r.status });
+    return d;
   }
 
   // ───────────────────────────── criar ─────────────────────────────
@@ -472,9 +582,10 @@
     if (v && !sp) ui.criar.firstChild.replaceWith(h('span', { class: 'ni-gira', 'aria-hidden': 'true' }));
     if (!v && sp) sp.replaceWith(ico('mais', 14));
     for (const c of [ui.pasta, ui.outra, ui.nome, ui.texto]) c.disabled = v;
+    if (ui.avisar) ui.avisar.disabled = v;
     if (ui.ax) { ui.ax.desabilitar(v); ui.ax.habilitar(!v, 'Criando a instância…'); }
     for (const b of ui.perm.querySelectorAll('button')) b.disabled = v;
-    if (st.modelos && st.modelos.length) ui.modelo.disabled = v;
+    if (S().modelos && S().modelos.length) ui.modelo.disabled = v;
     if (!v) preencherEsforco(); else ui.esforco.disabled = true;
     atualizarVSCode();
   }
@@ -486,23 +597,28 @@
     const pasta = pastaFinal();
     if (!pasta) { mostrarErro('Digite o caminho completo da pasta.', ui.outra); return; }
     if (st.pasta === OUTRA && !/^([a-zA-Z]:[\\/]|\\\\|\/)/.test(pasta)) { mostrarErro(`Use o caminho completo da pasta, como ${MAC ? '/Users/voce/Projetos/app' : 'D:\\Projetos\\app'}.`, ui.outra); return; }
-    const corpo = { pasta, permissao: st.permissao };
-    const m = st.modelos ? modeloPorValor(st.modelo) : null;
-    if (m) corpo.modelo = m.valor;
-    if (m && st.esforco && (m.esforcos || []).includes(st.esforco)) corpo.esforco = st.esforco;
+    const cdx = st.prov === 'codex' && codexAtivo(); // Codex: pasta, modelo/esforço (GET /codex/modelos), nome e 1ª mensagem
+    const corpo = cdx ? { pasta } : { pasta, permissao: st.permissao };
+    if (cdx && st.membro && ui.membro) { corpo.pai = st.membro.pai; corpo.avisarLider = !!ui.avisar.checked; } // membro de time (etapa 5)
+    const sl = S();
+    const m = sl.modelos ? modeloPorValor(sl.modelo) : null;
+    if (m) corpo.modelo = m.valor; // Codex sem escolha ('' = padrão): nada vai
+    // Codex sem modelo escolhido: o esforço vale para o modelo padrão da lista (o servidor valida).
+    const baseEsf = m || (cdx && sl.modelos ? sl.modelos.find((x) => x.padrao) : null);
+    if (baseEsf && sl.esforco && (baseEsf.esforcos || []).includes(sl.esforco)) corpo.esforco = sl.esforco;
     const nome = ui.nome.value.trim();
     if (nome) corpo.nome = nome.slice(0, 60);
     const texto = ui.texto.value;
     if (texto.trim()) corpo.texto = texto.slice(0, 20000);
-    if (ui.ax && ui.ax.pendentes()) { mostrarErro('Espere as imagens ficarem prontas.'); return; }
-    if (ui.ax && ui.ax.contagem()) corpo.imagens = ui.ax.lista();
+    if (!cdx && ui.ax && ui.ax.pendentes()) { mostrarErro('Espere as imagens ficarem prontas.'); return; }
+    if (!cdx && ui.ax && ui.ax.contagem()) corpo.imagens = ui.ax.lista();
     const sk = st.sk;
-    if (sk.lista && sk.lista.length && sk.lista.some((s) => !sk.marcadas.has(s.chave))) corpo.skills = sk.lista.filter((s) => sk.marcadas.has(s.chave)).map((s) => s.chave);
+    if (!cdx && sk.lista && sk.lista.length && sk.lista.some((s) => !sk.marcadas.has(s.chave))) corpo.skills = sk.lista.filter((s) => sk.marcadas.has(s.chave)).map((s) => s.chave);
 
     definirEnviando(true);
     let r = null, d = null;
     try {
-      r = await fetch('/instancias', { method: 'POST', headers: { 'x-gerenciador': '1', 'content-type': 'application/json' }, body: JSON.stringify(corpo) });
+      r = await fetch(cdx ? '/codex/instancias' : '/instancias', { method: 'POST', headers: { 'x-gerenciador': '1', 'content-type': 'application/json' }, body: JSON.stringify(corpo) });
       try { d = await r.json(); } catch {}
     } catch {
       definirEnviando(false);
@@ -518,6 +634,8 @@
       } else if (r.status === 400) {
         const campo = /pasta|caminho/i.test(erro) ? (st.pasta === OUTRA ? ui.outra : ui.pasta) : /esfor/i.test(erro) ? ui.esforco : /modelo/i.test(erro) ? ui.modelo : null;
         mostrarErro(erro ? 'Não deu para criar: ' + erro : 'Não deu para criar. Confira a pasta, o modelo e o esforço.', campo && !campo.disabled ? campo : null);
+      } else if (r.status === 404 && !erro && cdx) {
+        mostrarErro('O Codex não está ligado neste servidor. Ligue-o nas Configurações.');
       } else if (r.status === 404 && !erro) {
         mostrarErro('Este servidor ainda não cria instâncias pelo Orbit. Use "Nova no VS Code" no menu do projeto (o lápis ao lado do nome).');
       } else {
@@ -550,6 +668,6 @@
 
   window.Instancias = Object.freeze({
     montar, abrir, fechar, aberto,
-    _debug: () => ({ pasta: st.pasta, modelo: st.modelo, esforco: st.esforco, permissao: st.permissao, modelos: st.modelos ? st.modelos.length : null }),
+    _debug: () => ({ pasta: st.pasta, modelo: st.modelo, esforco: st.esforco, permissao: st.permissao, modelos: st.modelos ? st.modelos.length : null, prov: st.prov, cdx: { modelo: st.cdx.modelo, esforco: st.cdx.esforco, modelos: st.cdx.modelos ? st.cdx.modelos.length : null } }),
   });
 })();

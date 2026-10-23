@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Canvas de escritórios — página de demonstração</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../assets/comum/base.css">
+<link rel="stylesheet" href="../assets/comum/componentes.css">
+<link rel="stylesheet" href="../assets/escritorios-canvas.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--fundo); color: var(--t1); font-family: var(--sans); }
+  #raiz { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<div id="raiz"></div>
+<script src="../assets/escritorios-canvas.js"></script>
+<script>
+/* Demonstração/teste manual do canvas de escritórios.
+   Parâmetros: ?vazio=1 (lista vazia)  ?semmini=1 (miniatura falha)  ?lento=1 (miniatura demora 600 ms)  ?falha=1 (POST devolve 500)
+   ?adiar=1 (não monta sozinha: o teste chama __remontar())  ?tempoAlerta=ms (quanto tempo o alerta 'aviso' fica na faixa; padrão 8000)
+   ?n=100 (100 escritórios com canvas {0,0}, lista em ordem inversa, sem `criado`; ?criado=1 põe `criado` ISO crescente por número)
+   Em tempo de execução: window.__atrasoPost = ms (POST demora)  window.__falhaPost = true (POST devolve 500)
+   Expõe: window.__chamadas  = [{tipo:'onEntrar'|'onCriar'|'onEditar'|'onDuplicar'|'onExcluir', arg}, {tipo:'fetch', metodo, url, corpo}]
+          window.__banco     = escritórios do fetch falso (resumos); POST {canvas}/{nome} grava aqui
+          window.__emitir(ev) = EscritoriosCanvas.atualizar(ev)   window.__remontar() = desmonta e monta de novo */
+const Q = new URLSearchParams(location.search);
+window.__chamadas = [];
+const agente = (id, nome, papel, estado, provedor) => ({ id, nome, papel, provedor: provedor || 'claude', estado });
+const custo = (e, d, le, ld, p) => ({ execucaoUsd: e, diaUsd: d, limiteExecucaoUsd: le, limiteDiaUsd: ld, planoPct: p });
+
+const gerar = (n) => Array.from({ length: n }, (_, i) => {
+  const k = String(i + 1).padStart(3, '0');
+  const r = { id: 'esc-' + k, nome: 'Escritório ' + k, funcao: 'Escritório de teste ' + k, membros: 2, status: i % 7 === 0 ? 'rodando' : 'ociosa',
+    ativos: i % 7 === 0 ? 1 : 0, convidados: 0, canvas: { x: 0, y: 0 },
+    agentes: [agente('orquestrador', 'Orquestrador', 'líder', i % 7 === 0 ? 'trabalhando' : 'ocioso'), agente('m' + k, 'Membro ' + k, 'apoio', 'ocioso')],
+    custo: custo(0.01 * (i % 5), 0.1 * (i % 9), 0.5, 2, i % 100) };
+  if (Q.get('criado')) r.criado = new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();
+  return r;
+}).reverse();
+window.__atrasoPost = Number(Q.get('atraso')) || 0;
+window.__falhaPost = !!Q.get('falha');
+
+window.__banco = Q.get('vazio') ? [] : Q.get('n') ? gerar(Math.max(1, Number(Q.get('n')) || 1)) : [
+  { id: 'esc-vendas', nome: 'Vendas e propostas', funcao: 'Qualifica leads, escreve propostas e acompanha respostas dos clientes na pasta de vendas.',
+    membros: 3, status: 'rodando', ativos: 2, convidados: 1, canvas: { x: 80, y: 120 },
+    agentes: [agente('orquestrador', 'Orquestrador', 'líder', 'trabalhando'), agente('pesquisa', 'Marina', 'pesquisa', 'trabalhando'),
+      agente('redacao', 'Caio', 'redação', 'aguardando', 'codex'), agente('revisao', 'Lia', 'revisão', 'ocioso')],
+    custo: custo(0.0312, 0.18, 0.5, 2, 6.4) },
+  { id: 'esc-suporte', nome: 'Suporte', funcao: 'Responde dúvidas e triagem de erros reportados.',
+    membros: 2, status: 'pausada', motivoPausa: 'orcamento-execucao', ativos: 0, convidados: 0, canvas: { x: 420, y: 160 },
+    agentes: [agente('orquestrador', 'Orquestrador', 'líder', 'ocioso'), agente('triagem', 'Davi', 'triagem', 'dormindo'), agente('resp', 'Bia', 'respostas', 'erro')],
+    custo: custo(0.5, 1.2, 0.5, 2, 18) },
+  { id: 'esc-docs', nome: 'Documentação', funcao: '',
+    membros: 1, status: 'ociosa', ativos: 0, convidados: 0, canvas: { x: 200, y: 420 },
+    agentes: [agente('orquestrador', 'Orquestrador', 'líder', 'ocioso'), agente('escritor', 'Noa', 'escrita', 'ocioso')],
+    custo: custo(0, 0, 0.3, 1, 0) },
+];
+
+const json = (corpo, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { 'content-type': 'application/json' } });
+window.fetch = async (url, init = {}) => {
+  const metodo = (init.method || 'GET').toUpperCase();
+  const u = new URL(String(url), location.href);
+  const m = /\/escritorios(?:\/([^/]+))?$/.exec(u.pathname);
+  if (!m) return json({ erro: 'não encontrado' }, 404);
+  if (metodo === 'GET' && !m[1]) return json({ escritorios: window.__banco });
+  if (metodo === 'POST' && m[1]) {
+    const corpo = JSON.parse(init.body || '{}');
+    window.__chamadas.push({ tipo: 'fetch', metodo, url: u.pathname, corpo, cabecalho: init.headers && init.headers['x-gerenciador'] });
+    const falha = window.__falhaPost; // lido no envio: dá para ligar/desligar entre dois POSTs ainda pendentes
+    if (window.__atrasoPost) await new Promise((ok) => setTimeout(ok, window.__atrasoPost));
+    if (falha) return json({ erro: 'Falha simulada.' }, 500);
+    const r = window.__banco.find((x) => x.id === decodeURIComponent(m[1]));
+    if (!r) return json({ erro: 'Escritório não encontrado.' }, 404);
+    Object.assign(r, corpo);
+    return json({ ok: true });
+  }
+  return json({ erro: 'método' }, 405);
+};
+
+function miniatura({ largura, altura }) {
+  window.__chamadas.push({ tipo: 'miniatura', arg: { largura, altura } });
+  if (Q.get('semmini')) return Promise.reject(new Error('falha simulada'));
+  return new Promise((ok) => setTimeout(() => {
+    const c = document.createElement('canvas');
+    c.width = largura; c.height = altura;
+    const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, largura, altura);
+    gr.addColorStop(0, '#2f5d3a'); gr.addColorStop(1, '#1d3b5c');
+    g.fillStyle = gr; g.fillRect(0, 0, largura, altura);
+    g.fillStyle = '#b8864b'; g.fillRect(largura * 0.3, altura * 0.35, largura * 0.4, altura * 0.35);
+    g.fillStyle = '#7a3f2b'; g.fillRect(largura * 0.28, altura * 0.28, largura * 0.44, altura * 0.1);
+    c.dataset.mapa = 'simples';
+    ok(c);
+  }, Q.get('lento') ? 600 : 0));
+}
+
+// `foco` = id do ladrilho com o foco no instante do callback (o foco volta ao ladrilho antes de a ação rodar)
+const cb = (tipo) => (arg) => window.__chamadas.push({ tipo, arg, foco: document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.id : null });
+function montar() {
+  EscritoriosCanvas.montar(document.getElementById('raiz'), {
+    base: '', miniatura, tempoAlertaMs: Number(Q.get('tempoAlerta')) || undefined,
+    onEntrar: cb('onEntrar'), onCriar: cb('onCriar'), onEditar: cb('onEditar'), onDuplicar: cb('onDuplicar'), onExcluir: cb('onExcluir'),
+  });
+}
+window.__emitir = (ev) => EscritoriosCanvas.atualizar(ev);
+window.__remontar = () => { EscritoriosCanvas.desmontar(); montar(); };
+if (!Q.get('adiar')) montar();
+</script>
+</body>
+</html>

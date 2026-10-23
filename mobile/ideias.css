@@ -1,0 +1,44 @@
+/* Orbit no celular: tela "ideias" (#mais/ideias). Só tokens de assets/comum/base.css; o cartão com fio entre as notas
+   é o da aba Ideias do PC (fundo --sup, raio 14, --sombra). */
+
+.id-tela { display: grid; gap: var(--esp-3); padding: var(--esp-2) 0 var(--esp-5); min-width: 0; }
+
+.id-cartao { background: var(--sup); border-radius: var(--r-4); box-shadow: var(--sombra); overflow: hidden; min-width: 0; --desl-raio: 0; }
+.id-cartao > * + * { border-top: 1px solid var(--fio); }
+.id-item { display: flex; align-items: stretch; min-height: 56px; background: var(--sup); min-width: 0; }
+.id-check { flex: none; width: var(--alvo); min-height: var(--alvo); margin-left: var(--esp-1); display: grid; place-items: center; border: 0; background: transparent; padding: 0; }
+.id-bola { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--t3); color: var(--fundo); transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
+.id-check:hover .id-bola { border-color: var(--t2); }
+.id-item.feita .id-bola { background: var(--ok); border-color: var(--ok); }
+.id-corpo { flex: 1; min-width: 0; display: grid; align-content: center; gap: 2px; text-align: left; border: 0; background: transparent; padding: var(--esp-3) var(--esp-4) var(--esp-3) var(--esp-1); color: inherit; }
+.id-texto { font-size: 15px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.id-data { color: var(--t3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.id-item.feita .id-texto { color: var(--t3); text-decoration: line-through; }
+
+.id-feitas { display: flex; align-items: center; gap: var(--esp-2); min-height: var(--alvo); padding: 0 var(--esp-2); border: 0; background: transparent; color: var(--t2); font-size: 13px; font-weight: 500; justify-self: start; border-radius: var(--r-2); }
+.id-feitas:hover { color: var(--t1); }
+
+/* Avisos, vazio e esqueleto */
+.id-aviso { display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-3) var(--esp-4); border-radius: var(--r-3); border: 1px solid var(--fio-2); background: var(--sup); min-width: 0; }
+.id-aviso > svg { flex: none; margin-top: 1px; color: var(--t2); }
+.id-aviso > div { display: grid; gap: 2px; min-width: 0; font-size: 13px; line-height: 1.4; }
+.id-aviso strong { font-size: 14px; font-weight: 600; }
+.id-aviso span { color: var(--t2); overflow-wrap: anywhere; }
+.id-vazio { display: grid; justify-items: center; gap: var(--esp-2); padding: var(--esp-6) var(--esp-4); text-align: center; }
+.id-vazio-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--r-5); background: var(--sup); color: var(--t2); box-shadow: var(--sombra); }
+.id-vazio-tit { font-size: 16px; font-weight: 600; margin-top: var(--esp-2); }
+.id-vazio-txt { max-width: 30ch; color: var(--t2); font-size: 14px; line-height: 1.45; margin-bottom: var(--esp-2); }
+.id-esqueleto { display: grid; gap: var(--esp-2); }
+.id-esq { height: 64px; border-radius: var(--r-4); }
+.id-esq-c { width: 72%; }
+
+/* Folha de nova/edição */
+.id-campo { display: block; width: 100%; min-height: 140px; max-height: 40dvh; resize: vertical; padding: var(--esp-3); border: 1px solid var(--fio-2); border-radius: var(--r-3); background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t1); font-size: 16px; line-height: 1.45; }
+.id-campo:focus-visible { outline: 2px solid var(--anel); outline-offset: 1px; }
+.id-erro { margin-top: var(--esp-2); color: var(--erro-t); font-size: 13px; }
+.id-acoes { margin-top: var(--esp-3); }
+.id-acoes .btn:disabled { opacity: .5; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .id-bola { transition: none; }
+}

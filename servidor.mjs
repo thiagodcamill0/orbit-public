@@ -72,7 +72,7 @@ const CONFIG_PADRAO = {
   lembreteMin: 5,
   cliqueAbreVSCode: true,
   cliqueAbre: 'orbit', // rodada 6, etapa 5: o clique (notificação, Enter, o) abre a Conversa do Orbit ou o VS Code
-  projetos: {}, // { [nome]: { icone, cor, rotulo } }: ícone, tag de cor e nome de exibição de cada projeto (20/10: rotulo não mexe na pasta)
+  projetos: {}, // { [nome]: { icone, cor, rotulo, brain? } }: ícone, tag de cor e nome de exibição de cada projeto (20/10: rotulo não mexe na pasta); 21/10: brain = pasta de notas do widget Grafo ('' = sem; sem o campo, o projeto do Orbit usa o cofre)
   instancias: { dormirApos: 30, modoPadrao: 'auto', autoCompactar: { ...AUTO_COMPACTAR_PADRAO } }, // rodada 6, etapa 4: minutos sem atividade até a instância do Orbit dormir (0 = nunca); 16/10: modo de permissão das novas; 20/10: compactação automática
   // Celular (20/10, remoto.mjs): 2ª porta só em 127.0.0.1, aberta só com ativo; host (ts.net) e dono (login do Tailscale).
   remoto: { ativo: false, porta: 47820, host: '', dono: '', criarInstancias: false, notificar: { precisa: true, terminou: true } },
@@ -160,8 +160,13 @@ function porHoraVazio() {
   return { trabalhandoMs: vinteQuatro(), concluidas: vinteQuatro(), esperas: vinteQuatro(), aguardandoMs: vinteQuatro() };
 }
 
+// Parte do resumo do dia que vale só para as instâncias nativas (é o que o celular recebe).
+function natVazio() {
+  return { turnos: 0, msTrabalhando: 0, msAguardando: 0, esperas: 0 };
+}
+
 function resumoVazio() {
-  return { data: hoje(), turnos: 0, msTrabalhando: 0, msAguardando: 0, esperas: 0, sessoes: 0, porHora: porHoraVazio(), _ids: [] };
+  return { data: hoje(), turnos: 0, msTrabalhando: 0, msAguardando: 0, esperas: 0, sessoes: 0, porHora: porHoraVazio(), _ids: [], _nat: natVazio() };
 }
 
 function horaDe(t) {
@@ -187,7 +192,7 @@ function porHoraValido(p) {
 }
 
 const publicoResumo = () => {
-  const { _ids, ...r } = resumo;
+  const { _ids, _nat, ...r } = resumo;
   return r;
 };
 
@@ -202,7 +207,7 @@ function publico(s) {
   const o = {};
   for (const k in s) if (k[0] !== '_') o[k] = s[k];
   if (Array.isArray(s.agentes)) o.agentes = s.agentes.map(semInternos);
-  o.controle = controle.estado(s);
+  o.controle = s.provedor === 'codex' && codex ? codex.estado(s) : controle.estado(s);
   return o;
 }
 
@@ -348,6 +353,8 @@ function normalizarSessao(s) {
   };
   // Rodada 6, etapa 2: origem só quando o Orbit criou; modelo/esforço da última resposta do transcript.
   if (s.origem === 'orbit') n.origem = 'orbit';
+  if (Number(s.revisadaEm) > 0 && Number(s.revisadaEm) >= n.desde) n.revisadaEm = Number(s.revisadaEm); // 21/10: "revisada" só vale enquanto >= desde
+  if (s.provedor === 'codex') n.provedor = 'codex'; // Codex (codex.mjs): só gravado quando for Codex
   if (typeof s.modelo === 'string' && s.modelo) n.modelo = s.modelo.slice(0, 100);
   if (typeof s.esforco === 'string' && s.esforco) n.esforco = s.esforco.slice(0, 20);
   contarSubagentes(n);
@@ -417,6 +424,7 @@ function carregar() {
   }
   if (dados.resumo && dados.resumo.data === hoje()) resumo = { ...resumoVazio(), ...dados.resumo };
   if (!Array.isArray(resumo._ids)) resumo._ids = [];
+  resumo._nat = { ...natVazio(), ...(resumo._nat && typeof resumo._nat === 'object' ? resumo._nat : {}) };
   if (!porHoraValido(resumo.porHora)) resumo.porHora = porHoraVazio();
   seqAlerta = Number(dados.seqAlerta) || 0;
   uso = normalizarUso(dados.uso);
@@ -473,6 +481,39 @@ function mesclarConfig(base, p) {
   // Assistente da primeira vez (assistente.mjs): o nome do usuário (vazio = o da conta do sistema) e se já foi feito.
   if (typeof p.nome === 'string') base.nome = encurtar(p.nome.replace(/[\u0000-\u001f]/g, ' '), 60);
   if (p.assistente && typeof p.assistente === 'object' && typeof p.assistente.feito === 'boolean') base.assistente = { feito: p.assistente.feito };
+  // Codex (codex.mjs, 21/10): config.codex = { ativo, exe }. Fora do CONFIG_PADRAO: ausente = desligado e o campo nem aparece.
+  // exe: '' (automático) ou caminho absoluto (≤500, sem controle; .exe no Windows). Inválido é descartado.
+  if (p.codex && typeof p.codex === 'object' && !Array.isArray(p.codex)) {
+    const c = p.codex;
+    const b = { ativo: false, exe: '', ...(base.codex || {}) };
+    let mudou = false;
+    if (typeof c.ativo === 'boolean') { b.ativo = c.ativo; mudou = true; }
+    if (typeof c.exe === 'string' && c.exe.length <= 500 && !/[\u0000-\u001f]/.test(c.exe)) {
+      const e = c.exe.trim();
+      if (!e || (path.isAbsolute(e) && (process.platform !== 'win32' || /\.exe$/i.test(e)))) { b.exe = e; mudou = true; }
+    }
+    if (mudou) base.codex = b;
+  }
+  // Escritórios (C2): config.escritorios = { precosCodex: { <modelo>: { entrada, cacheEntrada, saida } (US$/milhão, números ≥ 0) }, tetoInstancias: 1..20 }.
+  // Fora do CONFIG_PADRAO; gravar outra parte da config preserva o que já existe. Preço inválido é descartado (os válidos entram), `precosCodex: {}` limpa.
+  if (p.escritorios && typeof p.escritorios === 'object' && !Array.isArray(p.escritorios)) {
+    const e = p.escritorios;
+    const b = { ...(base.escritorios || {}) };
+    const nn = (x) => typeof x === 'number' && Number.isFinite(x) && x >= 0;
+    if (e.precosCodex && typeof e.precosCodex === 'object' && !Array.isArray(e.precosCodex)) {
+      const t = {};
+      for (const [k, v] of Object.entries(e.precosCodex)) {
+        const nome = String(k).trim();
+        if (!nome || nome.length > 100 || nome === '__proto__' || nome === 'constructor' || nome === 'prototype') continue;
+        if (v && typeof v === 'object' && !Array.isArray(v) && nn(v.entrada) && nn(v.saida) && (v.cacheEntrada === undefined || nn(v.cacheEntrada))) {
+          t[nome] = { entrada: v.entrada, cacheEntrada: v.cacheEntrada === undefined ? v.entrada : v.cacheEntrada, saida: v.saida };
+        }
+      }
+      b.precosCodex = t;
+    }
+    if (Number.isInteger(e.tetoInstancias) && e.tetoInstancias >= 1 && e.tetoInstancias <= 20) b.tetoInstancias = e.tetoInstancias;
+    if (Object.keys(b).length) base.escritorios = b;
+  }
   if (typeof p.lembreteMin === 'number' && p.lembreteMin >= 0 && p.lembreteMin <= 1440) base.lembreteMin = p.lembreteMin;
   if (typeof p.cliqueAbreVSCode === 'boolean') base.cliqueAbreVSCode = p.cliqueAbreVSCode;
   if (p.cliqueAbre === 'orbit' || p.cliqueAbre === 'vscode') base.cliqueAbre = p.cliqueAbre;
@@ -508,9 +549,12 @@ function mesclarConfig(base, p) {
       if (typeof v.cor === 'string' && (v.cor === '' || COR_HEX.test(v.cor))) atual.cor = v.cor.toLowerCase();
       // 20/10: nome de exibição; a chave (nome da pasta) e a pasta não mudam. Igual ao nome da pasta = sem rótulo.
       if (typeof v.rotulo === 'string') { const r = encurtar(v.rotulo.replace(/[\u0000-\u001f]/g, ' '), 60); atual.rotulo = r === nome ? '' : r; }
+      // 21/10: brain (pasta absoluta das notas do widget Grafo). '' fica gravado: desvincula até o padrão do Orbit.
+      if (typeof v.brain === 'string' && v.brain.length <= 500 && !/[\u0000-\u001f]/.test(v.brain)) { const b = v.brain.trim(); if (!b || path.isAbsolute(b)) atual.brain = b; }
       const rotulo = typeof atual.rotulo === 'string' ? atual.rotulo : '';
-      if (!atual.icone && !atual.cor && !rotulo) delete base.projetos[nome];
-      else if (Object.hasOwn(base.projetos, nome) || Object.keys(base.projetos).length < 300) base.projetos[nome] = { icone: atual.icone, cor: atual.cor, ...(rotulo ? { rotulo } : {}) };
+      const brain = typeof atual.brain === 'string' ? atual.brain : null;
+      if (!atual.icone && !atual.cor && !rotulo && brain === null) delete base.projetos[nome];
+      else if (Object.hasOwn(base.projetos, nome) || Object.keys(base.projetos).length < 300) base.projetos[nome] = { icone: atual.icone, cor: atual.cor, ...(rotulo ? { rotulo } : {}), ...(brain !== null ? { brain } : {}) };
     }
   }
   return base;
@@ -542,7 +586,11 @@ function difundir(tipo, dados, meta) {
   for (const res of clientes) {
     let l = linha;
     if (res._remoto) {
-      if (linhaRemota === undefined) linhaRemota = eventoRemoto(tipo, dados, meta) ? linha : null;
+      if (linhaRemota === undefined) {
+        // alerta: a mesma projeção do /remoto/historico, sem cwd nem ultimaResposta (revisão de segurança P2-8, 21/10)
+        linhaRemota = !eventoRemoto(tipo, dados, meta) ? null
+          : tipo === 'alerta' ? `event: alerta\ndata: ${JSON.stringify(avisoRemoto(dados))}\n\n` : linha;
+      }
       if (!linhaRemota) continue;
       l = linhaRemota;
     }
@@ -559,6 +607,21 @@ function eventoRemoto(tipo, dados, meta) {
   if (tipo === 'alerta') return nativa(dados?.sessao?.id);
   if (tipo === 'remover') return meta?.nativa === true;
   return false;
+}
+
+// Aviso (histórico e SSE alerta) como o celular o vê: sem cwd (só o nome do projeto) e sem ultimaResposta.
+function avisoRemoto(a) {
+  const s = a.sessao;
+  const o = {
+    id: a.id, tipo: a.tipo, quando: a.quando, notificar: a.notificar,
+    sessao: {
+      id: s.id, titulo: s.titulo, apelido: s.apelido, nome: s.nome, pai: s.pai,
+      projeto: config.projetos[s.projeto]?.rotulo || s.projeto || (s.cwd ? path.basename(String(s.cwd)) : ''),
+      status: s.status, detalhe: s.detalhe, tarefa: s.tarefa,
+    },
+  };
+  if (a.agente) o.agente = a.agente;
+  return o;
 }
 
 // Instância nativa = criada pelo Orbit (POST /instancias). Só o controle decide ('orbit' no processo vivo ou no
@@ -618,6 +681,8 @@ const controle = criarControle({
     difundirResumoSeMudou();
   },
   lerConfig: () => config, // etapa 4: config.instancias.dormirApos
+  // Escritórios: teto próprio de instâncias (padrão 6). O controle lê config.escritorios.tetoInstancias do config mesclado a cada uso (lerConfig).
+  tetoEscritorios: () => config.escritorios?.tetoInstancias,
   gravarNovaInstancia: (o) => {
     config = mesclarConfig(structuredClone(config), { novaInstancia: o });
     salvar('config');
@@ -695,6 +760,111 @@ try {
   ideias = criarIdeias({ arquivo, difundir: (tipo, dados) => difundir(tipo, dados), lerJSONCorpo: (req) => lerJSONCorpo(req), log: (...a) => log(...a) });
 } catch (e) {
   log('ideias: o módulo não carregou:', e?.message || e);
+}
+// Whiteboard (whiteboard.mjs): quadros globais em <DADOS>/whiteboard/<id>.json. Import protegido como o ideias.
+let whiteboard = null;
+try {
+  const { criarWhiteboard } = await import('./whiteboard.mjs');
+  whiteboard = criarWhiteboard({ pasta: path.join(DADOS, 'whiteboard'), lerJSONCorpo: (req, limite) => lerJSONCorpo(req, limite), log: (...a) => log(...a) });
+} catch (e) {
+  log('whiteboard: o módulo não carregou:', e?.message || e);
+}
+// Escritórios (escritorios.mjs): times de instâncias em <DADOS>/escritorios. Só no PC (o celular não ganha estas rotas).
+// O alerta de orçamento não passa mais pelo `alertar` (sem sessão de mentira no histórico): o aviso/pausa vai no evento
+// SSE `escritorio` (`alerta:{tipo,texto}`, o painel mostra) e a pausa chega ao celular como push "precisa de você",
+// pelo mesmo `remoto.notificar` das sessões (só id/projeto, sem texto), respeitando o Não perturbe.
+let escritorios = null;
+try {
+  const { criarEscritorios } = await import('./escritorios.mjs');
+  const notificarCelularEscritorio = (id, nome) => {
+    if (!remoto || naoPerturbeAgora()) return;
+    try { remoto.notificar({ id: `escritorio:${id}`, projeto: nome || id }, 'precisa'); } catch (e) { log('remoto: push escritório', e?.message || e); }
+  };
+  // Mesma validação do POST /instancias (controle.mjs), sobre o modelos.json que o controle mantém. Sem lista
+  // salva ainda, aceita: o criarInstancia valida de novo ao subir a instância.
+  const validarModeloEscritorio = (valor, esforco) => {
+    const l = lerJSON(path.join(DADOS, 'modelos.json'), null)?.modelos;
+    if (!Array.isArray(l) || !l.length) return true;
+    const acha = (v) => l.find((m) => m.valor === v) || l.find((m) => m.modelo === v && m.valor !== 'default') || l.find((m) => m.modelo === v) || null;
+    const m = valor ? acha(valor) : null;
+    if (valor && !m) return `Modelo desconhecido: ${encurtar(valor, 100)}.`;
+    const alvo = m || acha('default');
+    if (esforco && alvo) {
+      const niveis = Array.isArray(alvo.esforcos) ? alvo.esforcos : [];
+      if (!niveis.length) return `${alvo.nome} não tem nível de esforço.`;
+      if (!niveis.includes(esforco)) return `${alvo.nome} não aceita o esforço "${encurtar(esforco, 20)}". Use: ${niveis.join(', ')}.`;
+    }
+    return true;
+  };
+  // Membros do Codex (B1b). Tudo protegido: `codex` é um `let` mais abaixo no arquivo (TDZ até lá) e só existe com a chave
+  // config.codex.ativo ligada; sem ele os escritórios seguem só com Claude.
+  const codexAgora = () => { try { return (codex && config.codex?.ativo ? codex : null); } catch { return null; } };
+  const pontesCodex = () => codexAgora()?.ponte || null;
+  // Mesma regra do codex-uso.mjs validar(), sobre GET /codex/modelos (a lista do model/list), sem HTTP.
+  const validarModeloCodex = async (modelo, esforco) => {
+    const c = codexAgora();
+    if (!c) throw new Error('O Codex não está ligado no Orbit.');
+    let status = 0, corpo = '';
+    const resFalso = { headersSent: false, writeHead(codigo) { status = codigo; }, end(t) { corpo = String(t ?? ''); this.headersSent = true; } };
+    const tratou = await c.rota({ method: 'GET', headers: {}, url: '/codex/modelos' }, resFalso, '/codex/modelos', new URL('http://127.0.0.1/codex/modelos'));
+    let dados = null;
+    try { dados = JSON.parse(corpo); } catch { /* corpo ilegível */ }
+    if (!tratou || status !== 200 || !Array.isArray(dados?.modelos)) throw new Error(dados?.erro || 'Não consegui ler os modelos do Codex.');
+    const lista = dados.modelos;
+    const m0 = String(modelo || '').trim();
+    const e0 = String(esforco || '').trim();
+    let m = null;
+    if (m0) {
+      m = lista.find((x) => x.valor === m0 || x.modelo === m0);
+      if (!m) throw new Error(`Modelo desconhecido: ${encurtar(m0, 100)}. Use: ${lista.map((x) => x.valor).join(', ')}.`);
+    }
+    if (e0) {
+      const base = m || lista.find((x) => x.padrao) || null;
+      const aceitos = base ? (base.esforcos || []) : [...new Set(lista.flatMap((x) => x.esforcos || []))];
+      if (!aceitos.length) throw new Error(`${base ? base.nome : 'O modelo'} não tem nível de esforço.`);
+      if (!aceitos.includes(e0)) throw new Error(`${base ? base.nome : 'O Codex'} não aceita o esforço "${encurtar(e0, 20)}". Use: ${aceitos.join(', ')}.`);
+    }
+    return { modelo: m ? m.valor : '', esforco: e0 };
+  };
+  // A reidratação espera o módulo do Codex subir (aplicarCodex roda depois) para listar os threads dele. Chave desligada: não espera.
+  const esperarCodex = async () => {
+    for (let i = 0; i < 400; i++) {
+      try { if (!config.codex?.ativo || pontesCodex()) return; } catch { /* TDZ: o módulo ainda está subindo */ }
+      await new Promise((ok) => setTimeout(ok, 100));
+    }
+  };
+  escritorios = criarEscritorios({
+    codex: pontesCodex,
+    codexAtivo: () => { try { return !!config.codex?.ativo; } catch { return false; } },
+    validarModeloCodex,
+    precosCodex: () => config.escritorios?.precosCodex, // mesclarConfig guarda config.escritorios (validado)
+    esperarCodex,
+    tetoEscritorios: () => config.escritorios?.tetoInstancias,
+    pasta: path.join(DADOS, 'escritorios'),
+    raizOrbit: PASTA,
+    porta: PORTA,
+    lerJSONCorpo: (req, limite) => lerJSONCorpo(req, limite),
+    log: (...a) => log(...a),
+    publicar: (tipo, dados) => difundir(tipo, dados),
+    notificarCelular: notificarCelularEscritorio,
+    sessao: (id) => sessoes.get(id),
+    usoPlano: () => uso,
+    validarModelo: validarModeloEscritorio,
+    controle,
+  });
+} catch (e) {
+  log('escritorios: o módulo não carregou:', e?.message || e);
+}
+// Grafo (grafo.mjs): GET /grafo/dados?pasta= (notas .md e [[links]]). Sem brain de fábrica: cada projeto vincula a própria
+// pasta de notas (config.projetos[p].brain); ORBIT_COFRE define uma pasta padrão, se quiser.
+let grafo = null;
+let montarGrafoBrain = null;
+try {
+  const { criarGrafo, montarGrafo } = await import('./grafo.mjs');
+  montarGrafoBrain = montarGrafo;
+  grafo = criarGrafo({ cofre: process.env.ORBIT_COFRE ? path.resolve(process.env.ORBIT_COFRE) : '', projetoPadrao: process.env.ORBIT_COFRE ? path.basename(PASTA) : '' }); // GET /grafo/padrao: sem brain de fábrica
+} catch (e) {
+  log('grafo: o módulo não carregou:', e?.message || e);
 }
 // Espaço em disco (card da Home, disco.mjs): mede o C: e a pasta temporária do Claude a cada 10 min, num
 // histórico de tamanho fixo (disco.json). Import protegido como o repos; sem ele, GET /disco responde 404.
@@ -908,6 +1078,7 @@ try {
     },
     difundirLocal: (tipo, dados) => difundir(tipo, dados),
     nativa: (id) => nativa(id),
+    pastaDaSessao: (id) => sessoes.get(id)?.cwd || '', // as skills da barra valem só no projeto da sessão
     projetos: () => {
       try {
         const j = JSON.parse(fs.readFileSync(path.join(DADOS, 'projetos.json'), 'utf8'));
@@ -925,6 +1096,27 @@ try {
     }),
     executarTailscale,
     permitirHttp: DADOS !== PASTA && process.env.ORBIT_PUSH_HTTP_TESTE === '1', // push para um servidor falso local: só em servidor de teste
+    naoPerturbe: () => config.naoPerturbe,
+    mudarNaoPerturbe: (patch) => {
+      config = mesclarConfig(structuredClone(config), { naoPerturbe: patch });
+      salvar('config');
+      difundir('config', config);
+    },
+    // Brain do projeto cadastrado (mesma regra do brainDe do PC): config.projetos[nome].brain; sem ele, o cofre padrão
+    // só vale para o projeto do próprio Orbit; os demais ficam sem brain ('').
+    brainDoProjeto: (pasta) => {
+      try {
+        const j = JSON.parse(fs.readFileSync(path.join(DADOS, 'projetos.json'), 'utf8'));
+        const norm = (p) => { const x = path.resolve(String(p)).replace(/[\\/]+$/, ''); return process.platform === 'linux' ? x : x.toLowerCase(); };
+        const alvo = norm(pasta);
+        const p = (Array.isArray(j.lista) ? j.lista : []).find((q) => q && typeof q.pasta === 'string' && typeof q.nome === 'string' && norm(q.pasta) === alvo);
+        if (!p) return '';
+        const b = config.projetos[p.nome]?.brain;
+        if (typeof b === 'string') return b.trim();
+        return p.nome === path.basename(PASTA) && process.env.ORBIT_COFRE ? path.resolve(process.env.ORBIT_COFRE) : ''; // sem brain de fábrica: só ORBIT_COFRE (opcional) para o projeto do próprio Orbit
+      } catch { return ''; }
+    },
+    montarGrafo: (raiz) => montarGrafoBrain(raiz),
     log: (...a) => log(...a),
   });
 } catch (e) {
@@ -1095,6 +1287,7 @@ function trocarStatus(s, status, detalhe, t, fimTrecho = t) {
     const iniDia = Math.max(s.desde, meiaNoite(t));
     if (fim > iniDia) {
       resumo[chave] += fim - iniDia;
+      if (nativa(s.id)) resumo._nat[chave] += fim - iniDia;
       somarHoras(resumo.porHora[chave === 'msTrabalhando' ? 'trabalhandoMs' : 'aguardandoMs'], iniDia, fim);
     }
   }
@@ -1102,6 +1295,7 @@ function trocarStatus(s, status, detalhe, t, fimTrecho = t) {
     s.contadores.esperas++;
     virarDia(t);
     resumo.esperas++;
+    if (nativa(s.id)) resumo._nat.esperas++;
     resumo.porHora.esperas[horaDe(t)]++;
   }
   if (status !== s.status) s._lembrete = false;
@@ -1114,6 +1308,7 @@ function trocarStatus(s, status, detalhe, t, fimTrecho = t) {
   s.detalhe = detalhe || '';
   s.desde = t;
   s._tsStatus = Math.max(s._tsStatus, t);
+  if (s.revisadaEm && t > s.revisadaEm) delete s.revisadaEm; // terminou (ou mudou) de novo depois da revisão: volta para Concluídas
 }
 
 function atualizarFerramenta(s) {
@@ -1154,7 +1349,7 @@ function aplicar(ev) {
     s._mtime = 0;
   }
   // Sessão dependente: criada por outra sessão (CLAUDE_CODE_HOST_SESSION_ID no ambiente do hook).
-  if (typeof ev.host_session_id === 'string' && ev.host_session_id && ev.host_session_id !== id) s.pai = encurtar(ev.host_session_id, 100);
+  if (typeof ev.host_session_id === 'string' && ev.host_session_id && ev.host_session_id !== id && sessoes.get(ev.host_session_id)?.provedor !== 'codex') s.pai = encurtar(ev.host_session_id, 100);
   const pid = Number(ev.pid);
   if (Number.isInteger(pid) && pid > 0) {
     s.pid = pid;
@@ -1214,6 +1409,7 @@ function aplicar(ev) {
         }
         s.contadores.turnos++;
         resumo.turnos++;
+        if (nativa(s.id)) resumo._nat.turnos++;
         limparEmCurso(s);
         mudar('trabalhando');
         registrar(s, 'prompt', automatico ? 'Mensagem automática recebida' : p || '(prompt)', t);
@@ -1467,6 +1663,7 @@ function encerrarAgentes(s, t) {
 
 // Tira concluídos há mais de 30 min, ativos sem sinal há 30 min e o excesso (máx. 20).
 function podarAgentes(s, agora, manter = null) {
+  if (s.provedor === 'codex') return false; // Codex: a poda dos agentes é do codex.mjs
   const antes = s.agentes.length;
   s.agentes = s.agentes.filter((a) =>
     a === manter || (terminado(a) ? agora - (a.fim || a.atividade || 0) <= AGENTE_VISIVEL : agora - (a.atividade || a.inicio || 0) <= SUBAGENTE_ESQUECIDO),
@@ -1608,6 +1805,7 @@ function aplicarRegistro(r, agora) {
   const tStatus = Math.min(Number(r.statusUpdatedAt) || Number(r.updatedAt) || 0, agora);
   const ocupado = r.status === 'busy';
   let s = sessoes.get(id);
+  if (s?.provedor === 'codex') return; // Codex: não tem registro nem pid do Claude (codex.mjs)
   let mudou = false;
   if (!s) {
     // Arquivo velho de processo morto, ou sessão que o usuário tirou da lista: não cria.
@@ -1632,7 +1830,7 @@ function aplicarRegistro(r, agora) {
   }
   const antes = JSON.stringify([s.nome, s.pai, s.pid, s.vivo, s.registro]);
   if (typeof r.name === 'string' && r.name) s.nome = encurtar(r.name, 60);
-  if (typeof r.hostSessionId === 'string' && r.hostSessionId && r.hostSessionId !== id) s.pai = encurtar(r.hostSessionId, 100);
+  if (typeof r.hostSessionId === 'string' && r.hostSessionId && r.hostSessionId !== id && sessoes.get(r.hostSessionId)?.provedor !== 'codex') s.pai = encurtar(r.hostSessionId, 100);
   if (pidOk) s.pid = pid;
   if (s.status !== 'encerrada') s.vivo = estaVivo;
   const espera = r.waitingFor == null || r.waitingFor === '' ? null : encurtar(typeof r.waitingFor === 'string' ? r.waitingFor : JSON.stringify(r.waitingFor), 120);
@@ -1799,7 +1997,7 @@ function aplicarUso(b, agora) {
 const PARADA_MS = 5 * 60e3;
 function bloqueioLeituraUso(agora) {
   for (const s of sessoes.values()) {
-    if (s.status === 'trabalhando' && agora - (Number(s.atividade) || Number(s.desde) || 0) <= PARADA_MS) {
+    if (s.provedor !== 'codex' && s.status === 'trabalhando' && agora - (Number(s.atividade) || Number(s.desde) || 0) <= PARADA_MS) {
       return { motivo: 'rodando', erro: 'Há uma instância trabalhando agora; a leitura sob demanda fica para quando tudo parar.' };
     }
   }
@@ -1845,7 +2043,7 @@ function encerrarPorProcesso(s, agora) {
 function checarProcessos() {
   const agora = Date.now();
   for (const s of sessoes.values()) {
-    if (!s.pid || s.status === 'encerrada') continue;
+    if (!s.pid || s.status === 'encerrada' || s.provedor === 'codex') continue;
     try {
       const v = vivo(s.pid);
       if (v) {
@@ -1948,7 +2146,7 @@ function analisarTranscript(texto) {
 
 async function vigiarTranscript(s, agora) {
   const arquivo = s._transcript;
-  if (!arquivo) return;
+  if (!arquivo || s.provedor === 'codex') return; // Codex: rollout próprio (codex.mjs)
   let st;
   try {
     st = await fsp.stat(arquivo);
@@ -2476,6 +2674,17 @@ function idDaRota(rota) {
 
 const estadoPublico = () => [...sessoes.values()].map(publico);
 const estadoNativo = () => [...sessoes.values()].filter((s) => nativa(s.id)).map(publico); // celular
+// Celular: resumo do dia só com as contagens das nativas (sem porHora nem ids).
+const resumoNativo = () => ({
+  data: resumo.data,
+  turnos: resumo._nat?.turnos || 0,
+  msTrabalhando: resumo._nat?.msTrabalhando || 0,
+  msAguardando: resumo._nat?.msAguardando || 0,
+  esperas: resumo._nat?.esperas || 0,
+  sessoes: (resumo._ids || []).filter((i) => nativa(i)).length,
+});
+// Celular: histórico de alertas só das nativas, sem cwd (o nome do projeto no lugar) e sem ultimaResposta.
+const historicoNativo = () => historico.filter((a) => nativa(a?.sessao?.id)).map(avisoRemoto);
 
 // Rotas do PWA → arquivo em pwa/ e tipo.
 const ARQ_PWA = {
@@ -2537,7 +2746,8 @@ async function atenderPedido(req, res, rem = null) {
           return responder(res, 404, { erro: 'não encontrado' });
         }
       }
-      if (rem && rota === '/estado') return responder(res, 200, { sessoes: estadoNativo(), uso }); // celular: só nativas, sem resumoDia/contaClaude
+      if (rem && rota === '/estado') return responder(res, 200, { sessoes: estadoNativo(), resumoDia: resumoNativo(), uso }); // celular: só nativas; resumoDia só com as contagens delas, sem contaClaude
+      if (rem && rota === '/remoto/historico') return responder(res, 200, historicoNativo()); // celular: só nativas, sem cwd nem ultimaResposta
       if (rem && rota === '/instancias') { // celular: só a contagem das nativas (sem memória nem as assumidas)
         const st = [...sessoes.values()].filter((s) => nativa(s.id)).map((s) => controle.estado(s)?.processo);
         return responder(res, 200, { vivas: st.filter((p) => p === 'vivo' || p === 'iniciando').length, dormindo: st.filter((p) => p === 'dormindo').length });
@@ -2561,6 +2771,9 @@ async function atenderPedido(req, res, rem = null) {
       if (terminal && (await terminal.rota(req, res, rota, url))) return; // terminal integrado: /terminal/shells, /lista, /vendor/*
       if (repos && (await repos.rota(req, res, rota, url))) return; // /repos/* (repos.mjs, rodada 7)
       if (ideias && (await ideias.rota(req, res, rota))) return; // /ideias (ideias.mjs)
+      if (whiteboard && (await whiteboard.rota(req, res, rota, url))) return; // /whiteboard/lista, /quadro (whiteboard.mjs)
+      if (!rem && escritorios && (await escritorios.tratar(req, res, url))) return; // /escritorios, /escritorios/:id (escritorios.mjs; só no PC)
+      if (grafo && (await grafo.rota(req, res, rota, url))) return; // /grafo/dados (grafo.mjs)
       if (disco && (await disco.rota(req, res, rota))) return; // /disco (disco.mjs, card da Home)
       if (regras && (await regras.rota(req, res, rota))) return; // /regras (regras.mjs, Configurações)
       if (skills && (await skills.rota(req, res, rota, url))) return; // /skills, /skills/ler, /arquivo, /sessao (skills.mjs)
@@ -2568,6 +2781,7 @@ async function atenderPedido(req, res, rem = null) {
       if (reinicio && (await reinicio.rota(req, res, rota))) return; // /reinicio (reinicio.mjs)
       // Rodada 5: conversa, fluxo da conversa e ações (controle.mjs); antes do /sessao/:id genérico.
       if (await controle.rota(req, res, rota, url)) return;
+      if (codex && config.codex?.ativo && (await codex.rota(req, res, rota, url))) return; // /codex/* (codex.mjs, só com a chave ligada)
       const rotaAg = /^\/sessao\/([^/]+)\/agente\/([^/]+)$/.exec(rota);
       if (rotaAg) {
         let id, aid;
@@ -2591,7 +2805,7 @@ async function atenderPedido(req, res, rem = null) {
       }
       if (rota === '/fluxo') {
         res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' });
-        const inicio = rem ? { sessoes: estadoNativo(), uso } : { sessoes: estadoPublico(), config, resumoDia: publicoResumo(), historico: historico.slice(-50), uso, contaClaude: lerContaClaude() };
+        const inicio = rem ? { sessoes: estadoNativo(), resumoDia: resumoNativo(), uso } : { sessoes: estadoPublico(), config, resumoDia: publicoResumo(), historico: historico.slice(-50), uso, contaClaude: lerContaClaude() };
         res.write(`retry: 2000\nevent: inicio\ndata: ${JSON.stringify(inicio)}\n\n`);
         clientes.add(res);
         const sair = () => clientes.delete(res);
@@ -2616,12 +2830,30 @@ async function atenderPedido(req, res, rem = null) {
     if (terminal && (await terminal.rota(req, res, rota, url))) return; // terminal integrado: /terminal/bilhete
     if (repos && (await repos.rota(req, res, rota, url))) return; // clonar, vincular, commit, push, pull, branch (repos.mjs)
     if (ideias && (await ideias.rota(req, res, rota))) return; // nova, editar, feita, apagar (ideias.mjs)
+    if (whiteboard && (await whiteboard.rota(req, res, rota, url))) return; // novo, salvar, renomear, duplicar, excluir (whiteboard.mjs)
+    if (!rem && escritorios && (await escritorios.tratar(req, res, url))) return; // criar, salvar, excluir, acionar, membro/enviar (escritorios.mjs; só no PC)
     if (regras && (await regras.rota(req, res, rota))) return; // remover regra, pacote de leitura (regras.mjs)
     if (skills && (await skills.rota(req, res, rota, url))) return; // salvar, duplicar, excluir, estado, arquivos (skills.mjs)
     if (mcp && (await mcp.rota(req, res, rota, url))) return; // verificar, adicionar, remover, ativo, aprovar, proteger (mcp.mjs)
     if (reinicio && (await reinicio.rota(req, res, rota))) return; // /reiniciar pelas Configurações (reinicio.mjs)
+    // 21/10: "revisada" no servidor (47821 e celular): {revisada: boolean} grava s.revisadaEm = agora ou apaga.
+    const rotaRev = /^\/sessao\/([^/]+)\/revisada$/.exec(rota);
+    if (rotaRev) {
+      let id = '';
+      try { id = decodeURIComponent(rotaRev[1]); } catch { return responder(res, 400, { erro: 'id inválido' }); }
+      const p = await lerJSONCorpo(req);
+      const s = sessoes.get(id);
+      if (!s) return responder(res, 404, { erro: 'sessão não encontrada' });
+      if (!p || typeof p !== 'object' || Array.isArray(p) || typeof p.revisada !== 'boolean') return responder(res, 400, { erro: 'revisada deve ser booleano' });
+      if (p.revisada) s.revisadaEm = Math.max(Date.now(), s.desde);
+      else delete s.revisadaEm;
+      salvar();
+      difundirSessao(s);
+      return responder(res, 200, { ok: true, sessao: publico(s) });
+    }
     // Rodada 5: mensagem, compactar, limpar, assumir, devolver, permissão (controle.mjs).
     if (await controle.rota(req, res, rota, url)) return;
+    if (codex && config.codex?.ativo && (await codex.rota(req, res, rota, url))) return; // /codex/* (codex.mjs, só com a chave ligada)
 
     if (rota === '/uso/atualizar') {
       if (lendoUso) return responder(res, 409, { erro: 'Já estou lendo o uso do plano.', motivo: 'lendo' });
@@ -2710,6 +2942,7 @@ async function atenderPedido(req, res, rem = null) {
       salvar('config');
       difundir('config', config);
       if (p.remoto) await aplicarRemoto(); // celular: liga/desliga a porta remota também por aqui
+      if (p.codex) await aplicarCodex(); // Codex: carrega o módulo ao ligar, para ao desligar
       return responder(res, 200, config);
     }
     if (rota === '/desligar') {
@@ -2725,6 +2958,149 @@ async function atenderPedido(req, res, rem = null) {
   }
 }
 const servidor = http.createServer((req, res) => atenderPedido(req, res));
+
+// ───────────────────────── Codex (codex.mjs) ─────────────────────────
+// Sem import estático: o módulo só carrega (await import) na 1ª vez que config.codex.ativo está ligado. Desligou: parar().
+let codex = null;
+
+// Etapa 1 do Codex: o monitor de rollouts (codex.mjs) entrega os campos da sessão; aqui entram em `sessoes` pelo
+// mesmo caminho do Claude (trocarStatus, contadores, alertas, histórico, SSE, salvar). `c`: { status, motivo, cwd,
+// titulo, primeira, pedido, ultimaResposta, contexto, modelo, esforco, contadores{turnos,ferramentas}, inicio,
+// atividade, ferramenta }. Sem a chave ligada não faz nada.
+const STATUS_CODEX = ['nova', 'trabalhando', 'aguardando', 'concluida', 'interrompida', 'erro'];
+function sessaoCodex(id, c) {
+  id = encurtar(id, 100);
+  if (!id || !c || typeof c !== 'object' || !config.codex?.ativo) return null;
+  const agora = Date.now();
+  const ativ = Math.min(Number(c.atividade) || agora, agora);
+  let s = sessoes.get(id);
+  if (s && s.provedor !== 'codex') return null; // id que já é de outro provedor
+  const nova = !s;
+  if (nova) {
+    if ((removidas.get(id) || 0) >= ativ) return null; // o usuário tirou da lista e nada mudou desde então
+    const ini = Math.min(Number(c.inicio) || ativ, agora);
+    s = novaSessao(id, ini);
+    s.provedor = 'codex';
+    s._hook = false;
+    s._tsStatus = 0;
+    sessoes.set(id, s);
+    registrar(s, 'inicio', c.origem === 'orbit' ? 'Criada no Orbit' : 'Sessão do Codex detectada', ini);
+  }
+  removidas.delete(id);
+  if (c.origem === 'orbit') s.origem = 'orbit';
+  if (typeof c.apelido === 'string' && c.apelido) s.apelido = encurtar(c.apelido, 60);
+  // Etapa 5: membro de time (pai = sessão do Claude que lidera; Codex nunca é líder) e subagentes do próprio Codex.
+  if (typeof c.pai === 'string' && c.pai && c.pai !== id && sessoes.get(c.pai) && sessoes.get(c.pai).provedor !== 'codex') s.pai = encurtar(c.pai, 100);
+  if (Array.isArray(c.agentes)) { s.agentes = normalizarAgentes({ agentes: c.agentes }); contarSubagentes(s); }
+  virarDia(agora);
+  if (typeof c.cwd === 'string' && c.cwd) {
+    s.cwd = c.cwd.slice(0, 500);
+    s.projeto = path.basename(s.cwd.replace(/[\\/]+$/, ''));
+  }
+  const primeira = encurtar(semAutomatico(c.primeira), 140);
+  if (primeira && !s.primeira) s.primeira = primeira;
+  const pedido = semAutomatico(c.pedido);
+  if (pedido) { s.pedido = encurtarBloco(pedido, MAX_PEDIDO); s.tarefa = encurtar(pedido, 140); }
+  if (typeof c.titulo === 'string' && c.titulo) s.titulo = encurtar(c.titulo, 80);
+  if (typeof c.ultimaResposta === 'string' && c.ultimaResposta) s.ultimaResposta = encurtarBloco(c.ultimaResposta, MAX_RESPOSTA);
+  if (c.contexto && typeof c.contexto === 'object') {
+    s.contexto = { tokens: Number(c.contexto.tokens) || 0, modelo: String(c.contexto.modelo || c.modelo || s.modelo || ''), janela: Number(c.contexto.janela) || null, pct: Number.isFinite(Number(c.contexto.pct)) ? Number(c.contexto.pct) : null };
+  }
+  if (typeof c.modelo === 'string' && c.modelo) s.modelo = c.modelo.slice(0, 100);
+  if (typeof c.esforco === 'string' && c.esforco) s.esforco = c.esforco.slice(0, 20);
+  s.atividade = Math.max(s.atividade || 0, ativ);
+
+  // Contadores: o rollout traz o total; o dia só soma o que é novo (e só o que é de agora).
+  const recente = agora - ativ < 120e3;
+  const dTurnos = Math.max(0, (Number(c.contadores?.turnos) || 0) - s.contadores.turnos);
+  const dFerr = Math.max(0, (Number(c.contadores?.ferramentas) || 0) - s.contadores.ferramentas);
+  s.contadores.turnos += dTurnos;
+  s.contadores.ferramentas += dFerr;
+  if (!nova || recente) { resumo.turnos += dTurnos; if (nativa(s.id)) resumo._nat.turnos += dTurnos; }
+  if (dTurnos > 0) {
+    s.turno = { inicio: ativ, ferramentas: 0 };
+    if (pedido) registrar(s, 'prompt', encurtar(pedido, 140), ativ);
+  }
+  if (dFerr > 0 && s.turno) s.turno.ferramentas += dFerr;
+
+  // Troca de status (mesma contabilidade e mesmos alertas do Claude).
+  const novo = STATUS_CODEX.includes(c.status) ? c.status : s.status;
+  const motivo = encurtar(c.motivo || '', 140);
+  let alerta = null;
+  if (novo !== s.status) {
+    const inatividade = novo === 'interrompida' && s.status === 'trabalhando' && /^sem atividade/i.test(String(c.motivo || ''));
+    const t = inatividade ? agora : Math.max(s.desde, ativ);
+    trocarStatus(s, novo, novo === 'erro' || novo === 'interrompida' || novo === 'aguardando' ? motivo : '', t, inatividade ? ativ : t);
+    const tipo = { concluida: 'concluida', erro: 'erro', interrompida: 'interrompida', aguardando: 'aguardando' }[novo];
+    if (tipo && (recente || (!nova && inatividade))) alerta = tipo;
+    if (novo === 'concluida') registrar(s, 'concluida', encurtar(s.ultimaResposta, 140) || 'Concluiu', t);
+    else if (novo === 'erro') registrar(s, 'erro', motivo || 'Parou com erro', t);
+    else if (novo === 'interrompida') registrar(s, 'interrompida', motivo || 'Interrompida', t);
+    else if (novo === 'aguardando') registrar(s, 'permissao', motivo || 'Aguardando', t);
+    if (alerta === 'concluida') resumo.porHora.concluidas[horaDe(t)]++;
+  }
+  s.ferramenta = s.status === 'trabalhando' && c.ferramenta && typeof c.ferramenta === 'object'
+    ? { nome: encurtar(c.ferramenta.nome, 60), alvo: encurtar(c.ferramenta.alvo, 200), desde: Number(c.ferramenta.desde) || ativ }
+    : null;
+  if (hoje(ativ) === hoje(agora)) contarSessaoHoje(id);
+  salvar();
+  difundirSessao(s);
+  if (alerta) alertar(alerta, s, Math.max(ativ, s.desde));
+  difundirResumoSeMudou();
+  return s;
+}
+
+// Ao desligar a chave: tira do Orbit tudo o que é do Codex (sessões com SSE `remover`, eventos, histórico e a contagem
+// do dia), para voltar a ficar idêntico. Não entra em `removidas` (religar traz de volta).
+function removerCodex() {
+  const ids = new Set();
+  for (const [id, s] of [...sessoes]) {
+    if (s.provedor !== 'codex') continue;
+    sessoes.delete(id);
+    eventos.delete(id);
+    ids.add(id);
+    difundir('remover', { id });
+  }
+  if (!ids.size) return 0;
+  const antes = historico.length;
+  historico = historico.filter((a) => !ids.has(a?.sessao?.id));
+  if (historico.length !== antes) salvar('historico');
+  if (Array.isArray(resumo._ids)) {
+    resumo._ids = resumo._ids.filter((i) => !ids.has(i));
+    resumo.sessoes = resumo._ids.length;
+  }
+  salvar();
+  difundirResumoSeMudou();
+  return ids.size;
+}
+
+async function aplicarCodex() {
+  if (!config.codex?.ativo) {
+    if (codex) { try { codex.parar(); } catch (e) { log('codex: parar', e?.message || e); } codex = null; }
+    removerCodex();
+    return;
+  }
+  if (codex) return;
+  try {
+    const { criarCodex } = await import('./codex.mjs');
+    if (!config.codex?.ativo || codex) return; // mudou durante o import
+    codex = criarCodex({
+      config: () => config.codex,
+      responder: (res, c, corpo) => responder(res, c, corpo),
+      log: (...a) => log(...a),
+      sessaoCodex,
+      removerCodex,
+      sessao: (id) => sessoes.get(id),
+      difundir: (tipo, dados) => difundir(tipo, dados),
+      difundirSessao: (id) => { const s = sessoes.get(id); if (s) difundirSessao(s); },
+      removerSessao: (id) => remover(id),
+      lerJSONCorpo: (req, limite) => lerJSONCorpo(req, limite),
+      avisarLider: (id, texto) => controle.avisarLider(id, texto), // etapa 5: aviso ao líder (instância do Orbit) quando o membro Codex acaba um turno
+    });
+  } catch (e) {
+    log('codex: o módulo não carregou:', e?.message || e);
+  }
+}
 
 // ───────────────────────── acesso remoto (celular) ─────────────────────────
 // 2º servidor só em 127.0.0.1:<config.remoto.porta>, aberto só com config.remoto.ativo (o `tailscale serve` da
@@ -2840,6 +3216,8 @@ function desligar(motivo) {
   try { if (explorador) explorador.parar(); } catch {} // rodada 8: fecha os vigias de arquivos
   try { if (temas) temas.parar(); } catch {} // temas do VS Code: vigias do VS Code e worker do realce
   try { fecharRemoto(); remoto?.fechar(); } catch {} // celular: a porta remota fecha junto
+  try { codex?.parar(); } catch {} // Codex (se estava ligado)
+  try { escritorios?.parar(); } catch {} // escritórios: timers de fim de execução
   for (const res of clientes) try { res.end(); } catch {}
   // Terminal integrado: mata os shells com a árvore (taskkill /T) e fecha os WebSockets. Espera o taskkill (até 3 s),
   // senão ele morreria junto com este processo e deixaria o "npm run dev" órfão.
@@ -2890,4 +3268,5 @@ servidor.listen(PORTA, '127.0.0.1', () => {
   reinicio?.aoSubir().catch((e) => log('reinício', e?.message || e)); // fecha o reinício que trouxe este servidor
   // Celular: com remoto.ativo, a porta remota volta a abrir e o Tailscale é conferido (preenche host/dono vazios).
   aplicarRemoto().then(() => (config.remoto.ativo ? remoto?.detectar() : null)).catch((e) => log('remoto', e?.message || e));
+  aplicarCodex().catch((e) => log('codex', e?.message || e)); // chave ligada no config.json: carrega o módulo
 });

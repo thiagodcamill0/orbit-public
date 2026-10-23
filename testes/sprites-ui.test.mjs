@@ -87,7 +87,7 @@ try {
 
   // 1) Busca pelos hooks: Grep em curso → search; terminou → a busca fica ~2,5 s e volta à MESMA variante.
   const variante = await spr('spr-real');
-  conferir(/^sprites\/sprite-(work|think)$/.test(variante || ''), 'trabalhando: work ou think', variante);
+  conferir(/^sprites\/sprite-(work|think|wizark|cook)$/.test(variante || ''), 'trabalhando: uma das 4 variantes', variante);
   await pre('spr-real', 'Grep', 'g1', { input: { pattern: 'login' } });
   await dormir(400);
   conferir(await spr('spr-real') === 'sprites/sprite-search', 'Grep em curso: sprite-search', await spr('spr-real'));
@@ -103,18 +103,17 @@ try {
   conferir(await spr('spr-real') === 'sprites/sprite-search', 'WebSearch: sprite-search', await spr('spr-real'));
   await posT('spr-real', 'WebSearch', 'w1');
 
-  // 2) Variantes entre sessões: com 10 sessões trabalhando, as duas aparecem.
+  // 2) Variantes entre sessões: com 10 sessões trabalhando, aparece mais de uma (work, think, wizark, cook).
   const vs = await av(`[...Array(10).keys()].map((i) => document.querySelector('#lista .linha:not(.filho)[data-id="spr-v' + i + '"] .av-robo img')?.dataset.gif)`);
-  conferir(vs.every((g) => /sprite-(work|think)$/.test(g || '')) && new Set(vs).size === 2, 'entre sessões, work e think aparecem', vs);
+  conferir(vs.every((g) => /sprite-(work|think|wizark|cook)$/.test(g || '')) && new Set(vs).size >= 2, 'entre sessões, as variantes de trabalho se alternam', vs);
 
-  // 3) Contexto pela status line: >100 mil → wizark; a partir de 150 mil → cook; abaixo → trabalho.
+  // 3) Contexto não muda o sprite (22/10: wizark e cook são variantes de trabalho, sem degraus de tokens).
   const ctx = (tokens) => post('/uso', { session_id: 'spr-ctx', context_window: { context_window_size: 1000000, total_input_tokens: tokens } });
   await ctx(90000); await dormir(400);
-  conferir(/sprite-(work|think)$/.test(await spr('spr-ctx') || ''), '90 mil tokens: work ou think', await spr('spr-ctx'));
-  await ctx(120000); await dormir(400);
-  conferir(await spr('spr-ctx') === 'sprites/sprite-wizark', '120 mil tokens: wizark', await spr('spr-ctx'));
-  await ctx(150000); await dormir(400);
-  conferir(await spr('spr-ctx') === 'sprites/sprite-cook', '150 mil tokens: cook', await spr('spr-ctx'));
+  const varCtx = await spr('spr-ctx');
+  conferir(/sprite-(work|think|wizark|cook)$/.test(varCtx || ''), '90 mil tokens: variante de trabalho', varCtx);
+  await ctx(160000); await dormir(400);
+  conferir(await spr('spr-ctx') === varCtx, '160 mil tokens: mesma variante', await spr('spr-ctx'));
 
   // 4) Esperando: a principal delegou (Agent em curso) e o subagente trabalha → music; subagente no Grep → search.
   await pre('spr-mae', 'Agent', 'ag-tool', { input: { subagent_type: 'Explore', description: 'Explorar o código', prompt: 'Explore' } });
@@ -123,7 +122,7 @@ try {
   await dormir(500);
   conferir(await spr('spr-mae') === 'sprites/sprite-music', 'principal esperando o subagente: sprite-music', await spr('spr-mae'));
   const varAg = await sprAg('ag-x');
-  conferir(/sprite-(work|think)$/.test(varAg || ''), 'subagente trabalhando: work ou think', varAg);
+  conferir(/sprite-(work|think|wizark|cook)$/.test(varAg || ''), 'subagente trabalhando: variante de trabalho', varAg);
   await posT('spr-mae', 'Edit', 'ag-e1', 'ag-x');
   await pre('spr-mae', 'Grep', 'ag-g1', { agente: 'ag-x' });
   await dormir(400);
@@ -204,20 +203,19 @@ try {
   await av(`scrollTo(0, 0); true`);
   await foto('02-lista-real');
 
-  // Fase 2: mock congelado — interrompida e os degraus de contexto dos dados fixos.
+  // Fase 2: mock congelado — interrompida e os demais estados dos dados fixos.
   const PM = await escolherPorta(47826);
   mock = subir([path.join(PROJ, 'testes', 'mock-servidor.mjs')], { MOCK_PORTA: String(PM), ROTEIRO: '0' });
   for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${PM}/saude`)).ok) break; } catch {} await dormir(150); }
   await abrir(`http://127.0.0.1:${PM}/`);
   const mk = await av(`(async () => { const d = await (await fetch('/estado')).json(); return d.sessoes.map((s) => ({ id: s.id.slice(0, 8), st: s.status, f: s.ferramenta && s.ferramenta.nome, tk: s.contexto && s.contexto.tokens, ags: (s.agentes || []).filter((a) => a.status === 'trabalhando').length, gif: document.querySelector('#lista .linha[data-id="' + s.id + '"] .av-robo img:not(.av-sai)')?.dataset.gif || null })); })()`);
   const esperar = (s) => {
-    if (s.st === 'trabalhando') return s.ags && (s.f === 'Agent' || s.f === 'Task') ? /music/ : /^(Grep|Glob|WebSearch|WebFetch)$/.test(s.f || '') ? /search/ : s.tk >= 150000 ? /cook/ : s.tk > 100000 ? /wizark/ : /sprite-(work|think)$/;
+    if (s.st === 'trabalhando') return s.ags && (s.f === 'Agent' || s.f === 'Task') ? /music/ : /^(Grep|Glob|WebSearch|WebFetch)$/.test(s.f || '') ? /search/ : /sprite-(work|think|wizark|cook)$/;
     return { aguardando: /needu/, erro: /needu/, concluida: /sprite-done/, interrompida: /work-parado/, nova: /sleep/, encerrada: /sleep/ }[s.st];
   };
   const errados = mk.filter((s) => s.gif && !esperar(s).test(s.gif));
   conferir(mk.filter((s) => s.gif).length >= 12 && !errados.length, 'mock: cada sessão visível com o sprite do seu estado', errados.length ? errados : mk);
   conferir(mk.some((s) => s.st === 'interrompida' && /work-parado/.test(s.gif || '')), 'mock: interrompida com sprite-work parado', mk.filter((s) => s.st === 'interrompida'));
-  conferir(mk.some((s) => /wizark/.test(s.gif || '')) && mk.some((s) => /cook/.test(s.gif || '')), 'mock: wizark e cook nos degraus de contexto', mk.filter((s) => s.st === 'trabalhando'));
   await dormir(1500); // a tela de abertura sai depois da lista desenhada
   await foto('03-lista-mock');
 

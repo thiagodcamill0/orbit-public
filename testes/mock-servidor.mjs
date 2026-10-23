@@ -258,6 +258,21 @@ lista.push(sessao({
   resumoDia.porHora = porHora;
 }
 
+// Codex, etapa 1: sessões só monitoradas (provedor 'codex'), SÓ com MOCK_CODEX=1. Sem a variável o mock fica como era.
+const CODEX_IDS = new Set();
+if (process.env.MOCK_CODEX === '1') {
+  const codex = [
+    { id: 'c0de0001-0000-4000-8000-000000000001', status: 'trabalhando', desde: T - 3 * MIN, atividade: T - 2e3, titulo: 'Ajustar o parser de rollouts', projeto: 'orbit-codex', cwd: 'D:\\Vscode\\Projetos\\Orbit',
+      tarefa: 'Ajuste o parser de rollouts do Codex.', ferramenta: { nome: 'shell', alvo: 'npm test', desde: T - 2e3 }, modelo: 'gpt-5-codex', contexto: { tokens: 42000, modelo: 'gpt-5-codex', janela: 272000, pct: 0.15 } },
+    { id: 'c0de0002-0000-4000-8000-000000000002', status: 'concluida', desde: T - 9 * MIN, atividade: T - 9 * MIN, titulo: 'Revisar o README', projeto: 'orbit-codex', cwd: 'D:\\Vscode\\Projetos\\Orbit',
+      tarefa: 'Revise o README.', ultimaResposta: 'README revisado.', modelo: 'gpt-5-codex' },
+  ];
+  for (const c of codex) {
+    lista.push({ ...sessao({ ...c, registro: null, agentes: [], inicio: c.desde - 20 * MIN, contadores: { turnos: 2, ferramentas: 4, esperas: 0, msTrabalhando: 6 * MIN, msAguardando: 0 } }), provedor: 'codex', controle: { modo: 'nenhum', provedor: 'codex' }, pid: undefined, vivo: false });
+    CODEX_IDS.add(c.id);
+  }
+}
+
 const sessoes = new Map(lista.map((s) => [s.id, s]));
 const eventos = new Map();
 const historico = [];
@@ -655,6 +670,14 @@ function gerarConversa(s, voltas = 46) {
   return itens;
 }
 function conversaDe(id) {
+  if (!conversas.has(id) && CODEX_IDS.has(id)) { // Codex: conversa curta e reconhecível, mesmo formato de itens
+    const t0 = T - 15 * MIN;
+    conversas.set(id, [
+      item('usuario', t0, { texto: 'Pergunta do Codex ' + id.slice(7, 8) + ': o que falta no parser?' }),
+      item('ferramenta', t0 + 5e3, { nome: 'shell', resumo: 'npm test', resultado: { texto: 'ok 12 testes', erro: false } }),
+      item('assistente', t0 + 9e3, { texto: 'Resposta do Codex ' + id.slice(7, 8) + ': falta tratar o rollout vazio.' }),
+    ]);
+  }
   if (!conversas.has(id)) {
     const s = sessoes.get(id);
     conversas.set(id, s ? gerarConversa(s, s.status === 'nova' ? 0 : s === lista[0] ? 80 : 8) : []); // ~480 itens na sessão orbit (lista longa)
@@ -768,6 +791,64 @@ function criarInstancia(res, corpo) {
   });
 }
 
+// Codex, etapa 4 (popover): a lista de GET /codex/modelos é MODELOS_CODEX_UI (mais acima).
+// POST /_mock/codex-modelos {falha:true|false} liga/desliga o 503 "sem_modelos"; GET /_mock/codex-criadas lista o que o POST /codex/instancias recebeu.
+let codexModelosFalha = false;
+const codexCriadas = [];
+// POST /codex/instancias (só MOCK_CODEX=1 com a chave ligada): {pasta, nome?, texto?, modelo?, esforco?} -> 202 {acao, sessao}, igual à API real.
+function criarInstanciaCodex(res, corpo) {
+  const ruim = (erro) => responder(res, 400, { erro });
+  const mdl = typeof corpo.modelo === 'string' && corpo.modelo ? MODELOS_CODEX_UI.find((m) => m.valor === corpo.modelo) : null;
+  if (typeof corpo.modelo === 'string' && corpo.modelo && !mdl) return ruim('Modelo fora da lista do Codex.');
+  const esf = typeof corpo.esforco === 'string' ? corpo.esforco : '';
+  if (esf && !(mdl || MODELOS_CODEX_UI.find((m) => m.padrao)).esforcos.includes(esf)) return ruim('Esforço fora da lista do modelo.');
+  const pasta = typeof corpo.pasta === 'string' ? corpo.pasta.trim() : '';
+  if (!pasta) return ruim('Escolha a pasta da instância.');
+  if (!/^[a-zA-Z]:[\\/]/.test(pasta) && !pasta.startsWith('\\\\')) return ruim('Use o caminho completo da pasta, como D:\\Projetos\\app.');
+  if (/inexistente/i.test(pasta)) return ruim('A pasta "' + pasta + '" não existe.');
+  const nome = typeof corpo.nome === 'string' ? corpo.nome.trim() : '';
+  if (nome.length > 60) return ruim('O nome pode ter até 60 caracteres.');
+  const texto = typeof corpo.texto === 'string' ? corpo.texto : '';
+  if (texto.length > 20000) return ruim('A 1ª mensagem pode ter até 20000 caracteres.');
+  // Etapa 5: membro de time. `pai` precisa existir e ser do Claude; `avisarLider` (boolean) exige `pai`. Igual à API real.
+  const pai = typeof corpo.pai === 'string' ? corpo.pai.trim() : '';
+  if (corpo.pai != null && !pai) return ruim('pai inválido.');
+  if (pai && (!sessoes.has(pai) || sessoes.get(pai).provedor === 'codex')) return ruim('O líder precisa ser uma sessão do Claude que existe.');
+  if (corpo.avisarLider != null && typeof corpo.avisarLider !== 'boolean') return ruim('avisarLider precisa ser verdadeiro ou falso.');
+  if (corpo.avisarLider && !pai) return ruim('avisarLider precisa de pai.');
+  codexCriadas.unshift({ modelo: corpo.modelo ?? null, esforco: corpo.esforco ?? null, pasta, pai: pai || null, avisarLider: corpo.avisarLider ?? null, quando: Date.now() });
+  const agora = Date.now();
+  const projeto = pasta.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pasta;
+  const s = sessao({
+    id: crypto.randomUUID(), status: 'nova', desde: agora, atividade: agora, inicio: agora, turno: null,
+    projeto, cwd: pasta, apelido: nome, titulo: '', tarefa: '', primeira: '', origem: 'orbit', pid: 40000 + Math.floor(Math.random() * 9000),
+  });
+  s.nome = ''; s.pai = pai || null; s.agentes = [];
+  s.provedor = 'codex';
+  s.registro = null;
+  s.controle = { modo: 'orbit', provedor: 'codex', podeAssumir: false, pid: s.pid, desde: agora, ocupada: true, processo: 'iniciando', modelo: null, esforco: null, permissao: null, pendentes: 0 };
+  sessoes.set(s.id, s);
+  conversas.set(s.id, []);
+  iniciandoOrbit.add(s.id);
+  atualizarControle(s);
+  difundir('sessao', s);
+  const a = novaAcao(s.id, 'criar', 'orbit', 'Iniciando');
+  responder(res, 202, { acao: a, sessao: s });
+  depois(1000, () => {
+    iniciandoOrbit.delete(s.id);
+    atualizarControle(s);
+    difundir('sessao', s);
+    evoluir(a, { estado: 'sucesso' });
+    if (!texto.trim()) return;
+    const am = novaAcao(s.id, 'mensagem', 'orbit', 'Enviando');
+    depois(400, () => {
+      acrescentar(s.id, item('usuario', Date.now(), { texto }));
+      evoluir(am, { estado: 'sucesso' });
+      simularVolta(s, texto);
+    });
+  });
+}
+
 // POST /sessao/:id/modelo e /esforco: devolvem o efetivo (o servidor lê por get_settings).
 function trocarAjuste(res, s, rota, corpo) {
   const c = s.controle || {};
@@ -790,6 +871,32 @@ function trocarAjuste(res, s, rota, corpo) {
   }
   difundir('sessao', s);
   return responder(res, 200, { modelo: c.modelo || null, esforco: c.esforco || null, ...(c.processo === 'dormindo' ? { pendente: true } : {}) });
+}
+
+// Codex, etapa 4 (só MOCK_CODEX=1): lista de modelos, uso do plano e troca de modelo/esforço (Acao de sucesso, "vale no próximo turno").
+const chamadasCodex = [];
+const MODELOS_CODEX_UI = [
+  { valor: 'gpt-5.5', modelo: 'gpt-5.5', nome: 'GPT-5.5', descricao: 'Modelo padrão do Codex', esforcos: ['low', 'medium', 'high', 'xhigh'], esforcoPadrao: 'medium', padrao: true },
+  { valor: 'gpt-5.4', modelo: 'gpt-5.4', nome: 'GPT-5.4', descricao: 'Versão anterior', esforcos: ['low', 'medium', 'high'], esforcoPadrao: 'medium', padrao: false },
+];
+let usoCodex = { cincoHoras: { pct: 31, renova: Date.now() + 2.5 * 3600e3 }, semanal: { pct: 12, renova: Date.now() + 4 * 86400e3 }, plano: 'plus', atualizado: Date.now() - 5 * 60e3, fonte: 'app-server' };
+function trocarAjusteCodex(res, s, rota, corpo) {
+  const c = s.controle || {};
+  if (c.modo !== 'orbit') return responder(res, 409, { erro: 'Assuma no Orbit para trocar o ' + rota + ' desta sessão.', codigo: 'nao_assumida' });
+  const atual = MODELOS_CODEX_UI.find((m) => m.valor === c.modelo) || MODELOS_CODEX_UI[0];
+  if (rota === 'modelo') {
+    const m = MODELOS_CODEX_UI.find((x) => x.valor === corpo.modelo);
+    if (!m) return responder(res, 400, { erro: 'Modelo fora da lista: ' + String(corpo.modelo || '(vazio)') + '.' });
+    c.modelo = m.valor;
+    if (c.esforco && !m.esforcos.includes(c.esforco)) c.esforco = null;
+  } else {
+    if (!atual.esforcos.includes(corpo.esforco)) return responder(res, 400, { erro: atual.nome + ' não aceita o esforço "' + String(corpo.esforco || '(vazio)') + '".' });
+    c.esforco = corpo.esforco;
+  }
+  difundir('sessao', s);
+  const a = novaAcao(s.id, rota, 'orbit', 'Vale no próximo turno');
+  evoluir(a, { estado: 'sucesso', resultado: { modelo: c.modelo || null, esforco: c.esforco || null, nota: 'Vale a partir do próximo turno' } });
+  return responder(res, 202, { acao: a });
 }
 
 // ===================== Rodada 6, etapa 3: conversa completa =====================
@@ -1046,6 +1153,17 @@ function encerrarInstancia(res, s, corpo) {
 }
 function retomarInstancia(res, s) {
   const c = s.controle || {};
+  if (s.provedor === 'codex' && c.modo === 'nenhum') { // Codex só monitorado: retomar = assumir no Orbit (thread/resume)
+    const a = novaAcao(s.id, 'retomar', 'orbit', 'Retomando no Orbit…');
+    responder(res, 202, { acao: a });
+    depois(800, () => {
+      s.controle = { modo: 'orbit', provedor: 'codex', podeAssumir: false, processo: 'vivo', modelo: null, esforco: null, permissao: null, pendentes: 0 };
+      atualizarControle(s);
+      difundir('sessao', s);
+      evoluir(a, { estado: 'sucesso' });
+    });
+    return;
+  }
   if (c.modo !== 'orbit') return responder(res, 409, { erro: 'O Orbit não controla esta sessão.', codigo: 'nao_assumida' });
   if (c.processo !== 'dormindo') return responder(res, 409, { erro: acordando.has(s.id) ? 'A instância já está acordando.' : 'A instância já está viva.', codigo: 'viva' });
   const e = abrirVaga(s);
@@ -1106,6 +1224,34 @@ for (const [s, p] of [[sPerg, permGraficos()], [sPlano, permPlano(1)]]) {
   s.detalhe = detalhePerm(p);
   evento(s.id, s.desde, tipoEvento(p), s.detalhe);
   historico.unshift({ id: proximoAlerta++, tipo: 'aguardando', quando: s.desde, sessao: resumoSessao(s), notificar: true });
+}
+// Codex, etapa 3 (só com MOCK_CODEX=1 e MOCK_CODEX_PERM=1, para não mexer nas listas dos outros testes do Codex):
+// uma instância com pedido de comando (e outros na fila) e outra com pergunta.
+// POST /codex/sessao/:id/permissao cai no mesmo responderPermissao (reescrita de rota), marcado com `via: 'codex'`.
+if (process.env.MOCK_CODEX === '1' && process.env.MOCK_CODEX_PERM === '1') {
+  const cx = (base) => {
+    const s = sessaoOrbit({ origem: 'orbit', status: 'aguardando', modelo: 'gpt-5-codex', projeto: 'orbit-codex', cwd: 'D:\\Vscode\\Projetos\\Orbit', registro: null, ...base }, {});
+    s.provedor = 'codex';
+    s.registro = null;
+    s.controle = { modo: 'orbit', provedor: 'codex', podeAssumir: false, pid: s.pid, desde: s.inicio, ocupada: true, processo: 'vivo', modelo: null, esforco: null, permissao: null, pendentes: 0 };
+    return s;
+  };
+  const cmd = (comando, sugestao) => ({ id: novoIdPerm('cx'), tipo: 'ferramenta', ferramenta: 'CommandExecution', resumo: comando,
+    entrada: { command: comando, cwd: 'D:\\Vscode\\Projetos\\Orbit', motivo: 'Rodar a verificação do projeto' },
+    ...(sugestao ? { sugestoes: [{ indice: 0, rotulo: 'Permitir nesta sessão' }] } : {}) });
+  const sCmd = cx({ id: 'c0de0003-0000-4000-8000-000000000003', desde: T - 2 * MIN, atividade: T - 2 * MIN, inicio: T - 12 * MIN, titulo: 'Rodar a suíte do Codex', tarefa: 'Rode os testes do projeto.' });
+  const sPer = cx({ id: 'c0de0004-0000-4000-8000-000000000004', desde: T - 4 * MIN, atividade: T - 4 * MIN, inicio: T - 15 * MIN, titulo: 'Escolher a cor do tema', tarefa: 'Escolha a cor do tema.' });
+  const pPerg = { id: novoIdPerm('cx'), tipo: 'pergunta', ferramenta: 'request_user_input', resumo: 'Qual cor?',
+    perguntas: [{ pergunta: 'Qual cor?', cabecalho: 'Cor', multipla: false, opcoes: [{ rotulo: 'azul', descricao: 'Tom frio' }, { rotulo: 'verde', descricao: 'Tom natural' }] }] };
+  for (const [s, p, fila] of [[sCmd, cmd('npm test', true), [cmd('node --check servidor.mjs', false), cmd('git status', false)]], [sPer, pPerg, []]]) {
+    s.controle.permissao = p;
+    s.controle.pendentes = 1 + fila.length;
+    if (fila.length) filaPerm.set(s.id, fila);
+    s.detalhe = detalhePerm(p);
+    evento(s.id, s.desde, tipoEvento(p), s.detalhe);
+    historico.unshift({ id: proximoAlerta++, tipo: 'aguardando', quando: s.desde, sessao: resumoSessao(s), notificar: true });
+    conversas.set(s.id, [item('usuario', s.inicio + 20e3, { texto: s.tarefa })]);
+  }
 }
 historico.sort((a, b) => b.quando - a.quando);
 {
@@ -1179,7 +1325,7 @@ function responderPermissao(res, s, corpo) {
     const faltam = p.perguntas.filter((q) => typeof r[q.pergunta] !== 'string' || !r[q.pergunta].trim());
     if (faltam.length) return responder(res, 400, { erro: 'Falta responder: ' + faltam.map((q) => q.pergunta).join(' · ') });
   }
-  respostasPerm.unshift({ sessao: s.id, tipo: p.tipo || 'ferramenta', ...corpo, quando: Date.now() });
+  respostasPerm.unshift({ sessao: s.id, tipo: p.tipo || 'ferramenta', ...corpo, ...(res._viaCodex ? { via: 'codex' } : {}), quando: Date.now() });
   if (respostasPerm.length > 20) respostasPerm.length = 20;
   responder(res, 200, { ok: true });
 
@@ -1371,6 +1517,9 @@ function acaoControle(res, s, rota, corpo) {
   const c = s.controle;
   const recusar = (codigo, erro) => responder(res, 409, { erro, codigo });
   const aceitar = (a) => responder(res, 202, { acao: a });
+  if (res._viaCodex) chamadasCodex.unshift({ sessao: s.id, rota, corpo, quando: Date.now() }); // etapa 4: o teste lê em GET /_mock/codex-chamadas
+  if (chamadasCodex.length > 40) chamadasCodex.length = 40;
+  if ((rota === 'modelo' || rota === 'esforco') && res._viaCodex) return trocarAjusteCodex(res, s, rota, corpo);
   if (rota === 'modelo' || rota === 'esforco') return trocarAjuste(res, s, rota, corpo);
   if (rota === 'parar') return pararVolta(res, s);
   if (rota === 'autocompactar') { // 20/10: true/false vale só nesta instância; null segue a config
@@ -1534,8 +1683,35 @@ function rodarConversa() {
 const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   try {
+    if (process.env.MOCK_CODEX === '1') { // Codex, etapa 2 (só com MOCK_CODEX=1): mesmas rotas do Claude, sob /codex/sessao/:id/...
+      if (req.method === 'POST' && url.pathname === '/codex/instancias') {
+        if (!config.codex?.ativo) return responder(res, 404, { erro: 'não encontrado' });
+        if (req.headers['x-gerenciador'] !== '1') return responder(res, 403, { erro: 'cabeçalho ausente' });
+        return criarInstanciaCodex(res, await lerCorpo(req) || {});
+      }
+      if (config.codex?.ativo && url.pathname === '/codex/uso' && req.method === 'GET') return responder(res, 200, usoCodex); // etapa 4: uso do plano
+      if (config.codex?.ativo && url.pathname === '/codex/uso/atualizar' && req.method === 'POST') {
+        if (req.headers['x-gerenciador'] !== '1') return responder(res, 403, { erro: 'cabeçalho ausente' });
+        chamadasCodex.unshift({ rota: 'uso/atualizar', quando: Date.now() });
+        usoCodex = { ...usoCodex, cincoHoras: { ...usoCodex.cincoHoras, pct: Math.min(100, usoCodex.cincoHoras.pct + 10) }, atualizado: Date.now() };
+        difundir('usoCodex', usoCodex);
+        return responder(res, 200, usoCodex);
+      }
+      if (process.env.MOCK_CODEX === '1' && url.pathname === '/_mock/codex-uso' && req.method === 'POST') { // o teste dispara o SSE usoCodex com este corpo
+        const c = await lerCorpo(req) || {};
+        usoCodex = { ...usoCodex, ...c, atualizado: Date.now() };
+        difundir('usoCodex', usoCodex);
+        return responder(res, 200, usoCodex);
+      }
+      if (url.pathname === '/_mock/codex-modelos' && req.method === 'POST') { codexModelosFalha = (await lerCorpo(req) || {}).falha === true; return responder(res, 200, { falha: codexModelosFalha }); }
+      if (url.pathname === '/_mock/codex-criadas' && req.method === 'GET') return responder(res, 200, codexCriadas);
+      if (url.pathname === '/_mock/codex-chamadas' && req.method === 'GET') return responder(res, 200, chamadasCodex);
+      if (config.codex?.ativo && url.pathname === '/codex/modelos' && req.method === 'GET') return codexModelosFalha ? responder(res, 503, { erro: 'sem_modelos' }) : responder(res, 200, { modelos: MODELOS_CODEX_UI, atualizado: Date.now() });
+      const mx = /^\/codex\/sessao\/([^/]+)\/(.+)$/.exec(url.pathname);
+      if (mx && config.codex?.ativo && sessoes.get(decodeURIComponent(mx[1]))?.provedor === 'codex') { url.pathname = '/sessao/' + mx[1] + '/' + mx[2]; res._viaCodex = true; }
+    }
     if (rotaControle(req, res, url)) return;
-    if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
+    if (req.method === 'GET' && (url.pathname === '/'|| url.pathname === '/index.html')) {
       return responder(res, 200, fs.readFileSync(PAGINA, 'utf8'), 'text/html; charset=utf-8');
     }
     if (req.method === 'GET' && url.pathname.startsWith('/assets/')) {
@@ -1567,6 +1743,30 @@ const servidor = http.createServer(async (req, res) => {
       return responder(res, 200, { sessao: s, eventos: (eventos.get(id) || []).slice(-200) });
     }
     if (req.method === 'GET' && url.pathname === '/config') return responder(res, 200, config);
+    if (CODEX_IDS.size && req.method === 'GET') { // Codex, etapa 1 (só com MOCK_CODEX=1): conversa lida do rollout
+      const mc = /^\/codex\/sessao\/([^/]+)\/conversa$/.exec(url.pathname);
+      if (mc) {
+        const id = decodeURIComponent(mc[1]);
+        if (!CODEX_IDS.has(id)) return responder(res, 404, { erro: 'sessão não encontrada' });
+        const l = conversaDe(id);
+        return responder(res, 200, { itens: l, cursorAntigo: null, cursorNovo: String(l.length) });
+      }
+      const mf = /^\/codex\/sessao\/([^/]+)\/conversa\/fluxo$/.exec(url.pathname);
+      if (mf && CODEX_IDS.has(decodeURIComponent(mf[1]))) { // fluxo ao vivo ainda não existe no Codex (etapa 2): SSE aberto, sem eventos
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+        res.write('retry: 2000\n: ok\n\n');
+        const ping = setInterval(() => res.write(': ping\n\n'), 25e3);
+        req.on('close', () => clearInterval(ping));
+        return;
+      }
+    }
+    if (req.method === 'GET' && url.pathname === '/codex/estado' && config.codex?.ativo) { // Codex, Etapa 0: só com a chave ligada (senão cai no 404)
+      const AUTO = 'C:\\Users\\teste\\AppData\\Local\\OpenAI\\Codex\\bin\\abc123\\codex.exe';
+      const manual = String(config.codex.exe || '');
+      if (!manual) return responder(res, 200, { ativo: true, exe: { exe: AUTO, origem: 'auto' } });
+      if (/inexistente/i.test(manual)) return responder(res, 200, { ativo: true, exe: { exe: null, motivo: 'caminho manual não encontrado', auto: AUTO } });
+      return responder(res, 200, { ativo: true, exe: { exe: manual, origem: 'manual' } });
+    }
     if (req.method === 'GET' && url.pathname === '/historico') return responder(res, 200, historico.slice(0, 300));
     if (req.method === 'GET' && url.pathname === '/instancias') return responder(res, 200, resumoInstancias()); // etapa 4
     if (req.method === 'GET' && url.pathname === '/_mock/respostas') return responder(res, 200, respostasPerm); // etapa 3: corpos de POST /permissao
@@ -1626,6 +1826,10 @@ const servidor = http.createServer(async (req, res) => {
         else if (v && typeof v === 'object') config.projetos[nome] = { icone: '', cor: '', ...config.projetos[nome], ...v };
       }
       if (corpo) delete corpo.projetos;
+      if (corpo?.codex && typeof corpo.codex === 'object') { // Codex, Etapa 0: { ativo, exe } (fora do mesclar, que ignora chave nova)
+        config.codex = { ativo: corpo.codex.ativo === true, exe: typeof corpo.codex.exe === 'string' ? corpo.codex.exe : '' };
+        delete corpo.codex;
+      }
       mesclar(config, corpo);
       difundir('config', config);
       difundirInstancias(); // etapa 4: dormirApos

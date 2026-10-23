@@ -142,3 +142,8 @@ input.ni-campo:focus-visible, textarea.ni-campo:focus-visible { box-shadow: var(
 .ni-sk-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
 .ni-sk-org { flex: none; font-size: 11px; color: #5c5c5c; }
 .ni-sk-lista .ni-nota { margin: 6px 6px 2px; }
+/* Novo membro Codex (etapa 5): só existe no DOM enquanto o popover é de um membro */
+.ni-membro-de { margin: 2px 2px 0; }
+.ni-membro-de b { font-weight: 600; color: #b8b8b8; }
+.ni-membro-avisar { display: flex; align-items: center; gap: 8px; margin: 8px 2px 2px; font-size: 12px; color: #9a9a9a; cursor: pointer; }
+.ni-membro-avisar input { flex: none; margin: 0; accent-color: #d4d4d4; }

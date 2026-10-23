@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Painel do grafo — demo de teste</title>
+<link rel="stylesheet" href="../assets/comum/base.css">
+<link rel="stylesheet" href="../assets/grafo-painel.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fundo); }
+  #palco { position: fixed; inset: 0; }
+</style>
+</head>
+<body>
+<div id="palco"></div>
+<script src="../assets/grafo-painel.js"></script>
+<script>
+// demo.eventos = [[chave, opcoes, tempoMs]]; demo.restaurou / demo.timelapse = contagens.
+const PADRAO = { busca: '', tags: false, anexos: false, soExistentes: false, orfaos: true, grupos: [], setas: false, fadeTexto: 0, tamanhoNo: 1, espessuraLink: 1, centro: 0.518713, repulsao: 10, link: 1, distancia: 250, local: { profundidade: 1, entrada: true, saida: true, vizinhos: true } };
+window.demo = { eventos: [], restaurou: 0, timelapse: 0, painel: null, PADRAO };
+const q = new URLSearchParams(location.search);
+demo.painel = GrafoPainel.criar(document.getElementById('palco'), PADRAO, {
+  aoMudar: (o, chave) => demo.eventos.push([chave, o, performance.now()]),
+  aoRestaurar: () => { demo.restaurou++; },
+  aoTimelapse: () => { demo.timelapse++; },
+}, { local: q.has('local') });
+</script>
+</body>
+</html>

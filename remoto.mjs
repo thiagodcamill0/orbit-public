@@ -11,6 +11,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { criarPush } from './push.mjs';
 import { criarTailscale } from './tailscale.mjs';
@@ -36,6 +37,30 @@ const MS_DETECCAO = 15e3;
 export const CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 const CABECALHOS = { 'content-security-policy': CSP, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' };
 const MODOS_OK = ['default', 'acceptEdits', 'plan', 'auto']; // nunca bypassPermissions
+// Comandos com barra pelo celular (P0): só estes + as skills/comandos do projeto e do usuário (lidos de
+// <pasta>/.claude/skills|commands e ~/.claude/skills|commands). Os embutidos do Claude Code nunca passam, nem
+// que uma skill use o mesmo nome (a comparação é sem maiúsculas: o claude pode resolver /Config como /config).
+const COMANDOS_FIXOS = new Set(['compact', 'clear']);
+const EMBUTIDOS = new Set(['add-dir', 'agents', 'allowed-tools', 'approved-tools', 'bashes', 'bug', 'chrome', 'clear', 'compact', 'config', 'context', 'cost', 'desktop', 'doctor', 'exit', 'export', 'extra-usage', 'fast', 'feedback', 'help', 'hooks', 'ide', 'init', 'install-github-app', 'install-slack-app', 'login', 'logout', 'loop', 'mcp', 'memory', 'migrate-installer', 'model', 'output-style', 'permissions', 'plugin', 'plugins', 'pr-comments', 'privacy-settings', 'release-notes', 'remote-control', 'remote-env', 'rename', 'resume', 'review', 'rewind', 'sandbox', 'security-review', 'settings', 'status', 'statusline', 'tasks', 'terminal-setup', 'theme', 'todos', 'upgrade', 'usage', 'vim',
+  // Revisão 21/10: aliases (reset/new = /clear, quit = /exit, continue = /resume, checkpoint = /rewind...), comandos mais
+  // novos e as skills de fábrica que mexem em configuração.
+  'reset', 'new', 'quit', 'continue', 'checkpoint', 'marketplace', 'skills', 'plan', 'copy', 'keybindings', 'stats', 'debug',
+  'files', 'mobile', 'ios', 'android', 'teleport', 'stickers', 'passes', 'think-back', 'thinkback-play', 'insights', 'color',
+  'tag', 'fork', 'btw', 'heapdump', 'reload-plugins', 'web-setup', 'rate-limit-options', 'effort', 'diff', 'voice', 'session',
+  'pr_comments', 'ultrareview', 'ultraplan', 'setup-bedrock', 'setup-vertex', 'workflows', 'autofix-pr', 'update-config',
+  'fewer-permission-prompts', 'schedule', 'keybindings-help']);
+const NOME_COMANDO_OK = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+// Caracteres que não contam como "início" do texto: espaços e, por classe Unicode inteira (revisão 21/10), controles
+// C0/C1, formatação, separadores e ignoráveis (BOM, ZWSP, bidi, seletores de variação, tags U+E00xx, preenchedores
+// Hangul...): tira-os antes de olhar a barra.
+const INICIO_INVISIVEL = /^[\s\p{Cc}\p{Cf}\p{Z}\p{Default_Ignorable_Code_Point}]+/u;
+// null = não é comando com barra; senão o nome (sem a barra, até o 1º espaço/quebra), '' se não houver.
+export function comandoDoTexto(texto) {
+  if (typeof texto !== 'string') return null;
+  const t = texto.replace(INICIO_INVISIVEL, '');
+  if (t[0] !== '/') return null;
+  return /^\/([^\s]*)/.exec(t)[1];
+}
 // Serviços de Web Push aceitos na assinatura (o servidor só faz POST para eles: nada de URL arbitrária). Hosts
 // exatos (só o WNS tem subdomínios por região), porta padrão e sem usuário/senha na URL.
 const PUSH_HOSTS = new Set(['fcm.googleapis.com', 'web.push.apple.com', 'updates.push.services.mozilla.com']);
@@ -44,19 +69,83 @@ const pushHostOk = (h) => PUSH_HOSTS.has(h) || /^[a-z0-9-]+(\.[a-z0-9-]+)*\.noti
 // Rotas com cookie (fora /remoto/*). Sessão: só as ações permitidas.
 const GET_FIXAS = new Set(['/estado', '/uso', '/modelos', '/fluxo', '/instancias']);
 const SESSAO_GET = new Set(['', 'conversa', 'conversa/fluxo', 'acoes', 'comandos', 'imagem']);
-const SESSAO_POST = new Set(['mensagem', 'permissao', 'parar', 'modelo', 'esforco', 'modo']);
-// Arquivos da pasta mobile/ (o Orbit no celular), servidos pelas rotas fixas abaixo: nada mais dela sai.
-const MOBILE = {
+const SESSAO_POST = new Set(['mensagem', 'permissao', 'parar', 'modelo', 'esforco', 'modo', 'compactar', 'limpar', 'encerrar', 'retomar', 'autocompactar', 'revisada']);
+// POST /sessao/:id (ação vazia): só estes campos do usuário (o resto da sessão não se altera pelo celular).
+const CAMPOS_SESSAO = new Set(['apelido', 'fixada', 'silenciada']);
+const CAMPOS_MENSAGEM = new Set(['texto', 'imagens', 'prioridade']); // P2-9: o resto do corpo da mensagem não vem do celular
+const MAX_APELIDO = 60;
+// POST /instancias pelo celular (revisão 21/10, P0): só os campos do contrato. Os de escritório (configuracao → --settings
+// com hooks/permissões, ambiente, anexoSistema, pai, escritorio) e a lista de skills nunca vêm do celular.
+const CAMPOS_INSTANCIA = new Set(['pasta', 'cwd', 'modelo', 'esforco', 'permissao', 'nome', 'texto', 'imagens']);
+const MAX_FOCO = 2000;
+
+// Corpo das ações novas da sessão. Devolve o código de erro (400) ou '' se estiver certo; pode ajustar `b`.
+function validarAcaoSessao(acao, b) {
+  if (acao === '') {
+    for (const k of Object.keys(b)) if (!CAMPOS_SESSAO.has(k)) return 'campo_nao_permitido';
+    if ('apelido' in b && (typeof b.apelido !== 'string' || b.apelido.length > MAX_APELIDO)) return 'apelido_invalido';
+    for (const k of ['fixada', 'silenciada']) if (k in b && typeof b[k] !== 'boolean') return `${k}_invalido`;
+  } else if (acao === 'mensagem') {
+    for (const k of Object.keys(b)) if (!CAMPOS_MENSAGEM.has(k)) return 'campo_nao_permitido';
+    if (b.prioridade !== undefined && b.prioridade !== 'next' && b.prioridade !== 'now') return 'prioridade_invalida';
+  } else if (acao === 'compactar') {
+    if (b.foco !== undefined && b.foco !== null && (typeof b.foco !== 'string' || b.foco.length > MAX_FOCO)) return 'foco_invalido';
+  } else if (acao === 'limpar') {
+    if (b.confirmar !== true) return 'confirmar_obrigatorio';
+  } else if (acao === 'autocompactar') {
+    if (typeof b.ativo !== 'boolean') return 'ativo_invalido';
+  } else if (acao === 'revisada') {
+    if (typeof b.revisada !== 'boolean') return 'revisada_invalido';
+  }
+  return '';
+}
+// Arquivos da pasta mobile/ (o Orbit no celular), servidos pelas rotas fixas abaixo: nada mais dela sai. Rota →
+// [arquivo da pasta mobile/, tipo]. Arquivo que ainda não existe em disco → 404. O mock dos testes lê esta mesma lista.
+const TIPO_JS = 'text/javascript; charset=utf-8';
+const TIPO_CSS = 'text/css; charset=utf-8';
+const ARQUIVOS_APP = ['app.css', 'nucleo.js', 'rotas.js', 'folha.js', 'gestos.js', 'folha.css', 'parear.js', 'parear.css', 'inicio.js', 'inicio.css', 'sessoes.js', 'sessoes.css', 'conversa.js', 'conversa.css', 'composer.js', 'composer.css', 'aprovacoes.js', 'aprovacoes.css', 'cartoes.css', 'md.css', 'detalhe.js', 'detalhe.css', 'nova.js', 'nova.css', 'mais.js', 'mais.css', 'uso.js', 'uso.css', 'ideias.js', 'ideias.css', 'historico.js', 'historico.css', 'grafo.js', 'grafo.css'];
+export const ARQUIVOS_MOBILE = Object.freeze({
   '/m': ['index.html', 'text/html; charset=utf-8'],
-  '/m/mobile.css': ['mobile.css', 'text/css; charset=utf-8'],
-  '/m/mobile.js': ['mobile.js', 'text/javascript; charset=utf-8'],
-  '/m/widgets.js': ['widgets.js', 'text/javascript; charset=utf-8'],
-  '/m/widgets.css': ['widgets.css', 'text/css; charset=utf-8'],
+  ...Object.fromEntries(ARQUIVOS_APP.map((n) => [`/m/${n}`, [n, n.endsWith('.css') ? TIPO_CSS : TIPO_JS]])),
   '/manifest-m.webmanifest': ['manifest-m.webmanifest', 'application/manifest+json; charset=utf-8'],
-};
+});
 const RE_SESSAO = /^\/sessao\/([^/]+)(?:\/(conversa\/fluxo|[a-z]+))?$/;
-// De assets/: só a base visual comum (comum/base.css e base.js, a mesma do PC), os sprites dos agentes, as fontes e os ícones do PWA.
-const RE_ASSET = /^\/assets\/(?:comum\/base\.(?:css|js)|comum\/widgets\.js|sprites\/sprite-[\w-]+\.(?:gif|png)|pwa\/(?:[\w@-][\w.@-]*\/)*[\w@-][\w.@-]*|[\w@-][\w.@-]*\.woff2)$/;
+// De assets/: só a base visual comum (comum/base.css e base.js, a mesma do PC, e as peças comuns que o celular usa), os
+// sprites dos agentes, as fontes e os ícones do PWA.
+const RE_ASSET = /^\/assets\/(?:comum\/base\.(?:css|js)|comum\/widgets\.js|comum\/(?:componentes\.css|icones\.js|sprites\.js|md\.js|cartoes\.js)|sprites\/sprite-[\w-]+\.(?:gif|png)|pwa\/(?:[\w@-][\w.@-]*\/)*[\w@-][\w.@-]*|[\w@-][\w.@-]*\.woff2)$/;
+
+// ───────── rotas novas da onda 1 (celular premium) ─────────
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/; // a mesma do /config (servidor.mjs)
+const MAX_TEXTO_IDEIA = 20000; // = ideias.mjs
+const ID_IDEIA = /^[A-Za-z0-9_-]{1,64}$/;
+const MAX_NOTA = 400000; // = grafo.mjs (/grafo/nota)
+const IDEIAS_POST = new Set(['/ideias/nova', '/ideias/editar', '/ideias/feita', '/ideias/apagar']);
+const POST_FIXAS = new Set(['/uso/atualizar', ...IDEIAS_POST]); // + /remoto/nao-perturbe e /remoto/notificar (tratadas em atender)
+const GET_REMOTO = new Set(['/ideias', '/remoto/historico']);
+
+const soChaves = (b, ks) => Object.keys(b).every((k) => ks.includes(k));
+// Corpo das rotas novas (ideias, não perturbe, notificar). Devolve o código do erro (400) ou ''.
+function validarCorpoNovo(rota, b) {
+  if (IDEIAS_POST.has(rota)) {
+    const temTexto = rota === '/ideias/nova' || rota === '/ideias/editar';
+    const temId = rota !== '/ideias/nova';
+    if (!soChaves(b, [...(temTexto ? ['texto'] : []), ...(temId ? ['id'] : []), ...(rota === '/ideias/feita' ? ['feita'] : [])])) return 'campo_nao_permitido';
+    if (temTexto && (typeof b.texto !== 'string' || !b.texto.trim() || b.texto.length > MAX_TEXTO_IDEIA)) return 'texto_invalido';
+    if (temId && (typeof b.id !== 'string' || !ID_IDEIA.test(b.id))) return 'id_invalido';
+    if (rota === '/ideias/feita' && typeof b.feita !== 'boolean') return 'feita_invalido';
+  } else if (rota === '/remoto/nao-perturbe') {
+    if (!soChaves(b, ['ativo', 'agendado', 'inicio', 'fim'])) return 'campo_nao_permitido';
+    if (typeof b.ativo !== 'boolean') return 'ativo_invalido';
+    if (typeof b.agendado !== 'boolean') return 'agendado_invalido';
+    if (typeof b.inicio !== 'string' || !HORA.test(b.inicio)) return 'inicio_invalido';
+    if (typeof b.fim !== 'string' || !HORA.test(b.fim)) return 'fim_invalido';
+  } else if (rota === '/remoto/notificar') {
+    if (!soChaves(b, ['precisa', 'terminou'])) return 'campo_nao_permitido';
+    if (b.precisa === undefined && b.terminou === undefined) return 'nada_para_mudar';
+    for (const k of ['precisa', 'terminou']) if (k in b && typeof b[k] !== 'boolean') return `${k}_invalido`;
+  }
+  return '';
+}
 
 const sha256 = (t) => crypto.createHash('sha256').update(String(t)).digest();
 // Comparação em tempo constante de dois textos quaisquer (pelo hash, que tem tamanho fixo).
@@ -78,8 +167,13 @@ export function criarRemoto(deps) {
     difundirLocal, // (tipo, dados): SSE só para a página do PC
     nativa, // (id) => a sessão é uma instância criada pelo Orbit?
     projetos, // () => [{pasta, nome}] cadastrados
+    pastaDaSessao, // opcional: (id) => cwd da sessão (restringe as skills aceitas ao projeto dela); sem ele, valem as de todos os projetos cadastrados
     lerCorpo, // (req, limite) => Promise<string>
     lerJSONCorpo, // (req) => Promise<obj> (rotas da 47821)
+    naoPerturbe, // opcional: () => config.naoPerturbe ({ativo, agendado, inicio, fim})
+    mudarNaoPerturbe, // opcional: (patch) => void: mescla em config.naoPerturbe como o POST /config (grava e difunde)
+    brainDoProjeto, // opcional: (pasta cadastrada) => pasta do brain ('' = sem brain), já com a regra do cofre padrão
+    montarGrafo, // opcional: (raiz) => Promise<{pasta, nos, links, truncado}> (grafo.mjs)
     cofre, // cofre de texto para a chave privada VAPID
     executarTailscale, // opcional: executor injetado (testes); sem ele, a CLI de verdade
     permitirHttp = false, // SÓ testes: aceita endpoint de push http://127.0.0.1 (servidor falso); produção nunca liga
@@ -149,9 +243,11 @@ export function criarRemoto(deps) {
       try { r.socket?.destroy(); } catch {}
     }
   }
+  const ultimoUso = new Map(); // aparelho → ms do último /uso/atualizar
   function revogar(id, exceto = null) {
     const i = aparelhos.findIndex((a) => a.id === id);
     if (i < 0) return false;
+    ultimoUso.delete(id);
     const [a] = aparelhos.splice(i, 1);
     gravar();
     derrubar(id, exceto);
@@ -475,6 +571,147 @@ export function criarRemoto(deps) {
     return projetos().some((p) => typeof p.pasta === 'string' && norm(p.pasta) === alvo);
   }
 
+  // Nomes de skills/comandos que o usuário criou: <pasta>/.claude/skills/<nome>/SKILL.md (nome do cabeçalho, senão
+  // o da pasta) e <pasta>/.claude/commands/**/<nome>.md (subpasta → "sub:nome"). Ilegível → vazio (nega).
+  async function nomesDeUsuario(raiz) {
+    const nomes = new Set();
+    const base = path.join(raiz, '.claude');
+    try {
+      for (const d of await fsp.readdir(path.join(base, 'skills'), { withFileTypes: true })) {
+        if (nomes.size >= 3000) break; // P2-2: teto
+        if (d.name === 'synced' || d.name.startsWith('.')) continue;
+        let cab = '';
+        try {
+          const fh = await fsp.open(path.join(base, 'skills', d.name, 'SKILL.md'), fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0));
+          try {
+            if (!(await fh.stat()).isFile()) continue; // P2-3: pasta/FIFO no lugar do SKILL.md
+            cab = (await fh.read(Buffer.alloc(4096), 0, 4096, 0)).buffer.toString('utf8');
+          } finally { await fh.close(); }
+        } catch { continue; }
+        const nome = /^---\r?\n([\s\S]*?)\r?\n---/.exec(cab.replace(/^﻿/, ''))?.[1].match(/^name:[ \t]*["']?([^"'\r\n]+?)["']?[ \t]*$/m)?.[1];
+        nomes.add(nome && NOME_COMANDO_OK.test(nome) ? nome : d.name);
+      }
+    } catch {}
+    const andar = async (dir, prefixo, nivel) => {
+      for (const d of await fsp.readdir(dir, { withFileTypes: true })) {
+        if (d.name.startsWith('.')) continue;
+        if (d.isDirectory()) { if (nivel < 3 && nomes.size < 3000) await andar(path.join(dir, d.name), `${prefixo}${d.name}:`, nivel + 1); }
+        else if (/\.md$/i.test(d.name)) nomes.add(prefixo + d.name.slice(0, -3));
+      }
+    };
+    try { await andar(path.join(base, 'commands'), '', 0); } catch {}
+    return nomes;
+  }
+  // P2-2: as skills lidas do disco ficam 5 s em cache por raiz (o GET /comandos e a mensagem não varrem a cada pedido).
+  const cacheNomes = new Map(); // raiz → { t, p }
+  function nomesCache(raiz) {
+    const t = Date.now();
+    const c = cacheNomes.get(raiz);
+    if (c && t - c.t < 5000) return c.p;
+    const p = nomesDeUsuario(raiz).catch(() => new Set());
+    cacheNomes.set(raiz, { t, p });
+    if (cacheNomes.size > 100) cacheNomes.delete(cacheNomes.keys().next().value);
+    return p;
+  }
+
+  // P0: texto com barra no início só passa se o comando for /compact, /clear ou skill/comando do usuário (nunca
+  // um embutido). `pastas`: projetos que valem para esta mensagem (a da sessão, se o servidor souber; senão todos
+  // os cadastrados). Devolve true quando pode seguir.
+  async function comandoPermitido(texto, pastas) {
+    const nome = comandoDoTexto(texto);
+    if (nome === null) return true;
+    if (COMANDOS_FIXOS.has(nome)) return true;
+    if (!NOME_COMANDO_OK.test(nome) || EMBUTIDOS.has(nome.toLowerCase())) return false;
+    const casa = deTeste && process.env.GERENCIADOR_CASA ? process.env.GERENCIADOR_CASA : os.homedir();
+    for (const raiz of [...pastas, casa]) {
+      if (typeof raiz === 'string' && raiz && (await nomesCache(raiz)).has(nome)) return true;
+    }
+    return false;
+  }
+
+  // GET /sessao/:id/comandos: o controle lista também os embutidos do Claude Code; o celular só vê os que pode mandar
+  // (a mesma regra do comandoPermitido). A resposta do controle é segurada aqui e sai filtrada (22/10).
+  function filtrarComandos(res, pastas) {
+    const writeHead = res.writeHead.bind(res);
+    const end = res.end.bind(res);
+    let cab = null;
+    const partes = [];
+    const cbDe = (enc, cb) => (typeof enc === 'function' ? enc : cb);
+    res.writeHead = (...args) => { cab = args; return res; };
+    res.write = (d, enc, cb) => { // N1: nada sai cru por write; junta ao corpo que será filtrado
+      if (d != null) partes.push(Buffer.isBuffer(d) ? d : Buffer.from(String(d), typeof enc === 'string' ? enc : 'utf8'));
+      if (typeof cbDe(enc, cb) === 'function') cbDe(enc, cb)();
+      return true;
+    };
+    res.end = (dados) => {
+      if (dados != null && typeof dados !== 'function') partes.push(Buffer.isBuffer(dados) ? dados : Buffer.from(String(dados), 'utf8'));
+      (async () => {
+        let corpo = null;
+        try { corpo = JSON.parse(Buffer.concat(partes).toString('utf8')); } catch {}
+        if (!corpo || typeof corpo !== 'object') return JSON.stringify({ comandos: null }); // fecha: nada cru sai
+        if (Array.isArray(corpo.comandos)) {
+          const casa = deTeste && process.env.GERENCIADOR_CASA ? process.env.GERENCIADOR_CASA : os.homedir();
+          const nomes = new Set();
+          for (const raiz of [...pastas, casa]) if (typeof raiz === 'string' && raiz) for (const n of await nomesCache(raiz)) nomes.add(n);
+          corpo.comandos = corpo.comandos.filter((c) => {
+            const n = typeof c?.nome === 'string' ? c.nome : '';
+            return COMANDOS_FIXOS.has(n) || (NOME_COMANDO_OK.test(n) && !EMBUTIDOS.has(n.toLowerCase()) && nomes.has(n));
+          });
+        }
+        return JSON.stringify(corpo);
+      })().catch(() => JSON.stringify({ comandos: [] })).then((final) => {
+        res.removeHeader('content-length');
+        if (cab) {
+          const extra = cab.find((x) => x && typeof x === 'object' && !Array.isArray(x));
+          if (extra) for (const k of Object.keys(extra)) if (k.toLowerCase() === 'content-length') delete extra[k];
+          if (cab.some((x) => Array.isArray(x))) cab = [cab[0], { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }];
+          writeHead(...cab);
+        }
+        end(final);
+      }).catch(() => { try { res.destroy(); } catch {} });
+      return res;
+    };
+  }
+
+  // Grafo só de leitura: o brain de um projeto cadastrado (nunca caminho livre). O id da nota é relativo ao brain;
+  // o caminho real (links simbólicos resolvidos) tem de ficar DENTRO do brain, ser .md e ter até MAX_NOTA bytes.
+  async function rotaGrafo(req, res, rota) {
+    let q;
+    try { q = new URL(req.url, 'http://127.0.0.1').searchParams; } catch { return responder(res, 400, { erro: 'url inválida' }); }
+    const projeto = q.get('projeto');
+    if (!pastaCadastrada(projeto)) return responder(res, 403, { erro: 'pasta_nao_permitida' });
+    if (!brainDoProjeto || !montarGrafo) return responder(res, 404, { erro: 'grafo_indisponivel' });
+    const bruto = await brainDoProjeto(projeto.trim());
+    if (typeof bruto !== 'string' || !bruto) return responder(res, 404, { erro: 'sem_brain' });
+    let raiz;
+    try {
+      raiz = await fsp.realpath(bruto);
+      if (!(await fsp.stat(raiz)).isDirectory()) throw new Error('não é pasta');
+    } catch { return responder(res, 404, { erro: 'brain_nao_encontrado' }); }
+    if (rota === '/remoto/grafo') {
+      const g = await montarGrafo(raiz);
+      return responder(res, 200, { ...g, pasta: path.basename(raiz) }); // sem o caminho absoluto do PC
+    }
+    const id = q.get('id');
+    if (typeof id !== 'string' || !id || id.length > 500 || /[\x00-\x1f]/.test(id) || path.isAbsolute(id) || /^[A-Za-z]:/.test(id)
+      || id.split(/[\\/]+/).some((p) => p === '..' || p.startsWith('.')) || !/\.md$/i.test(id)) return responder(res, 403, { erro: 'fora_do_brain' });
+    let real;
+    try { real = await fsp.realpath(path.resolve(raiz, id)); } catch { return responder(res, 404, { erro: 'nota_nao_encontrada' }); }
+    const rel = path.relative(raiz, real);
+    if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel) || !/\.md$/i.test(real)) return responder(res, 403, { erro: 'fora_do_brain' });
+    let fh; // P2-5: um só handle (stat e leitura do mesmo arquivo; O_NONBLOCK não trava em FIFO)
+    try {
+      fh = await fsp.open(real, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0));
+      const st = await fh.stat();
+      if (!st.isFile()) return responder(res, 404, { erro: 'nota_nao_encontrada' });
+      if (st.size > MAX_NOTA) return responder(res, 413, { erro: 'nota_grande_demais' });
+      const buf = Buffer.alloc(st.size);
+      const { bytesRead } = await fh.read(buf, 0, st.size, 0);
+      return responder(res, 200, { id: rel.split(path.sep).join('/'), texto: buf.subarray(0, bytesRead).toString('utf8') });
+    } catch { return responder(res, 404, { erro: 'nota_nao_encontrada' }); }
+    finally { await fh?.close().catch(() => {}); }
+  }
+
   // Tudo da porta remota passa aqui. Devolve null quando já respondeu; { aparelho } quando o pedido segue para o
   // roteamento comum (aparelho null = rota pública de arquivo: /sw.js e /assets/ da lista).
   async function atender(req, res, rota) {
@@ -523,7 +760,7 @@ export function criarRemoto(deps) {
         res.end();
         return null;
       }
-      if (Object.hasOwn(MOBILE, rota)) return await servirArquivo(res, path.join(pasta, 'mobile', MOBILE[rota][0]), MOBILE[rota][1]), null;
+      if (Object.hasOwn(ARQUIVOS_MOBILE, rota)) return await servirArquivo(res, path.join(pasta, 'mobile', ARQUIVOS_MOBILE[rota][0]), ARQUIVOS_MOBILE[rota][1]), null;
       // A tela offline do PC traz a pasta do Orbit; no celular sai sem ela.
       if (rota === '/offline.html') return await servirArquivo(res, path.join(pasta, 'pwa', 'offline.html'), 'text/html; charset=utf-8', (t) => t.replaceAll('__PASTA__', '').replaceAll('__PORTA__', ''), true), null;
       if (rota === '/sw.js' || RE_ASSET.test(rota)) return { aparelho: null };
@@ -544,7 +781,7 @@ export function criarRemoto(deps) {
     if (m === 'GET' && rota === '/remoto/eu') {
       let vapidPublica = null;
       if (push) try { vapidPublica = await push.chavePublica(); } catch (e) { log('remoto: chave VAPID', e?.message || e); }
-      return responder(res, 200, { aparelho: { id: a.id, nome: a.nome }, opcoes: { criarInstancias: !!c.criarInstancias }, vapidPublica }), null;
+      return responder(res, 200, { aparelho: { id: a.id, nome: a.nome, criadoEm: a.criadoEm || 0 }, opcoes: { criarInstancias: !!c.criarInstancias }, vapidPublica }), null;
     }
     if (m === 'GET' && rota === '/remoto/projetos' && c.criarInstancias) {
       return responder(res, 200, projetos().map((p) => ({ pasta: p.pasta, nome: p.nome }))), null;
@@ -578,29 +815,83 @@ export function criarRemoto(deps) {
       return responder(res, 200, { ok: r.status >= 200 && r.status < 300, status: r.status }), null;
     }
 
+    // Notificações (celular premium): o Não perturbe e o que vira push. Resposta direta, sem passar pelo roteamento comum.
+    if (m === 'GET' && rota === '/remoto/notificacoes') {
+      const np = naoPerturbe ? naoPerturbe() : null;
+      if (!np) return responder(res, 404, { erro: 'indisponivel' }), null;
+      return responder(res, 200, { naoPerturbe: { ativo: !!np.ativo, agendado: !!np.agendado, inicio: np.inicio, fim: np.fim }, notificar: { precisa: !!c.notificar?.precisa, terminou: !!c.notificar?.terminou } }), null;
+    }
+    if (m === 'POST' && (rota === '/remoto/nao-perturbe' || rota === '/remoto/notificar')) {
+      const erro = validarCorpoNovo(rota, b);
+      if (erro) return responder(res, 400, { erro }), null;
+      if (rota === '/remoto/nao-perturbe') {
+        if (!mudarNaoPerturbe) return responder(res, 404, { erro: 'indisponivel' }), null;
+        mudarNaoPerturbe({ ativo: b.ativo, agendado: b.agendado, inicio: b.inicio, fim: b.fim });
+        log('remoto', `${a.nome} [${a.id}] nao-perturbe`);
+        const np = naoPerturbe();
+        return responder(res, 200, { ok: true, naoPerturbe: { ativo: !!np.ativo, agendado: !!np.agendado, inicio: np.inicio, fim: np.fim } }), null;
+      }
+      const patch = {};
+      for (const k of ['precisa', 'terminou']) if (k in b) patch[k] = b[k];
+      await mudarConfig({ notificar: patch });
+      log('remoto', `${a.nome} [${a.id}] notificar`);
+      avisar();
+      return responder(res, 200, { ok: true, notificar: { precisa: !!config().notificar?.precisa, terminou: !!config().notificar?.terminou } }), null;
+    }
+    // Grafo só de leitura (nunca caminho livre: o projeto tem de estar cadastrado e a nota, dentro do brain dele).
+    if (m === 'GET' && (rota === '/remoto/grafo' || rota === '/remoto/grafo/nota')) {
+      try { await rotaGrafo(req, res, rota); } catch (e) { log('remoto: grafo', e?.message || e); responder(res, 500, { erro: 'erro_no_grafo' }); }
+      return null;
+    }
+
     // Lista permitida. O padrão é negar.
     const ms = RE_SESSAO.exec(rota);
     let sid = null;
     let acao = '';
     let ok = false;
-    if (m === 'GET' && GET_FIXAS.has(rota)) ok = true;
-    else if (m === 'POST' && rota === '/instancias') ok = !!c.criarInstancias;
+    if (m === 'GET' && (GET_FIXAS.has(rota) || GET_REMOTO.has(rota))) ok = true;
+    else if (m === 'POST' && POST_FIXAS.has(rota)) {
+      ok = true;
+      const erro = validarCorpoNovo(rota, b);
+      if (erro) return responder(res, 400, { erro }), null;
+      if (rota === '/uso/atualizar') { // P2-11: 1 leitura do uso a cada 30 s por aparelho
+        const t = Date.now();
+        if (t - (ultimoUso.get(a.id) || 0) < 30000) return responder(res, 429, { erro: 'Espere alguns segundos para atualizar de novo.', codigo: 'muitos_pedidos' }), null;
+        ultimoUso.set(a.id, t);
+      }
+    } else if (m === 'POST' && rota === '/instancias') ok = !!c.criarInstancias;
     else if (ms) {
       acao = ms[2] || '';
-      ok = m === 'GET' ? SESSAO_GET.has(acao) : SESSAO_POST.has(acao);
+      ok = m === 'GET' ? SESSAO_GET.has(acao) : acao === '' || SESSAO_POST.has(acao);
     }
     if (!ok) return responder(res, 403, { erro: 'bloqueado_no_celular' }), null;
     if (ms) {
       try { sid = decodeURIComponent(ms[1]); } catch { return responder(res, 400, { erro: 'id inválido' }), null; }
       if (!nativa(sid)) return responder(res, 404, { erro: 'sessão não encontrada' }), null;
       if (acao === 'modo' && !MODOS_OK.includes(b.modo)) return responder(res, 403, { erro: 'modo_nao_permitido' }), null;
+      if (m === 'POST') {
+        const erro = validarAcaoSessao(acao, b);
+        if (erro) return responder(res, 400, { erro }), null;
+        if (acao === 'encerrar' && 'forcar' in b) { // o celular nunca força: sempre o encerrar normal
+          delete b.forcar;
+          req._corpoBruto = JSON.stringify(b);
+        }
+      }
+      if ((m === 'POST' && acao === 'mensagem') || (m === 'GET' && acao === 'comandos')) {
+        const da = pastaDaSessao ? pastaDaSessao(sid) : null;
+        const pastas = typeof da === 'string' && da ? [da] : []; // N2: sem a pasta da sessão, só os fixos e as skills de ~/.claude (fecha)
+        if (m === 'GET') filtrarComandos(res, pastas);
+        else if (!(await comandoPermitido(b?.texto, pastas))) return responder(res, 403, { erro: 'comando_nao_permitido' }), null;
+      }
     }
     if (m === 'POST' && rota === '/instancias') {
+      if (Object.keys(b).some((k) => !CAMPOS_INSTANCIA.has(k))) return responder(res, 400, { erro: 'campo_nao_permitido' }), null;
       if (!pastaCadastrada(b.pasta) || (b.cwd !== undefined && !pastaCadastrada(b.cwd))) return responder(res, 403, { erro: 'pasta_nao_permitida' }), null;
       if (b.permissao != null && b.permissao !== '' && !MODOS_OK.includes(b.permissao)) return responder(res, 403, { erro: 'modo_nao_permitido' }), null;
+      if (!(await comandoPermitido(b?.texto, [b.pasta]) /* o controle roda o claude em b.pasta */)) return responder(res, 403, { erro: 'comando_nao_permitido' }), null;
     }
     // Ações remotas no log: aparelho, ação e sessão (nunca o conteúdo).
-    if (m === 'POST') log('remoto', `${a.nome} [${a.id}] ${sid ? `${acao} sessão ${sid}` : `nova instância em ${b.pasta}`}`);
+    if (m === 'POST') log('remoto', `${a.nome} [${a.id}] ${sid ? `${acao} sessão ${sid}` : rota === '/instancias' ? `nova instância em ${b?.pasta}` : `${acao || 'ação'} ${rota}`}`);
     return { aparelho: a };
   }
 

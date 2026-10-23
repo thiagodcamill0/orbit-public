@@ -97,15 +97,17 @@ try {
   for (const w of [1920, 1440]) { // lado a lado (área principal > 1080 px); 1280 já empilha
     await largura(w);
     const p = await av(`(() => { const a = document.querySelector('.graf-ctx').getBoundingClientRect(), b = document.getElementById('sincronia-card').getBoundingClientRect(); return { vao: Math.round(b.top - a.bottom), l: [a.left, b.left], w: [a.width, b.width] }; })()`);
-    conferir(p.vao === 16 && p.l[0] === p.l[1] && p.w[0] === p.w[1], `${w}px: card logo abaixo do Uso de contexto (16 px, mesma coluna)`, p);
+    conferir(p.vao >= 16 && p.vao < 24 && p.l[0] === p.l[1] && p.w[0] === p.w[1], `${w}px: card logo abaixo do Uso de contexto (16 px, mesma coluna)`, p);
     const cv = await av(`(() => { const g = document.querySelector('.geral-grade'); if (!g.classList.contains('cena-vertical')) return null; const a = document.getElementById('sincronia-card').getBoundingClientRect(), b = document.getElementById('cena-v').getBoundingClientRect(); return Math.round(b.top - a.bottom); })()`);
     conferir(cv === null || cv === 16, `${w}px: cena em pé, se houver, começa 16 px abaixo do card`, cv);
     await foto(w + '-sem-projeto');
   }
   await largura(900);
+  // Grade da Visão geral (widgets.js): em 900 px são 4 colunas: Sessões e Contexto lado a lado (metade cada) e a
+  // Sincronização embaixo deles, na metade da grade.
   const meio = await av(`(() => { const a = document.querySelector('.graf-estado').getBoundingClientRect(), b = document.querySelector('.graf-ctx').getBoundingClientRect(), c = document.getElementById('sincronia-card').getBoundingClientRect();
-    return { mesmaAltura: Math.abs(a.height - b.height) < 1, larguraToda: Math.abs(c.left - a.left) < 1 && Math.abs(c.right - b.right) < 1, abaixo: c.top > a.bottom }; })()`);
-  conferir(meio.mesmaAltura && meio.larguraToda && meio.abaixo, '900px: Sessões e Contexto na mesma linha; Sincronização na largura toda, abaixo', meio);
+    return { mesmaLinha: Math.abs(a.top - b.top) < 1 && b.left > a.right, abaixo: c.top >= Math.min(a.bottom, b.bottom), metade: Math.abs(c.width - a.width) < 1 }; })()`);
+  conferir(meio.mesmaLinha && meio.abaixo && meio.metade, '900px: Sessões e Contexto na mesma linha; Sincronização embaixo, na metade da grade', meio);
   await foto('900-sem-projeto');
   await largura(480);
   const est = await av(`(() => { const b = document.getElementById('sincronia-card').getBoundingClientRect(); return { w: Math.round(b.width), rolagem: document.documentElement.scrollWidth > innerWidth }; })()`);

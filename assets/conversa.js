@@ -145,7 +145,10 @@
       }
       return d || {};
     }
-    const rotaSessao = (id, resto) => '/sessao/' + enc(id) + '/' + resto;
+    // Codex (etapa 1): a base das URLs vem da sessão; sem `provedor` nada muda.
+    const ehCodex = (id) => { try { const s = api.sessao(id); return !!s && s.provedor === 'codex'; } catch { return false; } };
+    const baseDe = (id) => (ehCodex(id) ? '/codex/sessao/' : '/sessao/');
+    const rotaSessao = (id, resto) => baseDe(id) + enc(id) + '/' + resto;
 
     // ───────────────────────────── regras dos modos ─────────────────────────────
     const ROTULO_ACAO = {
@@ -203,6 +206,7 @@
       if (modo === 'orbit' && c.ocupada) r.compactar = r.limpar = r.assumir = ocupada;
       if (iniciando) r.envio = (c.processo === 'iniciando' && !/inician/i.test(c.motivo || '') ? 'Iniciando no Orbit' : c.motivo) + '…';
       if (modo !== 'orbit') r.assumir = c.podeAssumir ? null : (c.motivo || 'Não dá para assumir esta sessão agora.');
+      if (modo === 'nenhum' && ehCodex(st.id)) { r.envio = r.compactar = r.limpar = 'Sessão do Codex só monitorada: use "Continuar no Orbit" para conversar daqui.'; r.assumir = null; }
       const andando = emAndamento();
       if (andando) {
         const m = 'Espere terminar: ' + rotuloAcao(andando)[0].replace(/^./, (c) => c.toLowerCase()) + '.';
@@ -214,7 +218,7 @@
       r.parar = andando && andando.tipo === 'parar' ? 'Já estou parando a volta.' : null;
       // Etapa 4: dormindo (o processo fechou; a sessão continua do Orbit). Enviar, compactar e limpar acordam.
       r.dormindo = modo === 'orbit' && c.processo === 'dormindo';
-      r.retomarVisivel = r.dormindo || (!!andando && andando.tipo === 'retomar');
+      r.retomarVisivel = r.dormindo || (!!andando && andando.tipo === 'retomar') || (modo === 'nenhum' && ehCodex(st.id)); // Codex só monitorado: "Continuar no Orbit" (POST /codex/sessao/:id/retomar)
       r.retomar = andando ? (andando.tipo === 'retomar' ? 'Já estou retomando a instância.' : 'Espere terminar: ' + rotuloAcao(andando)[0].replace(/^./, (x) => x.toLowerCase()) + '.') : null;
       r.encerrarVisivel = modo === 'orbit' && !r.dormindo && !iniciando && !(andando && andando.tipo === 'retomar');
       r.encerrar = andando && andando.tipo !== 'parar' ? 'Espere terminar: ' + rotuloAcao(andando)[0].replace(/^./, (x) => x.toLowerCase()) + '.' : null;
@@ -562,6 +566,16 @@
       if (ocupado) b.setAttribute('aria-busy', 'true'); else b.removeAttribute('aria-busy');
       if (motivo && !semDescricao) b.setAttribute('aria-describedby', idDe('cv-motivo')); else b.removeAttribute('aria-describedby');
     }
+    // Selo neutro "Codex" no cabeçalho (barra de ações) da conversa; só com `provedor === 'codex'`.
+    function seloCodexTopo() {
+      const barra = ui.topo && ui.topo.firstChild;
+      if (!barra) return;
+      const sel = barra.querySelector('.cdx-selo');
+      if (!ehCodex(st.id)) { if (sel) sel.remove(); return; }
+      if (sel) return;
+      if (!document.querySelector('link[href="assets/codex.css"]')) document.head.append(h('link', { rel: 'stylesheet', href: 'assets/codex.css' }));
+      barra.append(h('span', { class: 'cdx-selo', title: 'Sessão do Codex' }, 'Codex'));
+    }
     function atualizarControles() {
       if (!raiz) return;
       st.sigControle = JSON.stringify(st.controle || null);
@@ -570,23 +584,28 @@
       const t = andando && andando.tipo;
       definirBotao(ui.compactar, r.compactar, t === 'compactar' ? 'Compactando…' : 'Compactar', t === 'compactar');
       definirBotao(ui.limpar, r.limpar, t === 'limpar' ? 'Limpando…' : 'Limpar', t === 'limpar');
+      const cdx = ehCodex(st.id);
+      ui.limpar.hidden = cdx; // Codex: sem limpar
+      ui.compactar.hidden = cdx && r.modo !== 'orbit'; // Codex: compactar só na instância do Orbit (thread/compact/start)
       const orbit = r.modo === 'orbit';
       definirBotao(ui.assumir, r.assumir,
         t === 'assumir' ? 'Assumindo…' : t === 'devolver' ? 'Devolvendo…' : orbit ? 'Devolver' : 'Assumir no Orbit',
         t === 'assumir' || t === 'devolver');
       ui.assumir.classList.toggle('cv-primario', !orbit && !r.assumir);
       // Etapa 4: numa instância criada pelo Orbit, Devolver é igual a Encerrar; fica só o Encerrar.
-      ui.assumir.hidden = orbit && origemOrbit() && t !== 'devolver';
+      ui.assumir.hidden = (orbit && origemOrbit() && t !== 'devolver') || ehCodex(st.id); // Codex só monitorado: sem "assumir" (etapa 2)
+      seloCodexTopo();
       const retomando = t === 'retomar', encerrando = t === 'encerrar';
       ui.retomar.hidden = !r.retomarVisivel;
-      definirBotao(ui.retomar, r.retomar, retomando ? 'Retomando…' : 'Retomar', retomando);
-      ui.retomar.classList.toggle('cv-primario', r.dormindo && !r.retomar);
-      if (!r.retomar) ui.retomar.title = 'Abrir o processo de novo (--resume), sem mandar mensagem';
+      const continuar = cdx && r.modo === 'nenhum'; // Codex só monitorado: o Retomar vira "Continuar no Orbit"
+      definirBotao(ui.retomar, r.retomar, retomando ? (continuar ? 'Continuando…' : 'Retomando…') : continuar ? 'Continuar no Orbit' : 'Retomar', retomando);
+      ui.retomar.classList.toggle('cv-primario', (r.dormindo || continuar) && !r.retomar);
+      if (!r.retomar) ui.retomar.title = continuar ? 'Assumir esta sessão do Codex no Orbit (thread/resume) para conversar daqui' : 'Abrir o processo de novo (--resume), sem mandar mensagem';
       ui.encerrar.hidden = !r.encerrarVisivel && !encerrando;
       definirBotao(ui.encerrar, r.encerrar, encerrando ? 'Encerrando…' : 'Encerrar', encerrando);
       if (!r.encerrar) ui.encerrar.title = 'Fechar o processo; a sessão continua aqui e acorda quando você escrever';
       // Motivos visíveis (sem depender do hover): um por linha de raciocínio, sem repetir.
-      const motivos = [...new Set([r.compactar, r.assumir].filter(Boolean))];
+      const motivos = [...new Set((cdx ? [r.modo === 'nenhum' ? r.envio : r.compactar, r.assumir] : [r.compactar, r.assumir]).filter(Boolean))];
       if (r.dormindo) {
         const c = st.controle || {};
         motivos.length = 0;
@@ -597,7 +616,7 @@
       txt(ui.motivo, motivos.join(' · '));
       ui.motivo.hidden = !motivos.length;
       if (r.compactar && !ui.foco.hidden) fecharFoco();
-      ui.texto.placeholder = r.semControle ? 'Só leitura neste servidor' : r.envio ? (r.modo === 'nenhum' ? 'Assuma no Orbit para conversar' : 'Espere a ação terminar') : r.modo === 'canal' ? 'Mensagem pelo canal…' : r.dormindo ? 'Escreva para retomar, ou / para comandos' : r.modo === 'orbit' ? 'Mensagem para o agente, ou / para comandos' : 'Mensagem para o agente…';
+      ui.texto.placeholder = r.semControle ? 'Só leitura neste servidor' : r.envio ? (r.modo === 'nenhum' ? (cdx ? 'Continue no Orbit para conversar' : 'Assuma no Orbit para conversar') : 'Espere a ação terminar') : r.modo === 'canal' ? 'Mensagem pelo canal…' : r.dormindo ? (cdx ? 'Escreva para retomar' : 'Escreva para retomar, ou / para comandos') : r.modo === 'orbit' ? (cdx ? 'Mensagem para o Codex…' : 'Mensagem para o agente, ou / para comandos') : 'Mensagem para o agente…';
       // Etapa 3: Parar.
       const parando = t === 'parar';
       ui.parar.hidden = !r.pararVisivel && !parando;
@@ -627,6 +646,9 @@
     }
     function atualizarAnexos(r) {
       if (!ui.ax) return;
+      const cdx = ehCodex(st.id);
+      ui.ax.botao.hidden = cdx; // Codex: sem imagens por aqui
+      if (cdx) { ui.ax.habilitar(false, 'O Codex ainda não recebe imagens por aqui.'); return; }
       const m = r.semControle || r.modo === 'nenhum' ? r.envio : r.modo === 'canal' ? motivoImagens(r) : null;
       ui.ax.habilitar(!m, m);
     }
@@ -642,20 +664,32 @@
     // ───────────────────────────── modelo e esforço (rodada 6) ─────────────────────────────
     const baseModelo = (x) => String(x || '').toLowerCase().replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '');
     const sigAj = (c) => (c && c.modelo || '') + '|' + (c && c.esforco || '');
-    const ESFORCO = { low: 'Baixo', medium: 'Médio', high: 'Alto', xhigh: 'Muito alto', max: 'Máximo', auto: 'Automático' };
+    const ESFORCO = { none: 'Nenhum', minimal: 'Mínimo', low: 'Baixo', medium: 'Médio', high: 'Alto', xhigh: 'Muito alto', max: 'Máximo', auto: 'Automático' };
+    // Codex (etapa 4): a lista vem de GET /codex/modelos e é guardada à parte da do Claude.
+    const listaModelos = () => (ehCodex(st.id) ? st.modelosCdx : st.modelos) || [];
+    const erroModelos = () => (ehCodex(st.id) ? st.modelosErroCdx : st.modelosErro) || '';
     const rotuloEsforco = (n) => (n ? ESFORCO[n] || n : '');
     function nomeModelo(id) { try { return api.nomeModelo(id) || id; } catch { return id; } }
     function opcaoModelo(m) {
-      const l = st.modelos || [];
+      const l = listaModelos();
       if (!m) return null;
       return l.find((x) => x.valor === m) || l.find((x) => x.valor !== 'default' && baseModelo(x.modelo) === baseModelo(m)) || null;
     }
     function rotuloOpcao(m) {
       if (m.valor !== 'default') return m.nome || m.valor;
-      const alvo = (st.modelos || []).find((x) => x.valor !== 'default' && x.modelo === m.modelo);
+      const alvo = listaModelos().find((x) => x.valor !== 'default' && x.modelo === m.modelo);
       return 'Padrão · ' + ((alvo && alvo.nome) || m.descricao || 'recomendado');
     }
+    function carregarModelosCodex() {
+      if (st.modelosCdx || st.modelosCargaCdx || Date.now() < (st.modelosDepoisCdx || 0)) return;
+      st.modelosCargaCdx = true;
+      pedir('/codex/modelos')
+        .then((d) => { st.modelosCdx = (d && Array.isArray(d.modelos) ? d.modelos : []).filter((m) => m && typeof m.valor === 'string' && m.valor); st.modelosErroCdx = ''; })
+        .catch((e) => { st.modelosErroCdx = (e && e.message) || 'Lista de modelos do Codex indisponível.'; st.modelosDepoisCdx = Date.now() + 30e3; })
+        .finally(() => { st.modelosCargaCdx = false; st.ajSig = ''; renderAjustes(); });
+    }
     function carregarModelos() {
+      if (ehCodex(st.id)) { carregarModelosCodex(); return; }
       if (st.modelos || st.modelosCarga || Date.now() < st.modelosDepois || typeof api.modelos !== 'function') return;
       st.modelosCarga = true;
       Promise.resolve().then(() => api.modelos(false))
@@ -666,6 +700,15 @@
     // O que mostrar: o efetivo devolvido pelo servidor (enquanto o controle não mudar depois dele), senão o
     // escolhido no controle, senão o da última resposta do transcript.
     function valorAjustes() {
+      const v = valorAjustesBase();
+      if (!ehCodex(st.id)) return v;
+      // Codex sem modelo/esforço escolhidos: valem os padrões do Codex (da lista).
+      const o = { ...v };
+      if (!o.modelo) { const p = listaModelos().find((x) => x.padrao); if (p) o.modelo = p.valor; }
+      if (!o.esforco) { const m = opcaoModelo(o.modelo); if (m && m.esforcoPadrao) o.esforco = m.esforcoPadrao; }
+      return o;
+    }
+    function valorAjustesBase() {
       const c = st.controle || {};
       const ef = st.efetivo.get(st.id);
       if (ef && ef.sig === sigAj(c)) return ef;
@@ -676,26 +719,27 @@
     }
     function renderAjustes() {
       if (!ui.ajustes) return;
+      const cdx = ehCodex(st.id);
       const orbit = !!st.id && !!st.controle && modoAtual() === 'orbit';
-      ui.ajustes.hidden = !orbit;
-      renderModo(orbit);
+      ui.ajustes.hidden = !orbit || cdx; // Codex: o modo de permissão do Claude não existe
+      if (cdx) { st.modoSig = ''; if (st.pop === 'modo') fecharPop(); } else renderModo(orbit);
       if (orbit && st.controle.processo !== 'dormindo' && st.ajPendentes.has(st.id)) { st.ajPendentes.delete(st.id); if (ui.ajAviso._pendente) esconderAviso(); }
       else if (orbit && st.controle.processo === 'dormindo' && ui.ajAviso.hidden) mostrarNotaPendente();
-      const ativo = orbit && typeof api.modelos === 'function';
+      const ativo = orbit && (cdx || typeof api.modelos === 'function');
       ui.ajustesDir.hidden = !ativo;
       if (!orbit || (!ativo && st.pop === 'modelo')) fecharPop();
       if (!ativo) { st.ajSig = ''; if (!orbit) esconderAviso(); return; }
       carregarModelos();
       const v = valorAjustes();
-      const l = st.modelos || [];
-      const sig = JSON.stringify([st.id, l.length, st.modelosErro, v.modelo, v.esforco, st.ajPend]);
+      const l = listaModelos();
+      const sig = JSON.stringify([st.id, l.length, erroModelos(), v.modelo, v.esforco, st.ajPend]);
       if (sig === st.ajSig) return;
       st.ajSig = sig;
       const atual = opcaoModelo(v.modelo);
       const semLista = !l.length;
       // Botão: o nome do modelo e, ao lado, os degraus do esforço (cheios até o nível atual).
       const b = ui.selModelo;
-      txt(b._rot, atual ? nomeCurto(atual) : v.modelo ? nomeModelo(v.modelo) : semLista ? (st.modelosErro ? 'Modelo padrão' : 'Modelos…') : 'Modelo');
+      txt(b._rot, atual ? nomeCurto(atual) : v.modelo ? nomeModelo(v.modelo) : semLista ? (erroModelos() ? 'Modelo padrão' : 'Modelos…') : 'Modelo');
       b.dataset.valor = atual ? atual.valor : '';
       const niveis = niveisDe(atual);
       const i = niveis.indexOf(v.esforco);
@@ -703,8 +747,8 @@
       ui.nivel.hidden = !niveis.length;
       ui.nivel.replaceChildren(...niveis.map((_, k) => h('i', { class: k <= i ? 'cv-on' : null })));
       b.disabled = semLista;
-      b.title = semLista && st.modelosErro ? st.modelosErro
-        : 'Modelo' + (atual ? ': ' + rotuloOpcao(atual) : '') + (i >= 0 ? ' · esforço ' + rotuloEsforco(v.esforco).toLowerCase() : '') + ' · vale a partir da próxima resposta';
+      b.title = semLista && erroModelos() ? erroModelos()
+        : 'Modelo' + (atual ? ': ' + rotuloOpcao(atual) : '') + (i >= 0 ? ' · esforço ' + rotuloEsforco(v.esforco).toLowerCase() : '') + (ehCodex(st.id) ? ' · vale no próximo turno' : ' · vale a partir da próxima resposta');
       b.setAttribute('aria-label', 'Modelo e esforço desta sessão: ' + (atual ? rotuloOpcao(atual) : b._rot.textContent) + (i >= 0 ? ', esforço ' + rotuloEsforco(v.esforco).toLowerCase() : ''));
       if (st.ajPend) b.setAttribute('aria-busy', 'true'); else b.removeAttribute('aria-busy');
       renderPop();
@@ -712,7 +756,7 @@
     // "Default (recommended)" do binário aparece como "Padrão"; no botão, o nome do modelo que ele resolve.
     function nomeCurto(m) {
       if (m.valor !== 'default') return m.nome || m.valor;
-      const alvo = (st.modelos || []).find((x) => x.valor !== 'default' && x.modelo === m.modelo);
+      const alvo = listaModelos().find((x) => x.valor !== 'default' && x.modelo === m.modelo);
       return (alvo && alvo.nome) || m.descricao || 'Padrão';
     }
     const niveisDe = (m) => (m && Array.isArray(m.esforcos) ? m.esforcos.filter((x) => typeof x === 'string') : []);
@@ -785,7 +829,7 @@
       if (!st.pop || !ui.pop) return;
       const modo = st.pop === 'modo';
       const v = modo ? valorModo() : valorAjustes();
-      const sig = JSON.stringify([st.pop, st.id, v, st.modoPend, st.ajPend, st.maisVersoes, (st.modelos || []).length]);
+      const sig = JSON.stringify([st.pop, st.id, v, st.modoPend, st.ajPend, st.maisVersoes, listaModelos().length]);
       if (sig === st.popSig) return;
       st.popSig = sig;
       const focado = ui.pop.contains(document.activeElement) ? document.activeElement : null;
@@ -796,10 +840,11 @@
         if (!MODOS.some((m) => m[0] === v)) filhos.push(itemPop('modo', v, true, rotuloModo(v), 'Definido fora do Orbit', { icone: ICONE_MODO[v] || 'raio', desabilitado: true }));
         for (const [valor, rot, desc] of MODOS) filhos.push(itemPop('modo', valor, valor === v, rot, desc, { icone: ICONE_MODO[valor], desabilitado: st.modoPend }));
       } else {
-        const l = st.modelos || [];
+        const l = listaModelos();
         const atual = opcaoModelo(v.modelo);
-        const principais = l.filter((m) => !versaoFixa(m)), outras = l.filter(versaoFixa);
-        const abertas = st.maisVersoes || (!!atual && versaoFixa(atual));
+        const fixa = ehCodex(st.id) ? () => false : versaoFixa; // Codex: os ids (gpt-5.5…) já são os nomes; sem "Outras versões"
+        const principais = l.filter((m) => !fixa(m)), outras = l.filter(fixa);
+        const abertas = st.maisVersoes || (!!atual && fixa(atual));
         const item = (m) => itemPop('modelo', m.valor, !!atual && atual.valor === m.valor, m.valor === 'default' ? 'Padrão' : m.nome || m.valor, descModelo(m), { desabilitado: !!st.ajPend });
         filhos.push(h('div', { class: 'cv-pop-tit', 'aria-hidden': 'true' }, 'Modelo'));
         filhos.push(h('div', { role: 'group', 'aria-label': 'Modelos' }, ...principais.map(item)));
@@ -821,6 +866,7 @@
             : h('p', { class: 'cv-esf-nao' }, (atual.nome || atual.valor) + ' não tem nível de esforço.');
           filhos.push(h('div', { class: 'cv-pop-sep', role: 'separator' }), h('div', { class: 'cv-esf' }, cab, corpo));
         }
+        if (ehCodex(st.id)) filhos.push(h('p', { class: 'cv-esf-nao cv-pop-nota' }, 'Vale no próximo turno.'));
       }
       ui.pop.replaceChildren(...filhos);
       if (chave) {
@@ -910,7 +956,9 @@
       esconderAviso();
       renderAjustes();
       try {
-        const d = await pedir(rotaSessao(id, tipo), tipo === 'modelo' ? { modelo: valor } : { esforco: valor });
+        const d0 = await pedir(rotaSessao(id, tipo), tipo === 'modelo' ? { modelo: valor } : { esforco: valor });
+        const cdx = ehCodex(id);
+        const d = cdx && d0.acao && d0.acao.resultado ? d0.acao.resultado : d0; // Codex: 202 { acao: { resultado: { modelo, esforco, nota } } }
         let modelo = typeof d.modelo === 'string' ? d.modelo : '';
         const esforco = typeof d.esforco === 'string' ? d.esforco : '';
         // "default" e "fable" resolvem para o mesmo id: se o efetivo é o modelo pedido, fica o valor pedido.
@@ -924,8 +972,10 @@
         const nomeEf = tipo === 'modelo' ? (opcaoModelo(modelo) ? rotuloOpcao(opcaoModelo(modelo)) : nomeModelo(modelo) || 'o anterior') : rotuloEsforco(esforco) || 'o padrão';
         // Etapa 4: instância dormindo → o servidor grava e devolve `pendente: true` (vale ao retomar).
         if (d.pendente) notaPendente(id, (tipo === 'modelo' ? 'Modelo: ' : 'Esforço: ') + nomeEf);
-        else if (!ok) mostrarAviso('O Claude Code ficou com ' + nomeEf + (tipo === 'modelo' ? '.' : ' de esforço.'), true);
-        if (ok || d.pendente) anunciar((tipo === 'modelo' ? 'Modelo: ' : 'Esforço: ') + nomeEf + (d.pendente ? ', vale ao retomar.' : ', a partir da próxima resposta.'));
+        else if (!ok) mostrarAviso((cdx ? 'O Codex ficou com ' : 'O Claude Code ficou com ') + nomeEf + (tipo === 'modelo' ? '.' : ' de esforço.'), true);
+        else if (cdx) mostrarAviso((tipo === 'modelo' ? 'Modelo: ' : 'Esforço: ') + nomeEf + ' · vale no próximo turno.', true);
+        if (cdx && ok) anunciar((tipo === 'modelo' ? 'Modelo: ' : 'Esforço: ') + nomeEf + ', vale no próximo turno.');
+        else if (ok || d.pendente) anunciar((tipo === 'modelo' ? 'Modelo: ' : 'Esforço: ') + nomeEf + (d.pendente ? ', vale ao retomar.' : ', a partir da próxima resposta.'));
       } catch (e) {
         if (gen === st.gen) mostrarAviso((tipo === 'modelo' ? 'O modelo não mudou: ' : 'O esforço não mudou: ') + e.message);
       } finally {
@@ -1066,6 +1116,7 @@
     }
     function receberAcao(a) {
       if (!a || !a.id) return;
+      if (a.tipo === 'modelo' || a.tipo === 'esforco') return; // Codex: troca de modelo/esforço (a resposta do POST basta)
       const ac = guardarAcao(a);
       const minha = st.minhas.get(a.id);
       const final = ac.estado !== 'em_andamento';
@@ -1103,6 +1154,7 @@
       const [, ok, ruim] = rotuloAcao(a) || ['', 'Pronto', 'Falhou'];
       if (a.estado === 'erro') return ruim + ': ' + (a.erro || 'erro sem detalhe');
       if (a.tipo === 'compactar' && a.resultado && a.resultado.pre && a.resultado.pos) return ok + ' · ' + fmtK(a.resultado.pre) + ' → ' + fmtK(a.resultado.pos);
+      if (a.tipo === 'compactar' && a.resultado && a.resultado.foco === 'ignorado') return ok + ' · o Codex não aceita foco: foi ignorado';
       if (a.tipo === 'limpar') return ok + ' · a sessão segue com um id novo';
       if (a.tipo === 'assumir') return ok + ' · dá para conversar, compactar e limpar daqui';
       if (a.tipo === 'devolver') return ok + ' · para continuar no VS Code, use "Abrir no VS Code"';
@@ -1175,7 +1227,7 @@
         let r = null;
         try {
           r = await api.balao({ ...ancora(ui.compactar, sessao), titulo: 'Compactar o contexto?', texto: 'O agente resume a conversa para liberar espaço. O histórico continua salvo.',
-            sim: 'Compactar', campo: { dica: 'Foco da compactação (opcional)', max: 500 } });
+            sim: 'Compactar', ...(ehCodex(sessao) ? {} : { campo: { dica: 'Foco da compactação (opcional)', max: 500 } }) }); // o Codex não aceita foco
         } catch {} finally { ui.compactar.setAttribute('aria-expanded', 'false'); }
         if (r && r.ok && st.id === sessao) acionar('compactar', r.valor ? { foco: r.valor } : {});
         return;
@@ -1575,7 +1627,7 @@
       const f = (/^(.{12,}?[.!?])\s/.exec(t) || [, t])[1];
       return f.length > 96 ? f.slice(0, 95).trimEnd() + '…' : f;
     }
-    function comandosValem() { return !!st.id && !!st.controle && modoAtual() === 'orbit'; }
+    function comandosValem() { return !!st.id && !!st.controle && modoAtual() === 'orbit' && !ehCodex(st.id); } // comandos/skills com barra são do Claude
     function carregarComandos() {
       const id = st.id;
       const ent = st.cmds.get(id);

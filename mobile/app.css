@@ -1,0 +1,172 @@
+/* Orbit no celular: casca (onda 2). Visual = design system do PC: só tokens de assets/comum/base.css e as peças de
+   componentes.css; o celular ajusta tamanho (--alvo: 44px), nunca cor. Folha, deslizar e puxar moram em folha.css.
+   Sem nada inline (CSP: style-src 'self'); o JS só mexe em transform/opacity e em variáveis via CSSOM. */
+
+:root {
+  --alvo: 44px;
+  --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
+  --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px);
+  --barra-h: 56px; --cab-h: 44px;
+  --vidro: saturate(180%) blur(20px);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--fundo); color-scheme: dark; -webkit-text-size-adjust: 100%; }
+html, body { margin: 0; height: 100%; height: 100dvh; }
+body {
+  font-family: var(--sans); font-size: 16px; line-height: 1.4; color: var(--t1); background: var(--fundo);
+  overflow: hidden; overscroll-behavior: none; -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+h1, h2, h3, p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--anel); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ===== Janela ===== */
+#app { position: fixed; inset: 0; overflow: hidden; background: var(--fundo); }
+/* App da Tela de Início no iOS 26: a janela vem mais baixa que a tela (WebKit 301108); 100lvh alcança o fim da tela, e o
+   teto (100% + barra de status) evita passar dela (WebKit 316008). Mesma correção do app antigo. */
+@media (display-mode: standalone) {
+  html, body, #app { height: min(100lvh, calc(100% + var(--st))); }
+  html:not(.tec) #app { bottom: auto; }
+}
+/* Teclado aberto (iPhone): #app ocupa a janela visual (nucleo.js põe --vv-top/--vv-h) e a área segura de baixo some. */
+html.tec { --sb: 0px; }
+html.tec #app { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); }
+html.tec #barra { display: none; }
+
+.abertura { position: absolute; inset: 0; display: grid; place-items: center; color: var(--t2); font-size: 14px; }
+body:not([data-modo="carregando"]) .abertura { display: none; }
+
+/* ===== Pilha de telas ===== */
+.pilha { position: absolute; inset: 0; overflow: hidden; contain: strict; }
+.tela {
+  position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0;
+  background: var(--fundo); outline: none; overflow: hidden;
+}
+.tela.arrastando { will-change: transform, opacity; }
+.tela-corpo {
+  flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  padding: calc(var(--st) + var(--cab-h)) var(--sr) calc(var(--sb) + var(--barra-h) + var(--esp-4)) var(--sl);
+}
+body.sem-barra .tela-corpo, body:not([data-modo="app"]) .tela-corpo { padding-bottom: calc(var(--sb) + var(--esp-4)); }
+.tela-cont { padding: 0 var(--esp-4); min-width: 0; }
+
+/* Título grande das raízes: rola com o conteúdo e encolhe (--enc 0..1, posto pelo rotas.js ao rolar). */
+.tit-grande {
+  padding: var(--esp-1) var(--esp-4) var(--esp-3); font-size: 30px; line-height: 1.15; font-weight: 700;
+  letter-spacing: -.02em; color: var(--t1); overflow-wrap: anywhere;
+  transform-origin: 0 100%; transform: scale(calc(1 - var(--enc, 0) * .12)); opacity: calc(1 - var(--enc, 0) * .6);
+}
+
+/* Cabeçalho translúcido: voltar · título pequeno (aparece com .rolada) · ações. */
+.tela-cab {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+  display: grid; grid-template-columns: minmax(var(--alvo), 1fr) minmax(0, auto) minmax(var(--alvo), 1fr); align-items: center;
+  height: calc(var(--st) + var(--cab-h)); padding: var(--st) calc(var(--sr) + var(--esp-1)) 0 calc(var(--sl) + var(--esp-1));
+  background: color-mix(in srgb, var(--fundo) 72%, transparent);
+  -webkit-backdrop-filter: var(--vidro); backdrop-filter: var(--vidro);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-2) var(--ease), background-color var(--dur-2) var(--ease);
+}
+.tela.rolada .tela-cab { border-bottom-color: var(--fio); }
+.cab-esq { display: flex; align-items: center; min-width: 0; }
+.cab-dir { display: flex; align-items: center; justify-content: flex-end; gap: var(--esp-1); min-width: 0; }
+.cab-tit {
+  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
+  font-size: 15px; font-weight: 600; color: var(--t1);
+  opacity: 0; transition: opacity var(--dur-2) var(--ease);
+}
+.tela-cab.sempre .cab-tit, .tela.rolada .cab-tit { opacity: 1; }
+.cab-voltar { color: var(--t1); }
+
+/* Placeholder de tela ainda não feita. */
+.tela-vazia { display: grid; gap: var(--esp-3); padding-top: var(--esp-2); }
+.tela-vazia .esq { height: 64px; border-radius: var(--r-4); }
+.tela-vazia .esq-l2 { height: 48px; width: 82%; }
+.tela-vazia .esq-l3 { height: 48px; width: 64%; }
+.tela-vazia-txt { margin-top: var(--esp-2); text-align: center; color: var(--t3); font-size: 13px; }
+.tela-erro { padding: var(--esp-5) 0; text-align: center; color: var(--t2); font-size: 14px; }
+
+/* ===== Barra de baixo ===== */
+.barra {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  height: calc(var(--barra-h) + var(--sb)); padding: 0 var(--sr) var(--sb) var(--sl);
+  background: color-mix(in srgb, var(--casca) 78%, transparent);
+  -webkit-backdrop-filter: var(--vidro); backdrop-filter: var(--vidro);
+  border-top: 1px solid var(--fio);
+}
+body.sem-barra .barra, body:not([data-modo="app"]) .barra { display: none; }
+.barra-aba {
+  position: relative; min-width: 0; min-height: var(--alvo);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--t3); font-size: 10.5px; font-weight: 500; letter-spacing: .01em;
+  transition: color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease-press);
+}
+.barra-aba[aria-current="page"] { color: var(--t1); }
+.barra-aba:active { transform: scale(.94); transition-duration: .06s; }
+.barra-aba:focus-visible { outline-offset: -4px; border-radius: var(--r-3); }
+.barra-ico { display: grid; place-items: center; width: 24px; height: 24px; }
+.barra-ico svg { display: block; }
+.barra-rot { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-badge {
+  position: absolute; top: 5px; left: calc(50% + 6px);
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pilula);
+  display: grid; place-items: center; background: var(--aviso); color: var(--fundo);
+  font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--casca);
+}
+
+/* ===== Faixa de conexão (topo, flutuante; nucleo.js) ===== */
+.faixa {
+  position: fixed; z-index: 60; top: calc(var(--st) + var(--cab-h) + var(--esp-2)); left: 0; right: 0; margin: 0 auto;
+  width: max-content; max-width: calc(100vw - var(--esp-5));
+  display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3);
+  background: var(--sup); border: 1px solid var(--fio-l2); border-radius: var(--r-4); color: var(--t1);
+  box-shadow: var(--sombra-flut);
+}
+.faixa.entra { animation: faixa-entra var(--dur-3) var(--ease-press); }
+@keyframes faixa-entra { from { opacity: 0; transform: translateY(-12px); } }
+.faixa-ico { display: grid; place-items: center; flex: none; color: var(--agu); }
+.faixa[data-tipo="offline"] .faixa-ico { color: var(--t2); }
+.faixa-txt { display: grid; min-width: 0; line-height: 1.25; }
+.faixa-txt strong { font-size: 13px; font-weight: 600; }
+.faixa-sub { color: var(--t2); font-size: 12px; overflow-wrap: anywhere; text-wrap: balance; }
+.faixa-btn { flex: none; height: 36px; }
+/* visual de 36 px, área de toque de 44 px */
+.faixa-btn, .toast .btn { position: relative; }
+.faixa-btn::after, .toast .btn::after { content: ""; position: absolute; inset: -4px 0; }
+.faixa-giro {
+  flex: none; width: 14px; height: 14px; margin: 0 1px; border-radius: 50%;
+  border: 2px solid var(--fio-3); border-top-color: var(--t1); animation: girar .8s linear infinite;
+}
+
+/* ===== Toast (componentes.css), acima da barra ===== */
+.toast {
+  left: 0; right: 0; margin: 0 auto; width: max-content; max-width: calc(100vw - var(--esp-5));
+  bottom: calc(var(--sb) + var(--barra-h) + var(--esp-3)); box-shadow: var(--sombra-flut);
+}
+body.sem-barra .toast, body:not([data-modo="app"]) .toast { bottom: calc(var(--sb) + var(--esp-4)); }
+.toast span { white-space: normal; overflow-wrap: anywhere; }
+.toast .btn { height: 36px; }
+
+/* ===== Chave (toggle) do mesmo tamanho em todo o celular ===== */
+.chave { width: 46px; height: 28px; }
+.chave::before { top: 4px; left: 4px; width: 20px; height: 20px; }
+.chave:checked::before { transform: translateX(18px); }
+.chave:active:not(:disabled)::before { width: 24px; }
+.chave:checked:active:not(:disabled)::before { transform: translateX(14px); }
+
+/* ===== Escondida / movimento reduzido ===== */
+body.oculta *, body.oculta *::before, body.oculta *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .tit-grande { transform: none; }
+  .barra-aba:active { transform: none; }
+  .faixa.entra { animation-name: faixa-some; animation-duration: .12s; }
+  @keyframes faixa-some { from { opacity: 0; } }
+  .faixa-giro { animation: om-pulsar .6s var(--ease) infinite alternate; }
+}

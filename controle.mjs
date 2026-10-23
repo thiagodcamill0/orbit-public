@@ -753,6 +753,95 @@ function argsOrientacao(extras) {
   return extras.includes('--append-system-prompt') ? [] : ['--append-system-prompt', ORIENTACAO_TERMINAL];
 }
 
+// Escritórios (21/10): o anexoSistema entra no --append-system-prompt que já houver (um só por processo).
+export function comAnexo(args, anexo) {
+  if (!anexo) return args;
+  const a = [...args];
+  const i = a.lastIndexOf('--append-system-prompt');
+  if (i >= 0 && i + 1 < a.length) a[i + 1] = `${a[i + 1]}\n\n${anexo}`;
+  else a.push('--append-system-prompt', anexo);
+  return a;
+}
+// criarInstancia (escritórios): pai, anexoSistema, configuracao, ambiente (só ORBIT_*) e escritorio
+// {id, execucao, papel, papelNome}. Devolve só os campos presentes; inválido → 400.
+const MAX_ANEXO = 20000;
+const CAMPOS_ESCRITORIO = ['pai', 'anexoSistema', 'configuracao', 'ambiente', 'escritorio', 'orcamentoUsd'];
+// F3 (21/10): geracao = um valor novo a cada processo da sessão (criar, acordar, adotar). O total_cost_usd é por processo.
+let SEQ_GERACAO = 0;
+const novaGeracao = () => `${Date.now().toString(36)}-${++SEQ_GERACAO}`;
+export function ajustesEscritorio(b) {
+  const o = {};
+  const texto = (v, max, rotulo) => {
+    if (typeof v !== 'string' || !v.trim() || v.length > max) throw erroHttp(400, `${rotulo} deve ser texto de 1 a ${max} caracteres.`);
+    return v.trim();
+  };
+  if (b.pai != null && b.pai !== '') o.pai = texto(b.pai, 200, 'O pai');
+  if (b.anexoSistema != null && b.anexoSistema !== '') o.anexoSistema = texto(b.anexoSistema, MAX_ANEXO, 'O anexoSistema');
+  if (b.configuracao != null) {
+    if (!ehObjeto(b.configuracao)) throw erroHttp(400, 'A configuracao deve ser um objeto (vai no --settings).');
+    if (JSON.stringify(b.configuracao).length > 100000) throw erroHttp(400, 'A configuracao é grande demais.');
+    if (Object.keys(b.configuracao).length) o.configuracao = structuredClone(b.configuracao);
+  }
+  if (b.ambiente != null) {
+    if (!ehObjeto(b.ambiente)) throw erroHttp(400, 'O ambiente deve ser um objeto { ORBIT_X: "valor" }.');
+    const env = {};
+    for (const [k, v] of Object.entries(b.ambiente)) {
+      if (!/^ORBIT_[A-Z0-9_]{1,60}$/.test(k)) throw erroHttp(400, `Variável de ambiente não permitida: ${encurtar(k, 60)} (só ORBIT_*).`);
+      if (!['string', 'number', 'boolean'].includes(typeof v) || String(v).length > MAX_ANEXO) throw erroHttp(400, `Valor inválido em ${k}.`);
+      env[k] = String(v);
+    }
+    if (Object.keys(env).length) o.ambiente = env;
+  }
+  if (b.escritorio != null) {
+    const e = b.escritorio;
+    if (!ehObjeto(e)) throw erroHttp(400, 'O escritorio deve ser {id, execucao, papel, papelNome}.');
+    o.escritorio = { id: texto(e.id, 200, 'O escritorio.id'), execucao: texto(e.execucao, 200, 'O escritorio.execucao'), papel: texto(e.papel, 60, 'O escritorio.papel') };
+    o.escritorio.papelNome = e.papelNome == null || e.papelNome === '' ? o.escritorio.papel : texto(e.papelNome, 60, 'O escritorio.papelNome');
+  }
+  // F3 (c): teto de gasto do processo (--max-budget-usd; o claude 2.1.300 aceita a flag no --print).
+  if (b.orcamentoUsd != null && b.orcamentoUsd !== '') {
+    const v = typeof b.orcamentoUsd === 'number' ? b.orcamentoUsd : NaN;
+    if (!Number.isFinite(v) || v <= 0 || v > 100000) throw erroHttp(400, 'O orcamentoUsd deve ser um número maior que zero (em dólares).');
+    o.orcamentoUsd = Math.max(0.0001, Math.round(v * 10000) / 10000);
+  }
+  return o;
+}
+// Os ajustes de escritório (criarInstancia) valem em toda subida do processo: criar, acordar e adotar.
+function argsEscritorio(args, o) {
+  let a = comAnexo(args, o.anexoSistema);
+  if (o.configuracao) a = comSettings(a, o.configuracao);
+  if (o.orcamentoUsd > 0) a = [...a, '--max-budget-usd', String(o.orcamentoUsd)];
+  return a;
+}
+
+// F3 (a): em instância de escritório, "permitir sempre" nunca grava em arquivo (tudo vira `session`) e as regras amplas
+// de terminal (node:*, python*:*, npx:*, npm run:*, bash:*, pwsh:*, powershell:*, curl:*, *) são descartadas.
+// Devolve a sugestão ajustada, ou null se não sobrou nada para oferecer.
+const INTERPRETE_AMPLO = /^(node|nodejs|python[\d.]*|py|npx|bunx|bun|deno|ruby|perl|php|bash|sh|zsh|pwsh|powershell|cmd|curl|wget|tsx|ts-node)$/;
+const RUN_AMPLO = /^(npm|pnpm|yarn|bun) run$/i;
+export function regraAmplaDeTerminal(conteudo) {
+  const c = String(conteudo ?? '').trim();
+  if (!c || c === '*' || c === ':*') return true; // a ferramenta inteira
+  const m = /^(.*?)\s*(:\*|\s\*)$/.exec(c) || /^(\S*\*)$/.exec(c);
+  if (!m) return false; // sem curinga no fim: regra exata
+  const base = (m[1] ?? c).trim();
+  if (!base || base === '*') return true;
+  if (RUN_AMPLO.test(base) || /^(pnpm|yarn|npm) (dlx|exec|x)$/i.test(base)) return true;
+  if (base.includes(' ')) return false; // node script.mjs * : vai só até o script
+  const cmd = path.basename(base).toLowerCase().replace(/\.exe$/, '');
+  return INTERPRETE_AMPLO.test(cmd) || /^(python|node|py|bash|pwsh|powershell|curl)\*$/.test(cmd);
+}
+export function sugestaoEscritorio(sg) {
+  if (!sg || typeof sg !== 'object') return null;
+  if (sg.type === 'setMode') return sg.mode === 'default' ? { ...sg, destination: 'session' } : null;
+  const nova = { ...sg, destination: 'session' };
+  if ((sg.type === 'addRules' || sg.type === 'replaceRules') && Array.isArray(sg.rules)) {
+    nova.rules = sg.rules.filter((r) => !(TERMINAIS.has(r?.toolName) && regraAmplaDeTerminal(r.ruleContent)));
+    if (!nova.rules.length) return null;
+  }
+  return nova;
+}
+
 // ───────────────────────── modelos (rodada 6, etapa 2) ─────────────────────────
 // `models` do initialize (value, resolvedModel, displayName, description, supportsEffort,
 // supportedEffortLevels) → [{valor, modelo, nome, descricao, esforcos}]. Sem esforço: esforcos [].
@@ -1183,6 +1272,15 @@ export function criarControle(deps) {
   // testado no 2.1.300) e as chaves do cofre vão no env. Se a proteção falhar, a instância sobe sem nenhum MCP
   // (--strict-mcp-config). Sem a dependência (testes do controle), tudo como antes.
   const { mcpProtecao } = deps;
+  // Escritórios (21/10, opcional): as instâncias com `escritorio` não contam no MAX_PROCESSOS; têm teto próprio.
+  // O teto vem do config MESCLADO a cada uso (config.escritorios.tetoInstancias, 1..20); sem ele, deps.tetoEscritorios (inteiro ou função); senão 6.
+  const tetoEscritorios = () => {
+    const c = lerConfig?.()?.escritorios?.tetoInstancias;
+    if (Number.isInteger(c) && c >= 1 && c <= 20) return c;
+    const d = typeof deps.tetoEscritorios === 'function' ? deps.tetoEscritorios() : deps.tetoEscritorios;
+    return Number.isInteger(d) && d >= 0 ? d : 6;
+  };
+  const ouvintesResultado = new Set(); // ouvirResultado(fn): fn(id, {custoUsd, usage, modelUsage, texto, erro})
   let modelos = lerModelosSalvos(); // {modelos, atualizado} | null
   let comandosConhecidos = null; // [{nome, descricao, args}] do último initialize (vale para quem está dormindo)
   let sondando = null;
@@ -1243,6 +1341,10 @@ export function criarControle(deps) {
     // Skills: a allowlist escolhida na Nova instância (sem ela = todas). Volta no initialize do acordar.
     if (Array.isArray(p.skills)) r.skills = p.skills;
     else delete r.skills;
+    for (const k of CAMPOS_ESCRITORIO) {
+      if (p[k]) r[k] = p[k];
+      else delete r[k];
+    }
     const ap = obterSessao(p.id)?.apelido;
     if (ap) r.apelido = ap;
     delete r.dormiu;
@@ -1300,21 +1402,31 @@ export function criarControle(deps) {
   }
 
   // ── limite (só os vivos) ──
-  const ocupadas = () => [...procs.values()].map((p) => obterSessao(p.id)?.apelido || obterSessao(p.id)?.titulo || p.id.slice(0, 8));
+  // Escritórios (21/10): as de escritório ficam fora do MAX_PROCESSOS (e nunca dormem para abrir vaga a outra).
+  const comuns = () => [...procs.values()].filter((p) => !p.escritorio);
+  const nEscritorio = () => procs.size - comuns().length;
+  const ocupadas = () => comuns().map((p) => obterSessao(p.id)?.apelido || obterSessao(p.id)?.titulo || p.id.slice(0, 8));
   function erroLimite() {
     return erroHttp(409, `O Orbit já tem ${MAX_PROCESSOS} instâncias vivas, todas ocupadas (${encurtar(ocupadas().join(', '), 300)}). Espere uma terminar ou encerre uma.`, 'limite');
   }
-  // Antes do 202: no limite, precisa haver uma elegível para dormir.
-  function checarVaga() {
-    if (procs.size >= MAX_PROCESSOS && ![...procs.values()].some(elegivel)) throw erroLimite();
+  function checarTetoEscritorio() {
+    const teto = tetoEscritorios();
+    if (nEscritorio() >= teto) throw erroHttp(429, `Os escritórios já têm ${teto} instâncias vivas (o teto deles). Espere uma terminar.`, 'limite_escritorio');
+  }
+  // Antes do 202: no limite, precisa haver uma elegível para dormir. id: a instância a acordar (a de escritório
+  // olha o teto próprio).
+  function checarVaga(id) {
+    if (id && regs.get(id)?.escritorio) return checarTetoEscritorio();
+    if (comuns().length >= MAX_PROCESSOS && !comuns().some(elegivel)) throw erroLimite();
   }
   // No limite: faz dormir a elegível com a atividade mais antiga (motivo 'limite').
-  async function liberarVaga() {
-    if (procs.size < MAX_PROCESSOS) return;
-    const alvo = [...procs.values()].filter(elegivel).sort((a, b) => a.atividade - b.atividade)[0];
+  async function liberarVaga(escritorio = false) {
+    if (escritorio) return checarTetoEscritorio();
+    if (comuns().length < MAX_PROCESSOS) return;
+    const alvo = comuns().filter(elegivel).sort((a, b) => a.atividade - b.atividade)[0];
     if (!alvo) throw erroLimite();
     await adormecer(alvo, 'limite');
-    if (procs.size >= MAX_PROCESSOS) throw erroLimite();
+    if (comuns().length >= MAX_PROCESSOS) throw erroLimite();
   }
 
   // ── acordar (--resume com o modelo, o esforço e o modo do registro) ──
@@ -1327,15 +1439,18 @@ export function criarControle(deps) {
     pr = (async () => {
       const r = regs.get(id);
       if (!r) throw erroHttp(409, 'A sessão não está no Orbit.', 'nao_assumida');
-      await liberarVaga();
+      await liberarVaga(!!r.escritorio);
       const { cmd, pre } = binarioClaude();
-      const args = [...pre, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--replay-user-messages', '--permission-prompt-tool', 'stdio', '--include-partial-messages', '--resume', id];
+      let args = [...pre, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--replay-user-messages', '--permission-prompt-tool', 'stdio', '--include-partial-messages', '--resume', id];
       if (r.modelo && r.modelo !== 'default') args.push('--model', r.modelo);
       if (r.esforco) args.push('--effort', r.esforco);
-      args.push('--permission-mode', PERMISSOES.includes(r.modoPermissao) ? r.modoPermissao : 'default', ...argsExtras(), ...argsOrientacao(argsExtras()));
+      const modo = r.escritorio ? 'default' : PERMISSOES.includes(r.modoPermissao) ? r.modoPermissao : 'default';
+      args.push('--permission-mode', modo, ...argsExtras(), ...argsOrientacao(argsExtras()));
+      args = argsEscritorio(args, r);
       const p = novoProcesso({ id, cwd: r.cwd, transcript: r.transcript, modelo: acharModelo(r.modelo)?.modelo || r.modelo });
+      aplicarEscritorio(p, r);
       p.origem = r.origem === 'orbit' ? 'orbit' : 'assumir';
-      p.ajustes = { modelo: r.modelo || '', esforco: r.esforco || '', modoPermissao: r.modoPermissao || 'default' };
+      p.ajustes = { modelo: r.modelo || '', esforco: r.esforco || '', modoPermissao: r.escritorio ? 'default' : r.modoPermissao || 'default' };
       p.skills = listaSkills(r.skills);
       p.acordando = true;
       p.interrompida = !!r.interrompida;
@@ -1389,7 +1504,10 @@ export function criarControle(deps) {
     let memoria = 0;
     for (const p of procs.values()) memoria += p.memoria || 0;
     const dormindoN = [...regs.keys()].filter((k) => !procs.has(k)).length;
-    return { max: MAX_PROCESSOS, vivas: procs.size, dormindo: dormindoN, memoria, dormirApos: Number(lerConfig?.()?.instancias?.dormirApos ?? 30) };
+    const r = { max: MAX_PROCESSOS, vivas: comuns().length, dormindo: dormindoN, memoria, dormirApos: Number(lerConfig?.()?.instancias?.dormirApos ?? 30) };
+    const ne = nEscritorio(); // escritórios (21/10): à parte do max; o campo só aparece com alguma viva
+    if (ne) Object.assign(r, { escritorios: ne, tetoEscritorios: tetoEscritorios() });
+    return r;
   }
   let ultimoResumo = '';
   function difundirInstancias() {
@@ -1551,7 +1669,7 @@ export function criarControle(deps) {
 
   // Só o que vem do registro/processos (o resto já é difundido pelo servidor quando a sessão muda).
   function difundirMudancas() {
-    const cheio = procs.size >= MAX_PROCESSOS;
+    const cheio = comuns().length >= MAX_PROCESSOS;
     for (const s of todasSessoes()) {
       const r = regVivo(s.id);
       const j = JSON.stringify([r?.pid, r?.status, !!(r?.socket && r?.temChave), !!transcriptConhecido(s.id, s), cheio]);
@@ -1563,7 +1681,16 @@ export function criarControle(deps) {
   }
 
   // ── Sessao.controle ──
+  // s: a sessão (servidor) ou só o id (escritórios: controle.estado(id).escritorio).
   function estado(s) {
+    if (typeof s === 'string') s = obterSessao(s) || { id: s, cwd: procs.get(s)?.cwd || regs.get(s)?.cwd };
+    const o = estadoBase(s);
+    const fonte = procs.get(s.id) || regs.get(s.id);
+    if (fonte?.escritorio) o.escritorio = fonte.escritorio;
+    if (fonte?.pai) o.pai = fonte.pai;
+    return o;
+  }
+  function estadoBase(s) {
     const id = s.id;
     const p = procs.get(id);
     if (p) {
@@ -1586,6 +1713,10 @@ export function criarControle(deps) {
         if (q.sugestoes.length) o.permissao.sugestoes = q.sugestoes;
         if (q.perguntas) o.permissao.perguntas = q.perguntas;
         if (q.plano != null) o.permissao.plano = q.plano;
+        // Escritórios (21/10): o motivo do claude (ex.: o hook) e a marca de ação externa.
+        if (q.motivo) o.permissao.motivo = q.motivo;
+        if (q.tipoMotivo) o.permissao.tipoMotivo = q.tipoMotivo;
+        if (q.externa) o.permissao.externa = true;
         o.pendentes = p.permissoes.length;
       }
       if (p.tarefas.length) o.tarefas = p.tarefas;
@@ -1631,7 +1762,7 @@ export function criarControle(deps) {
       return { codigo: 'trabalhando', erro: 'A sessão está trabalhando; espere ela parar para assumir' };
     if (r && s.status === 'aguardando') return { codigo: 'trabalhando', erro: 'A sessão está esperando uma resposta; espere ela parar para assumir' };
     if (regs.has(s.id)) return { codigo: 'ja_assumida', erro: 'A sessão já está no Orbit (dormindo)' };
-    if (procs.size >= MAX_PROCESSOS && ![...procs.values()].some(elegivel)) return { codigo: 'limite', erro: `O Orbit já tem ${MAX_PROCESSOS} instâncias vivas e ocupadas; espere uma terminar ou encerre uma` };
+    if (comuns().length >= MAX_PROCESSOS && !comuns().some(elegivel)) return { codigo: 'limite', erro: `O Orbit já tem ${MAX_PROCESSOS} instâncias vivas e ocupadas; espere uma terminar ou encerre uma` };
     return null;
   }
 
@@ -1816,7 +1947,7 @@ export function criarControle(deps) {
       const q = j.request || {};
       if (q.subtype === 'can_use_tool') {
         const primeira = !p.permissoes.length;
-        const perm = permissaoDe(j);
+        const perm = permissaoDe(j, p);
         p.permissoes.push(perm);
         mudou = true;
         // Celular: o headless (-p) não dispara PermissionRequest/Notification, então a pergunta pendente só aparece aqui.
@@ -1875,6 +2006,34 @@ export function criarControle(deps) {
     p.atividade = Date.now();
     sincronizar(p);
     if (mudou) avisar(p.id);
+    if (j.type === 'result') emitirResultado(p, j);
+  }
+
+  // Escritórios (21/10): cada `result` vai a quem ouve. custoUsd é o total_cost_usd, acumulado na sessão (quem
+  // soma usa a diferença); null quando o claude não manda.
+  function emitirResultado(p, j) {
+    if (!ouvintesResultado.size) return;
+    const custo = Number(j.total_cost_usd);
+    const r = {
+      custoUsd: j.total_cost_usd != null && Number.isFinite(custo) ? custo : null,
+      usage: ehObjeto(j.usage) ? j.usage : null,
+      modelUsage: ehObjeto(j.modelUsage) ? j.modelUsage : null,
+      texto: encurtar(typeof j.result === 'string' ? j.result : '', 2000),
+      erro: !!j.is_error,
+      geracao: p.geracao,
+    };
+    for (const f of [...ouvintesResultado]) {
+      try {
+        f(p.id, r);
+      } catch (e) {
+        log('controle', `ouvirResultado: ${e.message}`);
+      }
+    }
+  }
+  function ouvirResultado(fn) {
+    if (typeof fn !== 'function') throw new TypeError('ouvirResultado espera uma função');
+    ouvintesResultado.add(fn);
+    return () => ouvintesResultado.delete(fn);
   }
 
   // Uso do plano vindo do stream (rate_limit_event, depois da 1ª chamada à API): vai pelo mesmo caminho
@@ -2199,10 +2358,15 @@ export function criarControle(deps) {
     if (o.esforco) args.push('--effort', o.esforco);
     args.push('--permission-mode', o.permissao, ...argsExtras(), ...argsOrientacao(argsExtras()));
     const p = novoProcesso({ id: o.id, cwd: o.pasta, transcript: o.transcript, modelo: o.modelo?.modelo || '' });
+    aplicarEscritorio(p, o.extras || {}); // escritórios (21/10): anexo, --settings e env extra
     p.origem = 'orbit';
     p.ajustes = { modelo: o.modelo?.valor || '', esforco: o.esforco || '', modoPermissao: o.permissao };
     p.skills = Array.isArray(o.skills) ? o.skills : null;
-    return { p, cmd, args };
+    return { p, cmd, args: argsEscritorio(args, p) };
+  }
+  // Copia os campos de escritório (criarInstancia, ou o registro no acordar/adotar) para o processo.
+  function aplicarEscritorio(p, fonte) {
+    for (const k of CAMPOS_ESCRITORIO) if (fonte?.[k]) p[k] = fonte[k];
   }
 
   async function subirProcesso(p, cmd, args) {
@@ -2578,7 +2742,9 @@ export function criarControle(deps) {
         if (!alvo.esforcos.includes(esforco)) throw erroHttp(400, `${alvo.nome} não aceita o esforço "${encurtar(esforco, 20)}". Use: ${alvo.esforcos.join(', ')}.`);
       }
     }
-    const permissao = b.permissao == null || b.permissao === '' ? modoPadrao() : b.permissao;
+    const extras = ajustesEscritorio(b); // escritórios (21/10): pai, anexoSistema, configuracao, ambiente, escritorio
+    // Com escritório, o modo é sempre default (nunca auto, plan nem acceptEdits), venha o que vier no pedido.
+    const permissao = extras.escritorio ? 'default' : b.permissao == null || b.permissao === '' ? modoPadrao() : b.permissao;
     if (!PERMISSOES.includes(permissao)) throw erroHttp(400, `Modo de permissão inválido: ${encurtar(String(permissao), 40)}. Use: ${PERMISSOES.join(', ')}.`);
     if (b.nome != null && typeof b.nome !== 'string') throw erroHttp(400, 'O nome deve ser texto.');
     const nome = (b.nome || '').replace(/\s+/g, ' ').trim();
@@ -2593,12 +2759,16 @@ export function criarControle(deps) {
     }
     const skills = Array.isArray(b.skills) ? [...new Set(b.skills.map((x) => x.trim()))] : null;
     if (!criarSessao) throw erroHttp(501, 'Este servidor não sabe criar instâncias.');
-    await liberarVaga(); // etapa 4: no limite, faz dormir a elegível mais antiga; sem nenhuma, 409 limite
+    // Etapa 4: no limite, faz dormir a elegível mais antiga; sem nenhuma, 409 limite. Escritório: teto próprio (429).
+    // (O teto confere sem await até o procs.set: dois pedidos juntos não passam do teto.)
+    if (extras.escritorio) checarTetoEscritorio();
+    else await liberarVaga();
 
     const id = crypto.randomUUID();
     const transcript = transcriptNovo(pasta, id);
-    const { p, cmd, args } = prepararNova({ id, pasta, transcript, modelo, esforco, permissao, skills });
+    const { p, cmd, args } = prepararNova({ id, pasta, transcript, modelo, esforco, permissao, skills, extras });
     procs.set(id, p); // a sessão já nasce em modo orbit ("Iniciando no Orbit") e conta no limite
+    if (extras.escritorio) sincronizar(p); // F3 (d): escritório, pai e orçamento já vão ao instancias.json (um reinício logo depois não perde o vínculo)
     criarSessao({ id, cwd: pasta, apelido: nome, transcript });
     const a = novaAcao(id, 'criar', 'orbit');
     etapa(a, 'Iniciando');
@@ -2610,7 +2780,8 @@ export function criarControle(deps) {
       }
       concluir(a);
       try {
-        gravarNovaInstancia?.({ pasta, modelo: modelo?.valor || null, esforco: esforco || null, permissao });
+        // A de escritório não vira a escolha padrão da Nova instância.
+        if (!extras.escritorio) gravarNovaInstancia?.({ pasta, modelo: modelo?.valor || null, esforco: esforco || null, permissao });
       } catch (e) {
         log('controle', `config.novaInstancia: ${e.message}`);
       }
@@ -2658,6 +2829,7 @@ export function criarControle(deps) {
       memoria: 0,
       interrompida: false,
       motivoDormir: '',
+      geracao: novaGeracao(),
       acordando: false,
       controles: new Map(),
       ouvintes: new Set(),
@@ -2734,7 +2906,10 @@ export function criarControle(deps) {
   }
 
   async function abrirProcesso(p, cmd, argsBase, cwd) {
-    const { args, env } = await blindarMcp(argsBase, cwd);
+    const { args, env: env0 } = await blindarMcp(argsBase, cwd);
+    // escritórios (21/10): só chaves ORBIT_*. ORBIT_SESSAO = id desta sessão em toda instância (criar, acordar,
+    // adotar): o envLimpo tira CLAUDE_CODE_HOST_SESSION_ID, e o membro.mjs precisa saber quem é o líder.
+    const env = { ...env0, ...(p.ambiente || {}), ORBIT_SESSAO: p.id };
     if (USAR_MOTOR) {
       if (await motor.garantir()) {
         for (let tentativa = 0; ; tentativa++) {
@@ -2875,13 +3050,14 @@ export function criarControle(deps) {
     // Etapa 4: o registro de antes do reinício (agendamentos, interrompida e a última atividade).
     const rg = regs.get(id);
     if (rg) {
+      aplicarEscritorio(p, rg); // escritórios (21/10): segue fora do MAX_PROCESSOS e com o modo default
       p.agendamentos = Number(rg.agendamentos) || 0;
       p.interrompida = !!rg.interrompida;
       p.atividade = Date.parse(rg.ultimaAtividade) || Date.now();
     }
     p.ocupada = !!e.ocupada;
     p.iniciando = !e.iniciado;
-    for (const q of Array.isArray(e.permissoes) ? e.permissoes : []) if (q?.request?.subtype === 'can_use_tool') p.permissoes.push(permissaoDe(q));
+    for (const q of Array.isArray(e.permissoes) ? e.permissoes : []) if (q?.request?.subtype === 'can_use_tool') p.permissoes.push(permissaoDe(q, p));
     p.io = fachadaMotor(p);
     p.io.pid = p.pid;
     procs.set(id, p);
@@ -2923,13 +3099,25 @@ export function criarControle(deps) {
     await reconciliar();
   }
 
-  function permissaoDe(j) {
+  function permissaoDe(j, p) {
     const q = j.request || {};
     const entrada = q.input && typeof q.input === 'object' ? q.input : {};
     const ferramenta = String(q.tool_name || '');
     // Etapa 3: tipo, sugestões (permission_suggestions), perguntas (AskUserQuestion) e plano (ExitPlanMode).
     const tipo = ferramenta === 'AskUserQuestion' ? 'pergunta' : ferramenta === 'ExitPlanMode' ? 'plano' : 'ferramenta';
-    const { cruas, sugestoes } = sugestoesDe(q.permission_suggestions, tipo);
+    // F3 (a): no escritório, a sugestão só vale para a sessão e sem regra ampla (antes dos índices serem montados).
+    const brutas = p?.escritorio && Array.isArray(q.permission_suggestions) ? q.permission_suggestions.map(sugestaoEscritorio).filter(Boolean) : q.permission_suggestions;
+    let { cruas, sugestoes } = sugestoesDe(brutas, tipo);
+    // Escritórios (21/10): o motivo do claude (decision_reason/_type). "Ação externa…" vinda de hook é pedido
+    // externo: sem "permitir sempre" nem sugestão de regra (PC e celular).
+    const dr = q.decision_reason;
+    const motivo = encurtar(typeof dr === 'string' ? dr : ehObjeto(dr) ? String(dr.reason ?? dr.message ?? '') : '', 500).trim();
+    const tipoMotivo = typeof q.decision_reason_type === 'string' ? encurtar(q.decision_reason_type, 40) : '';
+    const externa = tipoMotivo === 'hook' && motivo.startsWith('Ação externa');
+    if (externa) {
+      cruas = [];
+      sugestoes = [];
+    } else if (p?.escritorio) sugestoes = sugestoes.filter((s) => !s.modo || s.modo === 'default'); // modo sempre default
     const r = {
       id: String(j.request_id),
       ferramenta,
@@ -2942,6 +3130,9 @@ export function criarControle(deps) {
     };
     if (tipo === 'pergunta') r.perguntas = perguntasDe(entrada);
     if (tipo === 'plano') r.plano = typeof entrada.plan === 'string' ? encurtar(entrada.plan, 100000) : '';
+    if (motivo) r.motivo = motivo;
+    if (tipoMotivo) r.tipoMotivo = tipoMotivo;
+    if (externa) r.externa = true;
     return r;
   }
 
@@ -3176,10 +3367,12 @@ export function criarControle(deps) {
       resposta = { behavior: 'deny', message: mensagem || padrao };
     } else {
       resposta = { behavior: 'allow', updatedInput: q.entrada };
-      if (b.sugestao != null) {
+      // Escritórios (21/10): pedido externo vale só esta vez (a sugestão pedida é ignorada).
+      if (b.sugestao != null && !q.externa) {
         const sg = Number.isInteger(b.sugestao) && q.sugestoes.some((s) => s.indice === b.sugestao) ? q.cruas[b.sugestao] : null;
         if (!sg) throw erroHttp(400, `Sugestão inexistente: ${encurtar(String(b.sugestao), 20)}.`);
-        resposta.updatedPermissions = remoto ? atualizacoesDe(sg).map((u) => ({ ...u, destination: 'session' })) : atualizacoesDe(sg);
+        resposta.updatedPermissions = remoto || p.escritorio ? atualizacoesDe(sg).map((u) => ({ ...u, destination: 'session' })) : atualizacoesDe(sg);
+        if (p.escritorio) resposta.updatedPermissions = resposta.updatedPermissions.filter((u) => u.type !== 'setMode' || u.mode === 'default');
       }
       if (q.tipo === 'pergunta') resposta.updatedInput = { ...q.entrada, answers: respostasDe(q, b.respostas) };
     }
@@ -3500,7 +3693,7 @@ export function criarControle(deps) {
       }
       // Etapa 4: dormindo (ou acordando) → acorda e manda.
       if (p || regs.has(id)) {
-        if (!p) checarVaga();
+        if (!p) checarVaga(id);
         const a = novaAcao(id, 'mensagem', 'orbit');
         acordarE(id, a, (q) => mensagemOrbit(q, texto, b.prioridade, a, imagens));
         return responder(res, 202, { acao: a });
@@ -3552,7 +3745,7 @@ export function criarControle(deps) {
       if (p && !p.acordando) throw erroHttp(409, 'A instância já está viva.', 'viva');
       if (!p && !regs.has(id)) throw erroHttp(409, 'A sessão não está no Orbit.', 'nao_assumida');
       if (p) throw erroHttp(409, 'A instância já está acordando.', 'viva');
-      checarVaga();
+      checarVaga(id);
       const a = novaAcao(id, 'retomar', 'orbit');
       acordarE(id, a, () => concluir(a));
       return responder(res, 202, { acao: a });
@@ -3603,6 +3796,8 @@ export function criarControle(deps) {
       if (!p || p.iniciando || (!p.ocupada && !p.permissoes.length)) throw erroHttp(409, 'A sessão já está parada: não há volta em andamento.', 'parada');
       return responder(res, 202, { acao: parar(p) });
     }
+    // Escritórios (21/10): o modo de permissão fica sempre default.
+    if (acao === 'modo' && (procs.get(id) || regs.get(id))?.escritorio) throw erroHttp(409, 'Instância de escritório: o modo de permissão é sempre o padrão (pede aprovação).', 'escritorio');
     // Etapa 4: dormindo, modo/modelo/esforço validam, vão para o registro e valem ao acordar (pendente).
     if (!procs.has(id) && regs.has(id) && (acao === 'modo' || acao === 'modelo' || acao === 'esforco')) return responder(res, 200, ajustePendente(id, acao, b));
     if (acao === 'modo') return responder(res, 200, await trocarModo(exigirOrbit(id), b));
@@ -3615,7 +3810,7 @@ export function criarControle(deps) {
   const adormecida = (id) => (!procs.has(id) && regs.has(id)) || !!procs.get(id)?.acordando;
   // Acorda e faz (compactar, limpar): a sessão recém-acordada está livre.
   function acordarPara(id, tipo, fazer) {
-    if (!procs.has(id)) checarVaga();
+    if (!procs.has(id)) checarVaga(id);
     const a = novaAcao(id, tipo, 'orbit');
     acordarE(id, a, (q) => {
       if (q.ocupada || q.permissoes.length) return falhar(a, 'A sessão está trabalhando; espere a volta terminar.');
@@ -3674,6 +3869,66 @@ export function criarControle(deps) {
     })().catch((e) => falhar(a, e.message));
     return a;
   }
+  // ── escritórios (21/10): o que o escritorios.mjs usa direto (sem HTTP) ──
+  // enviarMensagem(id, texto) → a Acao 'mensagem'. Viva: manda (ocupada, entra na fila da volta). Ainda
+  // iniciando (recém-criada): espera o initialize. Dormindo: acorda e manda. Fora do Orbit: 409.
+  function enviarMensagem(id, texto) {
+    if (typeof texto !== 'string' || !texto.trim() || texto.length > MAX_TEXTO) throw erroHttp(400, `texto deve ter de 1 a ${MAX_TEXTO} caracteres`);
+    const p = procs.get(id);
+    if (p && !p.acordando && !p.iniciando) return mensagemOrbit(p, texto);
+    if (p && p.iniciando && !p.acordando) {
+      const a = novaAcao(id, 'mensagem', 'orbit');
+      etapa(a, 'Esperando a instância iniciar…');
+      const fim = Date.now() + MS_INICIO + 15e3;
+      (async () => {
+        while (p.iniciando && !p.saiu && Date.now() < fim) await dormir(100);
+        if (p.saiu || p.iniciando) return falhar(a, 'A instância não iniciou.');
+        mensagemOrbit(p, texto, undefined, a);
+      })().catch((e) => falhar(a, e.message));
+      return a;
+    }
+    if (p || regs.has(id)) {
+      if (!p) checarVaga(id);
+      const a = novaAcao(id, 'mensagem', 'orbit');
+      acordarE(id, a, (q) => mensagemOrbit(q, texto, undefined, a));
+      return a;
+    }
+    throw erroHttp(409, 'A sessão não está no Orbit.', 'nao_assumida');
+  }
+  // interromper(id): interrupt da volta em andamento → a Acao 'parar'; parada (ou fora do Orbit) → null.
+  function interromper(id) {
+    const p = procs.get(id);
+    if (!p || p.saiu || p.iniciando || (!p.ocupada && !p.permissoes.length)) return null;
+    return parar(p);
+  }
+
+  // F3 (e): fecha o processo da instância (a volta em andamento é interrompida antes). Ela fica dormindo no
+  // instancias.json e acorda sozinha com --resume na próxima mensagem. Sem processo vivo: não faz nada.
+  // Resolve true se o processo saiu (ou não havia). Espera no máximo ~20 s por quem ainda está subindo.
+  async function adormecerEscritorio(id) {
+    const p = procs.get(id);
+    if (!p || p.saiu) return true;
+    const fim = Date.now() + 20e3;
+    while ((p.iniciando || p.acordando) && !p.saiu && Date.now() < fim) await dormir(100);
+    if (p.saiu) return true;
+    if (p.iniciando || p.acordando) return false;
+    if (p.ocupada || p.permissoes.length) await interromperEsperar(p);
+    await adormecer(p, 'escritorio');
+    return p.saiu;
+  }
+  // F3 (e): todas as instâncias de escritório que o Orbit conhece (vivas e dormindo), para o escritorios.mjs
+  // reidratar a execução depois de um reinício. processo = 'vivo' | 'iniciando' | 'dormindo'.
+  function listarEscritorio() {
+    const ids = new Set([...procs.keys(), ...regs.keys()]);
+    const l = [];
+    for (const id of ids) {
+      const e = (procs.get(id) || regs.get(id))?.escritorio;
+      if (!e) continue;
+      l.push({ id, escritorio: e, processo: estado(id).processo || 'dormindo' });
+    }
+    return l;
+  }
+
   // Interrompe a volta e espera o result (no máximo 10 s).
   async function interromperEsperar(p) {
     const fim = new Promise((r) => {
@@ -3711,7 +3966,7 @@ export function criarControle(deps) {
     const ids = [];
     for (const id of pausadasConta()) {
       try {
-        checarVaga();
+        checarVaga(id);
         const a = novaAcao(id, 'retomar', 'orbit');
         acordarE(id, a, () => concluir(a));
         ids.push(id);
@@ -3757,5 +4012,6 @@ export function criarControle(deps) {
   // 'assumir' (assumida do VS Code/terminal) ou null (o controle não conhece a sessão, ou está devolvendo).
   // Com processo, vale só ele (o registro antigo não ressuscita a marca); sem processo, o registro (dormindo).
   const origem = origemDe;
-  return { rota, estado, origem, avisarLider, encerrarTudo, encerrarProcessoAntigo, esquecer, dormindo, bloqueiosReinicio, sondarSkills, sondarMcp, vivasConta, pausadasConta, pausarConta, retomarConta, _procs: procs };
+  // Escritórios (21/10): criarInstancia, enviarMensagem, interromper, encerrar e ouvirResultado (uso direto).
+  return { rota, estado, origem, avisarLider, criarInstancia, enviarMensagem, interromper, encerrar, ouvirResultado, adormecer: adormecerEscritorio, listarEscritorio, encerrarTudo, encerrarProcessoAntigo, esquecer, dormindo, bloqueiosReinicio, sondarSkills, sondarMcp, vivasConta, pausadasConta, pausarConta, retomarConta, _procs: procs };
 }

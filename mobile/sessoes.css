@@ -1,0 +1,122 @@
+/* Orbit no celular — tela sessoes (onda 3). Só tokens de assets/comum/base.css e peças de componentes.css (.chip, .btn-icone,
+   .av-robo, .pilula, .selo, .esq). O celular ajusta tamanho (alvos de 44 px, texto de 16 px no campo), nunca cor.
+   Movimento do PC: --ease-press, 150–300 ms, só transform/opacity; movimento reduzido = sem transform. Sem nada inline. */
+
+.sx { min-width: 0; padding-bottom: var(--esp-5); }
+
+/* ───────────── topo: busca + chips de projeto ───────────── */
+.sx-topo { display: grid; gap: var(--esp-2); min-width: 0; margin-bottom: var(--esp-3); }
+.sx-topo[hidden], .sx-chips[hidden], .sx-grupo[hidden], .sx-msg[hidden], .sx-limpar[hidden] { display: none; }
+
+.sx-busca {
+  position: relative; display: flex; align-items: center; min-width: 0; min-height: var(--alvo);
+  background: var(--poco); box-shadow: var(--poco-sombra); border: 1px solid var(--fio); border-radius: var(--r-3);
+  transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+.sx-busca:focus-within { border-color: var(--anel); }
+.sx-lupa { display: grid; place-items: center; flex: none; width: var(--alvo); color: var(--t3); pointer-events: none; }
+.sx-campo {
+  flex: 1; min-width: 0; height: var(--alvo); padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: var(--t1); font: inherit; font-size: 16px; outline: none; -webkit-appearance: none; appearance: none;
+}
+.sx-campo::placeholder { color: var(--t3); }
+.sx-campo::-webkit-search-cancel-button, .sx-campo::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+.sx-limpar { flex: none; }
+
+.sx-chips {
+  display: flex; gap: var(--esp-2); margin: 0 calc(-1 * var(--esp-4)); padding: 0 var(--esp-4);
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.sx-chips::-webkit-scrollbar { display: none; }
+.sx-fp {
+  flex: none; height: var(--alvo); padding: 0 var(--esp-3); gap: var(--esp-2); max-width: 70vw; border-radius: var(--r-pilula);
+  font-size: 14px; color: var(--t2);
+}
+.sx-fp[aria-pressed="true"] { background: var(--lat-pilula); border-color: var(--fio-3); color: var(--t1); box-shadow: var(--lat-pilula-sombra); }
+.sx-fp-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-fp-n { flex: none; font: var(--peso-texto) 11px/1 var(--mono); color: var(--t3); }
+.sx-fp[aria-pressed="true"] .sx-fp-n { color: var(--t2); }
+
+/* ───────────── grupos ───────────── */
+.sx-grupos { display: grid; gap: var(--esp-3); min-width: 0; }
+.sx-grupo { min-width: 0; }
+.sx-gh { margin: 0; font: inherit; }
+.sx-gcab {
+  display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: var(--alvo); padding: 0 var(--esp-1);
+  border: 0; border-radius: var(--r-2); background: none; color: var(--t2); text-align: left; font: inherit; cursor: pointer;
+  transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease-press);
+}
+.sx-gcab:active { opacity: .7; }
+.sx-gcab:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel); }
+.sx-chev { display: grid; place-items: center; flex: none; color: var(--t3); transition: transform var(--dur-2) var(--ease-press); }
+.sx-grupo[data-fechado="1"] .sx-chev, .sx-gcab[aria-expanded="false"] .sx-chev { transform: rotate(-90deg); }
+.sx-gtit {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-estr); text-transform: uppercase;
+}
+.sx-n {
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; display: inline-grid; place-items: center;
+  border-radius: var(--r-pilula); background: var(--bloco); color: var(--t2); font: var(--peso-texto) 11px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.sx-grupo[data-g="precisa"] .sx-gcab { color: var(--agu-t); }
+.sx-grupo[data-g="precisa"] .sx-n { background: var(--agu); color: var(--fundo); font-weight: 600; }
+.sx-lista { list-style: none; margin: 0; padding: 0; min-width: 0; }
+.sx-grupo[data-fechado="1"] .sx-lista { display: none; }
+
+/* ───────────── linha ───────────── */
+.sx-linha { --desl-raio: var(--r-4); content-visibility: auto; contain-intrinsic-size: auto 112px; list-style: none; margin: 0 0 var(--esp-2); padding: 0; min-width: 0; will-change: auto; }
+.sx-item {
+  display: flex; align-items: center; gap: var(--esp-3); min-width: 0; min-height: 76px; padding: 12px 14px;
+  background: var(--sup); border: 1px solid var(--fio); border-radius: var(--r-4); box-shadow: var(--luz-topo);
+  color: var(--t1); text-decoration: none; -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-1) var(--ease-press), background-color var(--dur-1) var(--ease);
+}
+.sx-item:active { transform: scale(.985); background: var(--sup-h); transition-duration: .06s; }
+.sx-item:focus-visible { outline: none; box-shadow: var(--luz-topo), 0 0 0 2px var(--anel); }
+.sx-item[data-g="precisa"] { box-shadow: var(--luz-topo), inset 3px 0 0 var(--aviso); }
+.sx-item:has(.av-robo[data-s="erro"]) { box-shadow: var(--luz-topo), inset 3px 0 0 var(--perigo); }
+.sx-item .av-robo { width: 48px; height: 48px; border-radius: var(--r-3); }
+.sx-item .av-robo img { width: 46px; height: 46px; border-radius: var(--r-2); }
+.sx-item .av-robo[data-s="revisada"] img.spr, .sx-item .av-robo[data-s="encerrada"] img.spr { opacity: .72; }
+
+.sx-txt { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.sx-l1 { display: flex; align-items: baseline; gap: var(--esp-2); min-width: 0; }
+.sx-tit { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 550; letter-spacing: -.01em; }
+.sx-tempo { flex: none; font: var(--peso-texto) 11px/1 var(--mono); color: var(--t3); font-variant-numeric: tabular-nums; }
+.sx-l2 { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
+.sx-proj { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--t2); }
+.sx-marcas { display: inline-flex; align-items: center; gap: var(--esp-1); flex: none; }
+.sx-marcas:empty { display: none; }
+.sx-marca { display: inline-grid; place-items: center; color: var(--t3); }
+.sx-det { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.35; color: var(--t2); }
+.sx-det:empty { display: none; }
+.sx-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; margin-top: 2px; }
+.sx-tags:empty { display: none; }
+.sx-pend, .sx-chip { flex: none; }
+
+/* ───────────── "+" ───────────── */
+.sx-nova { width: var(--alvo); height: var(--alvo); }
+.sx-nova[hidden] { display: none; }
+
+/* ───────────── esqueleto / vazio / erro ───────────── */
+.sx-msg { display: grid; gap: var(--esp-2); min-width: 0; }
+.sx-esq-linha { display: flex; align-items: center; gap: var(--esp-3); height: 76px; padding: 0 14px; border-radius: var(--r-4); background: var(--sup); border: 1px solid var(--fio); min-width: 0; }
+.sx-esq-av { flex: none; width: 48px; height: 48px; border-radius: var(--r-3); }
+.sx-esq-txt { flex: 1; min-width: 0; display: grid; gap: var(--esp-2); }
+.sx-esq-a { height: 14px; width: 62%; }
+.sx-esq-b { height: 12px; width: 86%; }
+.sx-vazio { display: grid; justify-items: center; gap: var(--esp-2); padding: var(--esp-6) var(--esp-4); text-align: center; color: var(--t3); min-width: 0; }
+.sx-vazio .btn { min-height: var(--alvo); margin-top: var(--esp-2); }
+.sx-vazio-t { margin: 0; font-size: 16px; font-weight: 550; color: var(--t1); overflow-wrap: anywhere; }
+.sx-vazio-s { margin: 0; font-size: 14px; line-height: 1.4; color: var(--t2); overflow-wrap: anywhere; }
+
+/* ───────────── movimento reduzido: sem transform nem rotação animada ───────────── */
+@media (prefers-reduced-motion: reduce) {
+  .sx-linha, .sx-item, .sx-gcab, .sx-chev, .sx-busca { transition: none; }
+  .sx-linha { transform: none; }
+  .sx-item:active { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx .girando { animation: none; }
+}

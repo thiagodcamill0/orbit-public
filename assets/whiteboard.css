@@ -1,0 +1,126 @@
+/* Whiteboard (assets/whiteboard.js). Prefixo wb-. Só tokens de comum/base.css. Raios 6/10/14/20, clique .975.
+   Tempos: curta .16s (saídas, menus), padrão .18s (hover/estado), média .22–.26s (entradas de diálogo/aviso/card). Easing: --wb-ease (= --ease-press); saída usa ease.
+   Camadas (z-index): 2 vazio · 3 barras e painel de sessões · 4 botão do painel de sessões · 5 painel de quadros · 6 avisos · 7 toast de ligação · 8 véu/diálogo (70 no CSS: acima do menu) · 50 popovers/campo de endereço (dentro do palco) · 60 menu de contexto (fixed). */
+
+.wb-vista { --wb-ease: var(--ease-press, cubic-bezier(.23, 1, .32, 1)); --wb-flut: var(--bloco, #262626);
+  position: relative; height: 100%; min-height: 420px; overflow: hidden; background: var(--fundo); color: var(--t1); font-family: var(--sans); }
+.aba-painel.aba-vista-whiteboard { overflow: hidden; }
+.aba-painel.aba-vista-whiteboard > .wb-vista { height: 100%; }
+
+.wb-palco { position: absolute; inset: 0; touch-action: none; outline: none; overflow: hidden; user-select: none; -webkit-user-select: none; }
+.wb-canvas { position: absolute; top: 0; left: 0; display: block; }
+.wb-html { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
+.wb-no { position: absolute; left: 0; top: 0; transform-origin: center; }
+
+/* Superfícies flutuantes */
+.wb-topo, .wb-barra, .wb-zoom { position: absolute; z-index: 3; display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: var(--wb-flut); border: 1px solid var(--fio-2, var(--fio)); border-radius: 14px; box-shadow: var(--sombra); }
+.wb-topo { top: 12px; left: 12px; gap: 4px; padding: 3px; max-width: calc(100% - 24px); }
+.wb-barra { top: 12px; left: 50%; transform: translateX(-50%); }
+.wb-zoom { bottom: 12px; left: 12px; padding: 3px; }
+
+.wb-quadro-btn { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 240px; height: 32px; padding: 0 8px 0 10px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--t1); font: inherit; font-size: 13px; cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, transform .18s var(--wb-ease); }
+.wb-quadro-btn:hover, .wb-quadro-btn[aria-expanded="true"] { background: var(--lat-hover, var(--bloco-2)); }
+.wb-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-seta { display: grid; place-items: center; color: var(--t3); transition: transform .18s var(--wb-ease); }
+.wb-quadro-btn[aria-expanded="true"] .wb-seta { transform: rotate(180deg); }
+
+.wb-status { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px 0 2px; font-size: 11.5px; color: var(--t3); white-space: nowrap;
+  transition: color .18s ease, opacity .18s ease; }
+.wb-status:empty { display: none; }
+.wb-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
+.wb-status[data-estado="salvando"] { color: var(--t2); }
+.wb-status[data-estado="salvando"]::before { animation: wb-pulso 1s ease-in-out infinite; }
+.wb-status[data-estado="erro"] { color: var(--perigo); cursor: pointer; }
+
+/* Botões compartilhados */
+.wb-ferr, .wb-ib, .wb-zoom-pct { position: relative; display: inline-grid; place-items: center; height: 32px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--t2); font: inherit; cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s var(--wb-ease); }
+.wb-ferr, .wb-ib { width: 32px; }
+.wb-zoom-pct { min-width: 48px; padding: 0 6px; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.wb-ferr:hover, .wb-ib:hover, .wb-zoom-pct:hover { background: var(--lat-hover, var(--bloco-2)); color: var(--t1); }
+.wb-ferr[aria-pressed="true"] { background: var(--lat-pilula, var(--bloco-2)); box-shadow: var(--lat-pilula-sombra, none); color: var(--t1); }
+.wb-ferr:active, .wb-ib:active, .wb-zoom-pct:active, .wb-quadro-btn:active, .wb-novo:active, .wb-btn:active { transform: scale(.975); }
+.wb-tecla { position: absolute; right: 4px; bottom: 2px; font-family: var(--mono); font-size: 8.5px; line-height: 1; color: var(--t3); pointer-events: none; }
+.wb-ib:disabled { opacity: .35; cursor: default; background: none; color: var(--t3, var(--t2)); }
+.wb-ib:disabled:active { transform: none; }
+.wb-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--fio); flex: none; }
+
+:is(.wb-quadro-btn, .wb-ferr, .wb-ib, .wb-zoom-pct, .wb-novo, .wb-item-abrir, .wb-btn, .wb-status):focus-visible { outline: 2px solid var(--foco); outline-offset: 1px; }
+
+.wb-vazio { position: absolute; z-index: 2; left: 50%; bottom: 64px; transform: translateX(-50%); margin: 0; max-width: calc(100% - 48px);
+  text-align: center; font-size: 12.5px; color: var(--t3); pointer-events: none; animation: wb-entra .26s var(--wb-ease) both; }
+.wb-vazio[hidden], .wb-aviso[hidden], .wb-painel-erro[hidden], .wb-dialogo-erro[hidden] { display: none; }
+
+.wb-aviso { position: absolute; z-index: 6; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: min(480px, calc(100% - 32px));
+  padding: 9px 14px; border-radius: 10px; background: var(--wb-flut); border: 1px solid var(--fio-2, var(--fio)); box-shadow: var(--sombra);
+  color: var(--t1); font-size: 13px; animation: wb-aviso .22s var(--wb-ease) both; }
+
+/* Painel de quadros */
+.wb-painel { position: absolute; z-index: 5; top: 56px; left: 12px; width: min(300px, calc(100% - 24px)); max-height: min(420px, calc(100% - 72px));
+  display: flex; flex-direction: column; padding: 6px; border-radius: 14px; background: var(--wb-flut); border: 1px solid var(--fio-2, var(--fio));
+  box-shadow: var(--sombra); transform-origin: top left; animation: wb-sobe .18s var(--wb-ease) both; }
+.wb-painel.saindo { animation: wb-sai .15s ease both; pointer-events: none; }
+.wb-painel-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 6px 8px; }
+.wb-painel-tit { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
+.wb-novo { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px; border: 1px solid var(--fio); border-radius: 10px;
+  background: var(--bloco-2, var(--bloco)); color: var(--t1); font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s var(--wb-ease); }
+.wb-novo:hover { background: var(--lat-pilula, var(--bloco-2)); border-color: var(--fio-2, var(--fio)); }
+.wb-lista { display: flex; flex-direction: column; gap: 1px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.wb-lista-vazia { margin: 0; padding: 14px 10px; text-align: center; font-size: 12.5px; color: var(--t3); }
+.wb-item { position: relative; display: flex; align-items: center; gap: 2px; border-radius: 10px; transition: background-color .18s ease; }
+.wb-item:hover, .wb-item:focus-within { background: var(--lat-hover, var(--bloco-2)); }
+.wb-item[aria-current="true"] { background: var(--lat-pilula, var(--bloco-2)); box-shadow: var(--lat-pilula-sombra, none); }
+.wb-item-abrir { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 10px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--t1); font: inherit; text-align: left; cursor: pointer; }
+.wb-item-nome { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.wb-item-meta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--t3); }
+.wb-item-acoes { display: flex; gap: 0; padding-right: 4px; opacity: 0; transition: opacity .18s ease; }
+.wb-item:hover .wb-item-acoes, .wb-item:focus-within .wb-item-acoes { opacity: 1; }
+.wb-acao { width: 26px; height: 26px; border-radius: 6px; }
+.wb-acao[data-acao="lixeira"]:hover, .wb-acao[data-acao="excluir"]:hover { color: var(--perigo); }
+.wb-item.editando .wb-item-abrir, .wb-item.editando .wb-item-acoes { display: none; }
+.wb-campo { flex: 1; min-width: 0; height: 32px; margin: 2px 4px; padding: 0 10px; border: 1px solid var(--foco); border-radius: 10px;
+  background: var(--poco); color: var(--t1); font: inherit; font-size: 13px; outline: none; }
+.wb-painel-erro { margin: 6px 8px 4px; font-size: 12px; color: var(--perigo); }
+
+/* Diálogo de exclusão */
+.wb-veu { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .55);
+  animation: wb-fade .18s ease both; }
+.wb-veu.saindo { animation: wb-fade-sai .16s ease both; pointer-events: none; }
+.wb-dialogo { width: min(380px, 100%); padding: 18px; border-radius: 20px; background: var(--sup, var(--cartao)); border: 1px solid var(--fio-2, var(--fio));
+  box-shadow: var(--sombra); animation: wb-sobe .22s var(--wb-ease) both; }
+.wb-dialogo h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--t1); }
+.wb-dialogo-msg { margin: 0 0 14px; font-size: 13px; line-height: 1.45; color: var(--t2); overflow-wrap: anywhere; }
+.wb-dialogo-erro { margin: -6px 0 12px; font-size: 12px; color: var(--perigo); }
+.wb-dialogo-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+.wb-btn { height: 32px; padding: 0 14px; border: 1px solid var(--fio); border-radius: 10px; background: var(--bloco); color: var(--t1); font: inherit; font-size: 13px; cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, opacity .18s ease, transform .18s var(--wb-ease); }
+.wb-btn:hover { background: var(--bloco-2, var(--bloco)); }
+.wb-btn:disabled { opacity: .5; cursor: default; }
+.wb-btn-perigo { background: var(--perigo); border-color: transparent; color: #fff; }
+.wb-btn-perigo:hover { background: var(--perigo); filter: brightness(1.1); }
+
+@keyframes wb-sobe { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+/* Popover/campo de endereço (espaço de tela): entra descendo 4px; data-lado="cima" sobe. */
+@keyframes wb-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes wb-pop-c { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes wb-sai { to { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes wb-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wb-fade-sai { to { opacity: 0; } }
+@keyframes wb-entra { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wb-pulso { 50% { opacity: .2; } }
+@keyframes wb-aviso { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+@media (max-width: 640px) {
+  .wb-tecla { display: none; }
+  .wb-barra { top: auto; bottom: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-vista *, .wb-vista *::before, .wb-vista *::after { animation: none !important; transition: none !important; }
+  .wb-ferr:active, .wb-ib:active, .wb-zoom-pct:active, .wb-quadro-btn:active, .wb-novo:active, .wb-btn:active { transform: none; }
+}

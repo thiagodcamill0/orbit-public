@@ -1,32 +1,64 @@
-/* Orbit — modo de edição dos widgets da Visão geral (19/10, no estilo do iPhone). Lógica em assets/widgets.js.
-   Editáveis: os gráficos e a Sincronização (.graf[data-widget]). As vagas são da coluna (index.html, "Home:
-   gráficos dos agentes"): a largura vem da vaga e cada widget tem uma versão para vaga estreita e para vaga larga,
-   medida no próprio cartão (container queries), sem cortar conteúdo.
+/* Orbit — grade da Visão geral e modo de edição dos widgets (19/10, no estilo do iPhone; grade de 21/10). Lógica em
+   assets/widgets.js. A Home é uma grade de colunas (12, 8, 4 ou 1, pela largura) e linhas de 8 px: a lista de
+   sessões, os widgets (.graf[data-widget]) e a Cena do dia são itens dela; o JS põe cada um na coluna e na linha
+   (grid-column / grid-row) e dá a altura em linhas pelo conteúdo, sem cortar nada. O vão entre linhas é a margem de
+   baixo de cada item (16 px), então a grade não tem row-gap. Cada widget tem versões por largura, medidas no próprio
+   cartão (container queries), e alguns usam a altura que sobra (grafo, cena, linhas a mais do Uso de contexto).
    Curvas e tempos das abas e painéis (assets/abas.css): cubic-bezier(.2, .8, .2, 1), 200–380 ms. */
 
-/* ───────────── Versões por tamanho de vaga ───────────── */
+/* ───────────── Grade ───────────── */
+.geral-grade {
+  position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(var(--wd-cols, 12), minmax(0, 1fr)); grid-auto-rows: 8px;
+  column-gap: 16px; row-gap: 0; align-items: stretch;
+}
+.geral-grade > .col-lista, .geral-grade > .graf[data-widget] { min-width: 0; margin-bottom: 16px; }
+/* Antes do JS (e sem ele): um embaixo do outro, na largura toda. */
+.geral-grade > * { grid-column: 1 / -1; }
+.geral-grade > .graf { display: flex; flex-direction: column; container-type: inline-size; }
+/* Cada cartão é o próprio contêiner das versões por largura (lado: o nome das antigas colunas, 19/10). */
+.geral-grade > .graf-estado { container-name: gest lado; }
+.geral-grade > .graf-ctx { container-name: gctx lado; }
+.geral-grade > .graf-sinc { container-name: gsinc lado; }
+.geral-grade > .graf-uso { container-name: guso lado; }
+.geral-grade > .graf-disco { container-name: gdisco lado; }
+.geral-grade > .graf-grafo { container-name: ggraf lado; }
+.geral-grade > .graf-cena { container: gcena / inline-size; }
+/* Medida (widgets.js): cada item na altura do próprio conteúdo, sem as sobras (linhas a mais, área que cresce). */
+.geral-grade.wd-medindo > * { align-self: start !important; }
+.geral-grade.wd-medindo .gc-extra { display: none !important; }
+.geral-grade.wd-medindo .gg-area { flex: none !important; }
+.geral-grade.wd-medindo .graf-cena .cena { flex: none !important; aspect-ratio: var(--cena-w) / var(--cena-h); }
 
-/* Sessões agora: a rosca e a legenda são um bloco só (display: contents fora da vaga larga, o layout de sempre).
-   Larga (≥ 640 px úteis, só numa vaga do pé ou na linha inteira da lateral): rosca à esquerda e legenda à direita;
-   com mais espaço, a legenda em duas colunas. */
+/* Cena do dia: a imagem é o cartão inteiro, sem moldura. Altura natural na proporção da cena (560/240 na maioria). */
+.graf-cena { padding: 0; overflow: hidden; }
+.graf-cena .cena { flex: 1 1 auto; min-height: 0; aspect-ratio: auto; box-shadow: none; }
+.graf-cena .cena-v { image-rendering: auto; }
+
+/* ───────────── Versões por largura e por altura ───────────── */
+
+/* Sessões agora: a rosca e a legenda são um bloco só (display: contents na vaga estreita, o layout de sempre).
+   Larga (≥ 500 px úteis): rosca à esquerda e legenda à direita; com mais espaço, a legenda em duas colunas. */
 .ge-corpo { display: contents; }
-@container gest (min-width: 640px) {
+@container gest (min-width: 500px) {
   .ge-corpo { display: grid; grid-template-columns: 176px minmax(0, 1fr); align-items: center; column-gap: 36px; }
   .ge-corpo .ge-rosca { margin: 0; }
   #ge-leg { grid-template-columns: minmax(0, 1fr); }
   #ge-leg li:nth-child(2)::before { display: block; }
 }
-@container gest (min-width: 860px) {
+@container gest (min-width: 760px) {
   #ge-leg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #ge-leg li:nth-child(2)::before { display: none; }
 }
 
-/* Uso de contexto: larga, as sessões em duas colunas (o fio de cima some na 1ª linha das duas). */
-.graf-ctx { container: gctx / inline-size; }
-@container gctx (min-width: 640px) {
+/* Uso de contexto: largo, as sessões em duas colunas (o fio de cima some na 1ª linha de cada coluna); bem largo, três. */
+@container gctx (min-width: 500px) {
   .graf-ctx .gc-barras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
   .graf-ctx .gc-linha:nth-child(2)::before { display: none; }
   .graf-ctx .gc-vazio { grid-column: 1 / -1; }
+}
+@container gctx (min-width: 820px) {
+  .graf-ctx .gc-barras { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .graf-ctx .gc-linha:nth-child(3)::before { display: none; }
 }
 
 /* Uso do plano: estreito (uma vaga da lateral), a identificação (plano e conta) desce para baixo do número,
@@ -35,6 +67,9 @@
   .graf-uso .gf-topo { flex-direction: column; }
   .gu-id { align-items: flex-start; max-width: 100%; margin-top: 0; }
 }
+
+/* Grafo do projeto: a área do grafo cresce com a altura escolhida (a natural é a de sempre, 248 ou 300 px). */
+.geral-grade > .graf-grafo .gg-area { flex: 1 0 auto; }
 
 /* ───────────── Modo de edição ───────────── */
 
@@ -50,7 +85,7 @@
   box-shadow: var(--sombra), 0 0 0 1px rgba(255, 255, 255, .085);
   animation: wd-tremor .3s ease-in-out var(--wd-fase, 0s) infinite alternate;
 }
-.wd-editando .graf[data-widget] > * { pointer-events: none; }
+.wd-editando .graf[data-widget] > :not(.wd-alca) { pointer-events: none; }
 @keyframes wd-tremor { from { rotate: calc(var(--wd-ang, .4deg) * -1); } to { rotate: var(--wd-ang, .4deg); } }
 
 /* Os outros elementos da Home ficam de fora: um pouco apagados, sem tremer. */
@@ -65,13 +100,44 @@
 }
 .wd-editando .graf[data-widget].wd-volta { position: relative; z-index: 20; transition: translate .28s cubic-bezier(.2, .8, .2, 1), scale .28s cubic-bezier(.2, .8, .2, 1); }
 .wd-arrastando, .wd-arrastando * { cursor: grabbing !important; }
-/* Alvo: a vaga que vai receber o cartão, marcada por um anel claro e um leve recuo. */
-.wd-editando .graf[data-widget].wd-alvo {
-  scale: .975; box-shadow: var(--sombra), 0 0 0 1.5px rgba(112, 184, 255, .7), 0 0 0 6px rgba(112, 184, 255, .12);
-  transition: scale .2s cubic-bezier(.2, .8, .2, 1), box-shadow .16s ease;
+.wd-editando .graf[data-widget].wd-redim { position: relative; z-index: 20; animation: none; rotate: 0deg; }
+
+/* Grade em edição: espaço livre no fim, para soltar embaixo de tudo. Movendo ou redimensionando, as colunas aparecem
+   bem de leve (faixas do tamanho de cada coluna, sem o vão) e a vaga onde o widget vai encaixar ganha um contorno. */
+.wd-editando .geral-grade { padding-bottom: 160px; }
+.geral-grade::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: 14px; opacity: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, .022) calc(100% - 16px), transparent 0) 0 0 / calc((100% + 16px) / var(--wd-cols, 12)) 100%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 120px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 120px), transparent);
+  transition: opacity .24s ease;
 }
-/* A cena em pé acompanha o último cartão da lateral quando ele muda de altura na troca. */
-.wd-editando .cena-v { transition: top .38s cubic-bezier(.2, .8, .2, 1), height .38s cubic-bezier(.2, .8, .2, 1), opacity 240ms ease; }
+.geral-grade.wd-movendo::before { opacity: 1; }
+.wd-vaga {
+  margin-bottom: 16px; border-radius: 14px; pointer-events: none;
+  background: rgba(112, 184, 255, .045); box-shadow: inset 0 0 0 1.5px rgba(112, 184, 255, .32);
+  transition: opacity .16s ease;
+}
+.wd-vaga[hidden] { display: none; }
+
+/* Alça de redimensionar: no canto de baixo à direita de cada item, só no modo de edição. A lista só muda a largura. */
+.wd-alca {
+  position: absolute; right: 4px; bottom: 4px; z-index: 3; width: 22px; height: 22px; display: none; padding: 0; border: 0;
+  border-radius: 7px; background: transparent; cursor: nwse-resize; touch-action: none;
+}
+.wd-alca::before {
+  content: ""; position: absolute; right: 6px; bottom: 6px; width: 9px; height: 9px; border-right: 2px solid rgba(255, 255, 255, .42); border-bottom: 2px solid rgba(255, 255, 255, .42);
+  border-bottom-right-radius: 4px; transition: border-color .15s ease;
+}
+.wd-alca:hover::before, .wd-redim .wd-alca::before { border-color: rgba(112, 184, 255, .9); }
+/* Na lista, uma faixa no vão à direita, da altura dela; a pega (sticky) acompanha o meio da tela enquanto rola. */
+.col-lista > .wd-alca { cursor: ew-resize; top: 0; bottom: 0; right: -14px; width: 12px; height: auto; border-radius: 6px; }
+.col-lista > .wd-alca::before { position: sticky; top: calc(50vh - 20px); right: auto; bottom: auto; display: block; width: 4px; height: 40px; margin: 0 auto; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .28); }
+.col-lista > .wd-alca:hover::before, .col-lista.wd-redim > .wd-alca::before { background: rgba(112, 184, 255, .9); }
+.wd-editando .wd-alca { display: block; }
+.wd-editando .graf[data-widget] { position: relative; }
+.wd-editando .col-lista { position: relative; }
+.wd-redimensionando, .wd-redimensionando * { cursor: nwse-resize !important; }
+.wd-redimensionando.wd-so-largura, .wd-redimensionando.wd-so-largura * { cursor: ew-resize !important; }
 
 /* Barra do modo de edição: pílula discreta embaixo, no centro da Home (posição no JS). */
 .wd-barra {
@@ -100,8 +166,8 @@
 /* Movimento reduzido: sem tremor e sem o afundar; o anel fixo marca o que é editável e as trocas são instantâneas
    (no JS). O arrasto segue o ponteiro, que é manipulação direta. */
 @media (prefers-reduced-motion: reduce) {
-  .graf[data-widget], .wd-fora, .wd-barra, .wd-barra.fechada, .wd-editando .cena-v { transition: none; }
+  .graf[data-widget], .wd-fora, .wd-barra, .wd-barra.fechada, .geral-grade::before, .wd-vaga { transition: none; }
   .graf[data-widget].wd-segurando { scale: none; }
   .wd-editando .graf[data-widget] { animation: none; box-shadow: var(--sombra), 0 0 0 1px rgba(255, 255, 255, .16); }
-  .wd-editando .graf[data-widget].wd-arrastado, .wd-editando .graf[data-widget].wd-alvo, .wd-editando .graf[data-widget].wd-volta { transition: none; }
+  .wd-editando .graf[data-widget].wd-arrastado, .wd-editando .graf[data-widget].wd-volta { transition: none; }
 }

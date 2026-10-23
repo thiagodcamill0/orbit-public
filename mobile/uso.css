@@ -1,0 +1,68 @@
+/* Orbit no celular: tela "uso" (#mais/uso). Só tokens de assets/comum/base.css; o card e a barra seguem o "Uso do plano" do PC. */
+
+.uso-tela { display: grid; gap: var(--esp-3); padding: var(--esp-2) 0 var(--esp-5); min-width: 0; }
+.uso-lista { display: grid; gap: var(--esp-3); min-width: 0; }
+.uso-real { display: grid; gap: var(--esp-3); min-width: 0; }
+
+/* Cartão de uma janela */
+.uso-cartao { padding: var(--esp-4); border-radius: var(--r-4); background: var(--sup); box-shadow: var(--sombra), var(--luz-topo); min-width: 0; }
+.uso-l1 { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); min-width: 0; }
+.uso-nome { min-width: 0; display: grid; font-size: 15px; font-weight: 600; line-height: 1.25; }
+.uso-nome small { font-size: 12px; font-weight: 400; color: var(--t3); }
+.uso-val { flex: none; font-size: 30px; font-weight: 600; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.uso-pista { position: relative; margin-top: var(--esp-3); padding-top: 16px; }
+.uso-marca { position: absolute; left: 80%; top: 0; width: 40px; margin-left: -20px; text-align: center; color: var(--t3); font-size: var(--fs-1); line-height: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.uso-trilho { position: relative; height: 8px; border-radius: var(--r-pilula); background: var(--bloco); }
+.uso-trilho::after { content: ""; position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--t3); }
+.uso-trilho i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(var(--p, 0)); border-radius: var(--r-pilula); background-color: var(--uso-verde); transition: transform var(--dur-3) var(--ease-press); }
+.uso-ren { margin-top: var(--esp-2); color: var(--t3); font-size: 13px; line-height: 1.35; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.uso-ren b { color: var(--t2); font-weight: 500; }
+.uso-cartao.perto .uso-ren b { color: var(--t1); }
+.uso-cartao.perto .uso-marca { color: var(--uso-laranja); }
+.uso-cartao.limite .uso-val { color: var(--uso-roxo); }
+.uso-modelo { padding: var(--esp-3) var(--esp-4); }
+.uso-modelo .uso-val { font-size: 22px; }
+.uso-modelo .uso-nome { font-size: 14px; }
+.uso-sec { margin-top: var(--esp-2); color: var(--t2); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Previsão */
+.uso-prev { display: flex; align-items: flex-start; gap: 9px; padding: var(--esp-3); border-radius: var(--r-3); background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t2); font-size: 13px; line-height: 1.4; }
+.uso-prev::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--uso-verde); }
+.uso-prev[data-cls="aviso"]::before { background: var(--uso-laranja); }
+.uso-prev[data-cls="limite"]::before { background: var(--uso-vermelho); }
+.uso-prev[data-cls="neutro"]::before { background: var(--t3); }
+.uso-prev b { color: var(--t1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.uso-prev span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Avisos em destaque: bloqueio (409), falha, limite e PC desconectado */
+.uso-aviso { display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-3) var(--esp-4); border-radius: var(--r-3); border: 1px solid var(--fio-2); background: var(--sup); color: var(--t1); min-width: 0; }
+.uso-aviso > svg { flex: none; margin-top: 1px; }
+.uso-aviso > div { display: grid; gap: 2px; min-width: 0; font-size: 13px; line-height: 1.4; }
+.uso-aviso strong { font-size: 14px; font-weight: 600; }
+.uso-aviso span { color: var(--t2); overflow-wrap: anywhere; }
+.uso-aviso[data-tipo="bloqueio"] { background: color-mix(in srgb, var(--agu) 10%, var(--sup)); border-color: color-mix(in srgb, var(--agu) 40%, transparent); }
+.uso-aviso[data-tipo="bloqueio"] > svg { color: var(--agu-t); }
+.uso-aviso[data-tipo="erro"], .uso-aviso[data-tipo="limite"] { background: color-mix(in srgb, var(--erro) 12%, var(--sup)); border-color: color-mix(in srgb, var(--erro) 45%, transparent); }
+.uso-aviso[data-tipo="erro"] > svg, .uso-aviso[data-tipo="limite"] > svg { color: var(--erro-t); }
+.uso-aviso[data-tipo="pc"] > svg { color: var(--t2); }
+
+/* Rodapé e botão */
+.uso-lido { color: var(--t3); font-size: var(--fs-2); text-align: center; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.uso-lido.velho { color: var(--agu-t); }
+.uso-atualizar { width: 100%; min-height: var(--alvo); justify-content: center; }
+.uso-atualizar:disabled, .uso-cab:disabled { opacity: .6; cursor: default; }
+.uso-cab.lendo svg, .uso-atualizar.lendo svg { animation: om-girar .8s linear infinite; }
+
+/* Vazio e esqueleto */
+.uso-vazio { display: grid; justify-items: center; gap: var(--esp-2); padding: var(--esp-6) var(--esp-4); text-align: center; }
+.uso-vazio-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--r-5); background: var(--sup); color: var(--t2); box-shadow: var(--sombra); }
+.uso-vazio-tit { font-size: 16px; font-weight: 600; margin-top: var(--esp-2); }
+.uso-vazio-txt { max-width: 30ch; color: var(--t2); font-size: 14px; line-height: 1.45; }
+.uso-esqueleto { display: grid; gap: var(--esp-3); }
+.uso-esq-cartao { height: 108px; border-radius: var(--r-4); }
+.uso-esq-linha { height: 44px; border-radius: var(--r-3); width: 70%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .uso-trilho i { transition: none; }
+  .uso-cab.lendo svg, .uso-atualizar.lendo svg { animation: om-pulsar .6s var(--ease) infinite alternate; }
+}

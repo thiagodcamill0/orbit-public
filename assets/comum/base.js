@@ -109,9 +109,7 @@
   // ===== Sprites dos agentes (assets/sprites/<nome>.gif|png) por estado =====
   // Só o trabalho tem variantes: a sorteada vale para o ciclo de trabalho inteiro.
   const SPRITE = {
-    trabalho: ['sprites/sprite-work', 'sprites/sprite-think'],
-    mago: ['sprites/sprite-wizark'], // trabalhando com mais de 100 mil tokens de contexto
-    cozinha: ['sprites/sprite-cook'], // a partir de 150 mil
+    trabalho: ['sprites/sprite-work', 'sprites/sprite-think', 'sprites/sprite-wizark', 'sprites/sprite-cook'], // 22/10: wizark e cook viraram variantes (antes: degraus de contexto)
     busca: ['sprites/sprite-search'], // web ou procura (Grep, Glob, ToolSearch...)
     espera: ['sprites/sprite-music'], // subagente trabalhando com a principal parada
     precisa: ['sprites/sprite-needu'], // aguardando (decisão sua) e erro
@@ -120,13 +118,12 @@
     interrompida: ['sprites/sprite-work-parado'],
     dormindo: ['sprites/sprite-sleep'], // nova e encerrada
   };
-  const CTX_MAGO = 100000, CTX_COZINHA = 150000;
   const FERR_BUSCA = new Set(['WebSearch', 'WebFetch', 'Grep', 'Glob', 'LS', 'ToolSearch']);
   const ehBusca = (f) => !!(f && f.nome) && (FERR_BUSCA.has(f.nome) || /^mcp__.*(search|fetch|find|query|busca)/i.test(f.nome));
   const ehDelegacao = (f) => !!f && (f.nome === 'Agent' || f.nome === 'Task');
   // Estado do sprite (chave de SPRITE) a partir do status e do que a página sabe da sessão:
   //   info = { agente (é subagente?), ferramenta ({ nome } em curso), subTrabalhando (algum subagente trabalhando),
-  //            tokens (contexto usado), revisada (concluída já revisada) }
+  //            revisada (concluída já revisada) }
   function estadoSprite(st, info = {}) {
     if (info.agente) {
       if (st === 'trabalhando') return ehBusca(info.ferramenta) ? 'busca' : 'trabalho';
@@ -135,9 +132,7 @@
     switch (st) {
       case 'trabalhando': {
         if (info.subTrabalhando && ehDelegacao(info.ferramenta)) return 'espera';
-        if (ehBusca(info.ferramenta)) return 'busca';
-        const tk = info.tokens || 0;
-        return tk >= CTX_COZINHA ? 'cozinha' : tk > CTX_MAGO ? 'mago' : 'trabalho';
+        return ehBusca(info.ferramenta) ? 'busca' : 'trabalho';
       }
       case 'concluida': return info.subTrabalhando ? 'espera' : info.revisada ? 'revisada' : 'concluida';
       case 'interrompida': return 'interrompida';
@@ -149,6 +144,6 @@
   window.OrbitBase = Object.freeze({
     COR_STATUS, ROTULO_STATUS, ROTULO_AGENTE, pontoStatus, pilula,
     ESCALA_USO, corEscala, degradeEscala, faixaUso, barraUso,
-    SPRITE, CTX_MAGO, CTX_COZINHA, FERR_BUSCA, ehBusca, ehDelegacao, estadoSprite,
+    SPRITE, FERR_BUSCA, ehBusca, ehDelegacao, estadoSprite,
   });
 })();

@@ -1,0 +1,72 @@
+/* Orbit — widget "Grafo do projeto" da Visão geral (21/10). Lógica em assets/grafo-widget.js; as cores do grafo
+   vêm de assets/grafo.css (.grafo-vista), as mesmas da aba Grafo. Cartão no padrão dos compactos (index.html,
+   "Cartões compactos"): faixa de cabeçalho, corpo num poço com raio e o pé com fio. */
+.graf-grafo { container: ggraf / inline-size; }
+.graf-grafo .gf-delta { color: var(--t3); }
+
+/* Área do grafo: poço escuro com raio; a prévia da nota abre por cima, à direita (embaixo, na vaga estreita). */
+.gg-area { position: relative; height: 248px; border-radius: 10px; overflow: hidden; background: var(--poco, #0f0f0f); box-shadow: var(--poco-sombra, inset 0 1px 2px rgba(0, 0, 0, .5)); }
+@container ggraf (min-width: 560px) { .gg-area { height: 300px; } }
+.gg-vista { position: absolute; inset: 0; }
+.gg-vista[hidden] { display: none; }
+
+/* Estados sem grafo: sem projeto, sem brain, lendo, vazio, erro. */
+.gg-vazio { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; text-align: center; }
+.gg-vazio[hidden] { display: none; }
+.gg-vazio-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--bloco); color: var(--t3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05); }
+.gg-vazio-txt { margin: 0; max-width: 34ch; font-size: 12.5px; line-height: 1.5; color: var(--t3); }
+.gg-vazio-txt b { color: var(--t2); font-weight: 600; overflow-wrap: anywhere; }
+.graf-grafo[data-estado="carregando"] .gg-vazio-ic { animation: gg-pulso 1.2s ease-in-out infinite alternate; }
+@keyframes gg-pulso { from { opacity: .45; } to { opacity: 1; } }
+
+/* Prévia da nota */
+.gg-prev { position: absolute; top: 8px; right: 8px; bottom: 8px; width: min(58%, 340px); display: flex; flex-direction: column; min-height: 0;
+  background: var(--sup, #1b1b1b); border-radius: 9px; box-shadow: 0 10px 28px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .06);
+  animation: gg-entra .2s cubic-bezier(.2, .8, .2, 1); }
+.gg-prev[hidden] { display: none; }
+@container ggraf (max-width: 380px) { .gg-prev { left: 8px; width: auto; top: 30%; } }
+@keyframes gg-entra { from { opacity: 0; translate: 8px 0; } to { opacity: 1; translate: 0 0; } }
+.gg-prev-cab { display: flex; align-items: flex-start; gap: 8px; padding: 10px 8px 9px 12px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.gg-prev-tit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.gg-prev-tit b { font-size: 13px; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gg-prev-tit small { font-size: 11px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gg-prev-x { flex: none; margin: -3px 0 0; }
+.gg-prev-txt { flex: 1; min-height: 0; margin: 0; padding: 10px 12px 12px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  font: 11.5px/1.55 var(--mono); color: var(--t2); user-select: text; -webkit-user-select: text; }
+
+/* Pé: ligações à esquerda, "Abrir no Grafo" à direita. */
+.graf-grafo .gu-pe { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gg-abrir { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; font-size: 12px; border-radius: 7px; }
+.gg-abrir:disabled { opacity: .45; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gg-prev { animation: none; }
+  .graf-grafo[data-estado="carregando"] .gg-vazio-ic { animation: none; }
+}
+
+/* Seletor de pasta (brain do projeto): acima do popover "Personalizar projeto". */
+.gw-modal { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .5); }
+.gw-dlg { width: min(540px, 92vw); max-height: min(560px, 82vh); display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 14px;
+  background: var(--sup, #1b1b1b); box-shadow: var(--sombra), 0 0 0 1px rgba(255, 255, 255, .07); color: var(--t1); font-family: var(--sans); }
+.gw-cab { display: flex; flex-direction: column; gap: 3px; }
+.gw-cab b { font-size: 14px; font-weight: 600; }
+.gw-cab small { font-size: 12px; color: var(--t3); }
+.gw-linha { display: flex; gap: 6px; }
+.gw-campo { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--lat-fio, rgba(255, 255, 255, .08)); border-radius: 9px;
+  background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t1); font: 13px var(--sans); outline: none; }
+.gw-campo:focus { border-color: rgba(255, 255, 255, .16); }
+.gw-pastas { flex: 1; min-height: 160px; overflow: auto; padding: 4px; border-radius: 10px; background: var(--poco); box-shadow: var(--poco-sombra); }
+.gw-item { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 6px 9px; border: 0; border-radius: 7px; background: none; color: var(--t1);
+  font: 12.5px var(--sans); text-align: left; cursor: pointer; }
+.gw-item:hover, .gw-item:focus-visible { background: var(--bloco); outline: none; }
+.gw-item small { color: var(--t3); font-size: 11px; }
+.gw-msg { margin: 0; padding: 0 2px; font-size: 12px; color: var(--t3); }
+.gw-msg:empty { display: none; }
+.gw-pastas .gw-msg { padding: 8px 9px; }
+.gw-rodape { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* Campo "Brain" do popover "Personalizar projeto" (index.html): o caminho mostra o fim (a pasta) quando não cabe. */
+.pj-campo.pj-brain { margin-top: 0; text-align: left; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; }
+.pj-campo.pj-brain.vazio { direction: ltr; color: #6a6a6a; }
+.pj-brain-x { padding: 0 9px; }
+.pj-brain-x[hidden] { display: none; }

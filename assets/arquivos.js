@@ -820,6 +820,7 @@
         { rot: 'Localizar na pasta', des: !existe, acao: () => localizar(nome, '') }, '-',
         { rot: 'Colar', des: semClip || !existe, acao: () => colar(nome, '') }, '-',
         copiarC, copiarR, '-',
+        { rot: 'Abrir na pasta', des: !existe, acao: () => abrirNaPasta(nome, '') },
         { rot: rotRevelar(), des: !existe, acao: () => revelar(nome, '') },
         { rot: 'Remover projeto da lista', acao: () => removerProjeto(nome) },
       ];
@@ -832,6 +833,7 @@
         { rot: 'Copiar', acao: () => definirClip('copiar', selecaoDe(cx)) },
         { rot: 'Colar', des: semClip, acao: () => colar(nome, caminho) }, '-',
         copiarC, copiarR, '-',
+        { rot: 'Abrir na pasta', acao: () => abrirNaPasta(nome, caminho) },
         { rot: 'Renomear', acao: () => iniciarRenomear(cx.k) },
         { rot: 'Excluir', acao: () => excluir(selecaoDe(cx)) },
       ];
@@ -957,6 +959,10 @@
   }
   async function revelar(nome, caminho) {
     try { await pedir('/arquivos/revelar', { projeto: nome, caminho }); toast('Abrindo no ' + nomeExplorador()); }
+    catch (e) { toast(e.message, true); }
+  }
+  async function abrirNaPasta(nome, caminho) {
+    try { await pedir('/arquivos/abrir-pasta', { projeto: nome, caminho }); toast('Abrindo no ' + nomeExplorador()); }
     catch (e) { toast(e.message, true); }
   }
 

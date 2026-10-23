@@ -1,0 +1,73 @@
+/* Orbit no celular — tela nova (onda 3). Só tokens de assets/comum/base.css e peças de componentes.css; o celular só ajusta tamanho. */
+
+.nv { display: grid; gap: var(--esp-4); padding-top: var(--esp-2); padding-bottom: var(--esp-5); min-width: 0; }
+.nv-form { display: grid; gap: var(--esp-5); min-width: 0; }
+.nv-form.ocupado { opacity: .7; }
+.nv-sec { display: grid; gap: var(--esp-2); min-width: 0; }
+.nv-sec[hidden] { display: none; }
+.nv-sec-t {
+  padding: 0 var(--esp-1); font-size: var(--rot-fs); font-weight: var(--rot-fw); letter-spacing: var(--rot-ls-estr);
+  text-transform: uppercase; color: var(--t3);
+}
+
+/* ===== Aviso (opção desligada) ===== */
+.nv-aviso {
+  display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-4);
+  background: color-mix(in srgb, var(--aviso) 10%, transparent); border: 1px solid color-mix(in srgb, var(--aviso) 30%, transparent); border-radius: var(--r-4); color: var(--agu-t);
+}
+.nv-aviso svg { flex: none; margin-top: 1px; }
+.nv-aviso p { font-size: var(--fs-5); line-height: 1.45; overflow-wrap: anywhere; }
+
+/* ===== Campos ===== */
+.nv-sel, .nv-campo, .nv-texto {
+  width: 100%; min-height: var(--alvo); padding: 0 var(--esp-3); font-size: 16px; color: var(--t1);
+  background: var(--poco); box-shadow: var(--poco-sombra); border: 1px solid var(--fio-2); border-radius: var(--r-2);
+}
+.nv-sel { appearance: none; -webkit-appearance: none; padding-right: 36px; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, var(--t2) 50%), linear-gradient(135deg, var(--t2) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+.nv-texto { padding: var(--esp-3); min-height: 112px; resize: vertical; line-height: 1.45; }
+.nv-sel:focus, .nv-campo:focus, .nv-texto:focus { outline: 0; border-color: var(--foco); box-shadow: 0 0 0 3px var(--anel); }
+.nv-campo::placeholder, .nv-texto::placeholder { color: var(--t3); }
+.nv-sel:disabled, .nv-campo:disabled, .nv-texto:disabled { opacity: .6; }
+
+/* ===== Esforço (seg-filtro que quebra linha em tela estreita) ===== */
+.nv-esf { display: flex; flex-wrap: wrap; width: 100%; box-shadow: none; }
+.nv-esf button { flex: 1 1 auto; min-height: var(--alvo); padding: 0 var(--esp-3); }
+
+/* ===== Modo de permissão (lista de escolha única) ===== */
+.nv-modos { display: grid; gap: var(--esp-2); }
+.nv-modo {
+  display: flex; align-items: flex-start; gap: var(--esp-3); width: 100%; min-height: var(--alvo); padding: var(--esp-3) var(--esp-4);
+  text-align: left; background: var(--sup); border: 1px solid var(--fio); border-radius: var(--r-3); color: var(--t1);
+  transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+.nv-modo.on { background: var(--acento-suave); border-color: var(--acento); }
+.nv-modo-ponto {
+  flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--fio-3); position: relative;
+  transition: border-color var(--dur-1) var(--ease);
+}
+.nv-modo.on .nv-modo-ponto { border-color: var(--acento); }
+.nv-modo.on .nv-modo-ponto::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--acento); }
+.nv-modo-txt { display: grid; gap: 2px; min-width: 0; }
+.nv-modo-t { font-size: var(--fs-5); font-weight: 500; }
+.nv-modo-d { font-size: var(--fs-3); line-height: 1.4; color: var(--t2); overflow-wrap: anywhere; }
+.nv-modo:disabled { opacity: .7; }
+
+/* ===== Primeira mensagem ===== */
+.nv-slot { min-width: 0; }
+
+/* ===== Erro, carga e botão ===== */
+.nv-erro {
+  padding: var(--esp-3) var(--esp-4); border-radius: var(--r-3); font-size: var(--fs-4); line-height: 1.45; overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--perigo) 16%, transparent); border: 1px solid color-mix(in srgb, var(--perigo) 50%, transparent); color: var(--erro-t);
+}
+.nv-criar { width: 100%; height: var(--alvo); font-size: 16px; }
+.nv-criar:disabled { opacity: .6; cursor: default; }
+.nv-recarregar { justify-self: start; min-height: var(--alvo); }
+.nv-carr { display: grid; gap: var(--esp-3); }
+.nv-esq { height: 52px; border-radius: var(--r-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-modo { transition: none; }
+}

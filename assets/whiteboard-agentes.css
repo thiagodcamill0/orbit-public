@@ -1,0 +1,81 @@
+/* Orbit — Whiteboard, etapa 4: cards de agentes (assets/whiteboard-agentes.js). Tokens só do assets/comum/base.css. */
+
+/* Card (nó da camada HTML; o núcleo põe posição, tamanho, opacidade e z-index no .wb-ag). */
+.wb-ag { pointer-events: none; font-family: var(--sans); color: var(--t1); }
+.wb-ag-c { box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  background: var(--lat-fundo); border: 1px solid var(--fio-2); border-radius: 14px; box-shadow: var(--sombra), var(--luz-topo);
+  overflow: hidden; transition: opacity .18s var(--ease-press), border-color .18s var(--ease-press), box-shadow .18s var(--ease-press); }
+.wb-ag.wb-ag-sel .wb-ag-c { border-color: var(--anel); box-shadow: 0 0 0 1px var(--anel), var(--sombra); }
+.wb-ag.wb-ag-fim .wb-ag-c { opacity: .55; }
+.wb-ag.wb-ag-fim .wb-ag-img { filter: grayscale(1); }
+
+.wb-ag-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wb-ag-spr { position: relative; flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--poco); box-shadow: var(--poco-sombra); overflow: hidden; }
+.wb-ag-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; opacity: 1; transition: opacity .18s var(--ease-press); }
+.wb-ag-img.entra { opacity: 0; }
+.wb-ag-ident { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wb-ag-nome { font-size: 13.5px; font-weight: 500; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-ag-proj { font-size: 11.5px; color: var(--t2); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-ag-proj:empty { display: none; }
+
+.wb-ag-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.wb-ag-st { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wb-ag-ponto { flex: none; width: 7px; height: 7px; border-radius: 999px; background: var(--enc); }
+[data-status="trabalhando"] .wb-ag-ponto, .wb-ag-pop-st[data-status="trabalhando"] .wb-ag-ponto { background: var(--trab); }
+[data-status="aguardando"] .wb-ag-ponto, .wb-ag-pop-st[data-status="aguardando"] .wb-ag-ponto { background: var(--agu); }
+[data-status="concluida"] .wb-ag-ponto, [data-status="concluido"] .wb-ag-ponto { background: var(--ok); }
+[data-status="erro"] .wb-ag-ponto { background: var(--erro); }
+[data-status="interrompida"] .wb-ag-ponto { background: var(--int); }
+[data-status="nova"] .wb-ag-ponto { background: var(--t2); }
+.wb-ag[data-status="trabalhando"] .wb-ag-st-t { color: var(--trab-t); }
+.wb-ag[data-status="aguardando"] .wb-ag-st-t { color: var(--agu-t); }
+
+.wb-ag-ctx { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.wb-ag-ctx[hidden] { display: none; }
+.wb-ag-barra { width: 48px; height: 4px; border-radius: 999px; background: var(--fio-2); overflow: hidden; }
+.wb-ag-barra i { display: block; height: 100%; width: 0; background: var(--t2); border-radius: 999px; transition: width .18s var(--ease-press); }
+.wb-ag-pct { font: var(--peso-texto) 11px var(--mono); color: var(--t3); }
+.wb-ag-ctx.medio .wb-ag-barra i { background: var(--aviso); }
+.wb-ag-ctx.medio .wb-ag-pct { color: #f5b13d; }
+.wb-ag-ctx.alto .wb-ag-barra i { background: var(--perigo); }
+.wb-ag-ctx.alto .wb-ag-pct { color: #f87171; }
+.wb-ag-ativ { font-size: 11.5px; color: var(--t3); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-ag-ativ:empty::before { content: '\2014'; }
+
+/* Destaque ao soltar uma sessão que já está no quadro. */
+.wb-ag.wb-ag-destaque .wb-ag-c { animation: wb-ag-pulso 1.2s var(--ease-press) both; }
+@keyframes wb-ag-pulso {
+  0% { box-shadow: 0 0 0 0 var(--anel), var(--sombra); }
+  30% { box-shadow: 0 0 0 6px var(--anel), var(--sombra); }
+  100% { box-shadow: 0 0 0 1px transparent, var(--sombra); }
+}
+
+/* Palco recebendo uma sessão arrastada: realce sutil. */
+.wb-palco.wb-ag-alvo { box-shadow: inset 0 0 0 2px var(--anel); background-color: var(--acento-suave); }
+
+/* Popover de detalhes (espaço de tela, dentro do palco). */
+.wb-ag-pop { position: absolute; z-index: 50; box-sizing: border-box; width: 264px; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  background: var(--lat-fundo); border: 1px solid var(--fio-2); border-radius: 14px; box-shadow: var(--sombra); color: var(--t1);
+  font-family: var(--sans); font-size: 12px; pointer-events: auto; animation: wb-pop .18s var(--ease-press) both; }
+.wb-ag-pop[data-lado="cima"] { animation-name: wb-pop-c; }
+.wb-ag-pop-cab { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wb-ag-pop-nome { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-ag-pop-proj { font-size: 11.5px; color: var(--t2); }
+.wb-ag-pop-proj:empty { display: none; }
+.wb-ag-pop dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
+.wb-ag-pop dt { color: var(--t3); }
+.wb-ag-pop dd { margin: 0; color: var(--t1); min-width: 0; overflow-wrap: anywhere; }
+.wb-ag-pop-st { display: inline-flex; align-items: center; gap: 6px; }
+.wb-ag-pop-abrir { align-self: stretch; height: 30px; border: 1px solid var(--fio-2); border-radius: 10px; background: var(--bloco); color: var(--t1);
+  font: inherit; font-weight: 500; cursor: pointer; box-shadow: var(--luz-topo); transition: background .18s var(--ease-press), transform .18s var(--ease-press); }
+.wb-ag-pop-abrir:hover { background: var(--bloco-2); }
+.wb-ag-pop-abrir:active { transform: scale(.975); }
+.wb-ag-pop-abrir:focus-visible { outline: 2px solid var(--foco); outline-offset: 1px; }
+.wb-ag-pop-abrir:disabled { opacity: .5; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-ag-c, .wb-ag-img, .wb-ag-barra i, .wb-ag-pop-abrir { transition: none; }
+  .wb-ag.wb-ag-destaque .wb-ag-c { animation: none; box-shadow: 0 0 0 2px var(--anel), var(--sombra); }
+  .wb-ag-pop { animation: none; }
+  .wb-ag-pop-abrir:active { transform: none; }
+}

@@ -68,7 +68,7 @@ try {
     await dormir(320);
     return visto;
   }
-  const PADRAO = 'principal:geral|historico|office ferramentas:terminal|navegador|repos conhecimento:ideias|skills projetos: sistema:config';
+  const PADRAO = 'principal:geral|historico|office ferramentas:terminal|navegador|repos|whiteboard conhecimento:ideias|skills|automacoes|grafo projetos: sistema:config';
 
   await cdp('Runtime.enable'); await cdp('Page.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -104,14 +104,14 @@ try {
   const meio = await arrastar(await ponto('.nav-item[data-lat="office"]'), await ponto('.nav-item[data-lat="geral"]'), () => av(`({
     fantasma: document.querySelector('.lat-fantasma')?.textContent, arrastando: document.getElementById('lat-grupos').classList.contains('arrastando'),
     lugar: !!document.querySelector('.nav-item.lat-arrastado[data-lat="office"]') })`));
-  conferir(meio && /Visão de Office/.test(meio.fantasma || '') && meio.arrastando && meio.lugar, 'no meio do arraste: fantasma com o item e o lugar marcado', meio);
+  conferir(meio && /Office/.test(meio.fantasma || '') && meio.arrastando && meio.lugar, 'no meio do arraste: fantasma com o item e o lugar marcado', meio);
   conferir((await ordem()).startsWith('principal:office|geral|historico'), 'soltar reordena dentro do grupo', await ordem());
   conferir(await av(`!document.querySelector('.lat-fantasma') && !document.querySelector('.lat-arrastado')`), 'fantasma e marca somem ao soltar');
   conferir(await av(`document.querySelector('.nav-item[data-vista="geral"]').getAttribute('aria-current') === 'page'`), 'o clique que fecha o arraste não abre o Office');
 
   // 4) Item entre grupos: Skills para Principal (entre Office e Visão geral).
   await arrastar(await ponto('.nav-item[data-lat="skills"]'), await ponto('.nav-item[data-lat="geral"]'));
-  conferir((await ordem()).includes('principal:office|skills|geral') && (await ordem()).includes('conhecimento:ideias '), 'item muda de grupo', await ordem());
+  conferir((await ordem()).includes('principal:office|skills|geral') && (await ordem()).includes('conhecimento:ideias|automacoes|grafo '), 'item muda de grupo', await ordem());
   // 5) Grupo: Sistema para o topo.
   await arrastar(await ponto('.lat-grupo[data-grupo="sistema"] .lat-alt'), await ponto('.lat-grupo[data-grupo="principal"] .lat-alt'));
   conferir((await ordem()).startsWith('sistema:'), 'grupo arrastado para o topo', await ordem());

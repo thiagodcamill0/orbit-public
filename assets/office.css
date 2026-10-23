@@ -133,94 +133,46 @@
 .of-btn[aria-pressed="true"] svg { color: #fff; }
 .of-btn-p { height: 30px; font-size: 12.5px; }
 
-/* ───────── Palco (mapa) ───────── */
-.of-palco { position: absolute; left: 0; top: 0; --of-s: 40px; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
-.of-planta { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
-.of-planta rect, .of-planta circle, .of-planta line, .of-planta path { vector-effect: non-scaling-stroke; }
+/* ───────── Palco (mapa da vila) ───────── */
+/* O mapa é um <canvas> com o mundo inteiro (Vila.desenhar); o palco tem a proporção da grade. */
+.of-palco { position: absolute; left: 0; top: 0; --of-s: 40px; border-radius: 6px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .06), 0 8px 28px rgba(0, 0, 0, .45); }
+.of-vila { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
 .of-camada { position: absolute; inset: 0; pointer-events: none; }
 
-.of-corredor { fill: #141414; stroke: none; }
-.of-trilha { fill: #2c2c2c; }
-.of-seta { fill: none; stroke: #4b4b4b; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.of-sala { fill: #161616; stroke: #2e2e2e; stroke-width: 1; }
-.of-sala-desc { fill: #151515; }
-.of-sala-pont { stroke: none; }
-.of-fio-cor { stroke-width: 2; stroke-linecap: round; opacity: .9; }
-.of-porta { fill: #141414; stroke: none; }
-.of-batente { fill: #4a4a4a; stroke: none; }
-
-.of-mesa { fill: #1d1d1d; stroke: #343434; stroke-width: 1; }
-.of-mesa-mestre { stroke: rgba(99, 102, 241, .45); }
-.of-cadeira { fill: #1a1a1a; stroke: #2c2c2c; stroke-width: 1; }
-.of-teclado { fill: #2a2a2a; stroke: none; }
-.of-tela .of-vidro { fill: #0c0c0c; stroke: #3a3a3a; stroke-width: 1; transition: fill .3s ease, stroke .3s ease; }
-.of-tela .of-halo { fill: var(--of-acento); opacity: 0; transition: opacity .3s ease; }
-.of-tela .of-cod { fill: #8b93ff; opacity: 0; transition: opacity .3s ease; }
-.of-tela .of-alerta { fill: #ef4444; opacity: 0; }
-.of-tela[data-e="ativa"] .of-vidro { fill: #161c3d; stroke: #6366f1; }
-.of-tela[data-e="ativa"] .of-halo { opacity: .16; }
-.of-tela[data-e="ativa"] .of-cod { opacity: 1; animation: of-digita 1.6s steps(4) infinite; }
-.of-tela[data-e="ativa"] .of-cod:nth-of-type(4n) { animation-delay: -.5s; }
-.of-tela[data-e="ativa"] .of-cod:nth-of-type(4n+1) { animation-delay: -1.1s; }
-.of-tela[data-e="espera"] .of-vidro { fill: #2a1d06; stroke: #f59e0b; }
-.of-tela[data-e="espera"] .of-halo { fill: #f59e0b; opacity: .2; animation: of-pulsa 1.4s ease-in-out infinite; }
-.of-tela[data-e="espera"] .of-cod { fill: #fbbf24; opacity: .55; }
-.of-tela[data-e="erro"] .of-vidro { fill: #2b0d0d; stroke: #ef4444; }
-.of-tela[data-e="erro"] .of-halo { fill: #ef4444; opacity: .22; animation: of-pulsa 1s ease-in-out infinite; }
-.of-tela[data-e="erro"] .of-alerta { opacity: 1; animation: of-pisca 1s steps(2) infinite; }
-@keyframes of-digita { 0% { transform: scaleX(.55); } 100% { transform: scaleX(1); } }
-.of-tela .of-cod { transform-box: fill-box; transform-origin: left center; }
-@keyframes of-pulsa { 0%, 100% { opacity: .1; } 50% { opacity: .32; } }
-@keyframes of-pisca { 0% { opacity: 1; } 100% { opacity: .25; } }
-
-.of-vaso { fill: #171717; stroke: #2e2e2e; stroke-width: 1; }
-.of-folha { fill: #1c3b2a; stroke: #2c6345; stroke-width: 1; }
-.of-folha-c { fill: #2f6b47; }
-.of-lousa { fill: #1b1b1b; stroke: #3a3a3a; stroke-width: 1; }
-.of-rabisco { stroke: rgba(129, 140, 248, .55); stroke-width: 1.5; stroke-linecap: round; }
-.of-rack { fill: #131313; stroke: #353535; stroke-width: 1; }
-.of-slot { stroke: #262626; stroke-width: 1; }
-.of-led { fill: #22c55e; animation: of-pisca 1.8s steps(2) infinite; }
-.of-led-b { fill: #6366f1; animation-duration: 2.6s; }
-.of-led-c { fill: #22c55e; animation-duration: 1.1s; }
-.of-led-r { fill: #ef4444; animation: none; }
-.of-estante { fill: #171717; stroke: #353535; stroke-width: 1; }
-.of-aparelho { fill: #111; stroke: #3f3f46; stroke-width: 1; }
-.of-sofa { fill: rgba(99, 102, 241, .1); stroke: rgba(99, 102, 241, .38); stroke-width: 1; }
-.of-encosto { fill: rgba(99, 102, 241, .22); stroke: none; }
-.of-costura { stroke: rgba(99, 102, 241, .22); stroke-width: 1; }
-.of-mesinha { fill: #1b1b1b; stroke: #353535; stroke-width: 1; }
-.of-xicara { fill: none; stroke: #5a5a5a; stroke-width: 1; }
-.of-maquina { fill: #232323; stroke: #444; stroke-width: 1; }
-.of-ping { fill: #11231a; stroke: #2a5a3e; stroke-width: 1; }
-.of-rede { stroke: #9ca3af; stroke-width: 1.5; }
-.of-ping-l { stroke: #2a5a3e; stroke-width: 1; }
-.of-bola { fill: #f0f0f0; }
-.of-puff { fill: rgba(45, 212, 191, .1); stroke: rgba(45, 212, 191, .4); stroke-width: 1; }
-.of-tapete { fill: rgba(255, 255, 255, .018); stroke: #252525; stroke-width: 1; }
-
-/* Placa da sala: chip escuro sobre o piso, ponto de cor da sala, nome > descrição. */
-.of-area-rot {
-  position: absolute; display: flex; align-items: center; gap: 7px; white-space: nowrap;
-  height: clamp(15px, calc(var(--of-cel, 25px) * .8), 20px); padding: 0 8px 0 7px; border-radius: 5px;
-  background: rgba(13, 13, 13, .84); border: 1px solid rgba(255, 255, 255, .07);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), 0 1px 0 rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
-  font-size: 10px; line-height: 1; color: var(--of-t2);
-  transition: opacity .2s ease;
+/* Posto de trabalho diante da casa: brilho no chão com a cor do estado de quem trabalha nele. */
+.of-postos { z-index: 0; }
+.of-posto { position: absolute; display: block; opacity: 0; transition: opacity .3s ease; }
+.of-posto::before {
+  content: ''; position: absolute; left: -35%; right: -35%; top: 38%; height: 62%; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--c, #6366f1) 70%, transparent), transparent);
 }
-.of-area-rot i {
-  width: 6px; height: 6px; border-radius: 1.5px; flex: none; background: var(--cor);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cor) 20%, transparent);
-}
-.of-area-rot b { font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: #e2e2e2; }
-.of-area-rot small { display: flex; align-items: center; gap: 7px; font-size: 10.5px; color: #7a7a7a; }
-.of-area-rot small::before { content: ''; width: 1px; height: 10px; background: rgba(255, 255, 255, .1); }
-.of-area-rot.of-sob { opacity: .2; }
-.of-compacto .of-area-rot { gap: 5px; padding: 0 6px 0 5px; border-radius: 4px; }
-.of-compacto .of-area-rot small { display: none; }
-.of-area-rot.of-entrada { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
-.of-entrada small { letter-spacing: .08em; text-transform: uppercase; font-size: 9.5px; font-weight: 600; color: #4b4b4b; }
-.of-entrada small::before { content: none; }
+.of-posto[data-e="ativa"] { opacity: .55; --c: var(--cor); }
+.of-posto[data-e="espera"] { opacity: .7; --c: #f59e0b; animation: of-pulsa 1.4s ease-in-out infinite; }
+.of-posto[data-e="erro"] { opacity: .75; --c: #ef4444; animation: of-pulsa 1s ease-in-out infinite; }
+@keyframes of-pulsa { 0%, 100% { opacity: .3; } 50% { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .of-posto { animation: none !important; } }
+
+/* ───────── Rótulos em pixel art ─────────
+   Placas, ícones, balões e avisos são <canvas> desenhados pelo office.js (fonte bitmap e molduras 9-slice de madeira
+   e pergaminho), no tamanho da arte × --of-u (fator inteiro de pixels do aparelho). Sem canto arredondado, sem
+   sombra borrada, sem transição suave: o que muda, muda em degrau. */
+.of-px { display: block; image-rendering: pixelated; pointer-events: none; }
+.of-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Placa de madeira junto à porta: só o nome do lugar; no hover, a função numa 2ª linha (cresce para o lado de fora
+   da porta e para baixo, sem cobrir a casa). */
+.of-areas { z-index: 0; }
+.of-placa { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: default; will-change: transform; }
+.of-placa .of-px { position: absolute; top: 0; left: 0; }
+.of-placa[data-lado="esq"] .of-px-h { left: auto; right: 0; }
+.of-placa .of-px-h { display: none; z-index: 1; }
+.of-placa:hover .of-px-h { display: block; }
+.of-placa:hover .of-px-n { visibility: hidden; }
+.of-placa:hover { z-index: 5; }
+
+/* Tecla L / botão do rodapé: some tudo (a fila de pedidos fica). */
+.of-sem-rotulos .of-areas, .of-sem-rotulos .of-rotulos { display: none; }
 
 /* ───────── Robôs ───────── */
 .of-atores { pointer-events: none; }
@@ -290,149 +242,78 @@
 
 /* ───────── Crachás e balões ───────── */
 .of-rotulos { z-index: 1000; }
-/* Crachá: etiqueta escura arredondada embaixo dos pés (como os balões), texto nítido sem halo.
-   Altura fixa de 18 px (o JS posiciona pela medida). */
-.of-cracha {
-  position: absolute; left: 0; top: 0;
-  display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 7px 0 6px;
-  background: rgba(16, 16, 18, .86); border-radius: 9px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), 0 2px 6px rgba(0, 0, 0, .45);
-  font-size: 11px; font-weight: 550; line-height: 1; letter-spacing: .003em; white-space: nowrap; color: #ededf0;
-  -webkit-font-smoothing: antialiased;
-  pointer-events: auto; cursor: pointer; will-change: transform; z-index: 3;
-  transition: color .15s ease, background-color .15s ease, scale .16s var(--of-ease);
-}
-.of-cracha:hover { color: #fff; background: rgba(28, 28, 32, .94); }
-.of-cracha:active { scale: .96; transition-duration: .08s; }
-/* parado: nome recua um degrau, quem trabalha ou pede algo lê primeiro */
-.of-cracha[data-e="ocioso"] { color: #a3a3a6; font-weight: 500; }
-.of-cracha[data-e="ocioso"]:hover { color: #e8e8e8; }
-/* selecionado: branco, mais pesado e com contorno mais claro */
-.of-cracha.of-sel { color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22), 0 2px 6px rgba(0, 0, 0, .45); }
-/* haste: sobe do crachá até os pés quando ele foi empurrado para baixo */
-.of-cracha::after {
-  content: ''; position: absolute; left: 50%; bottom: 100%; width: 1px; height: var(--hs, 4px);
-  background: rgba(255, 255, 255, .14); opacity: 0;
-}
-.of-cracha.of-haste-on::after { opacity: 1; }
 
-/* Ponto de status: 6 px + halo fino, forma além da cor (parado = vazado). */
-.of-ponto {
-  --c: var(--of-s-ocioso);
-  position: relative; width: 6px; height: 6px; border-radius: 50%; flex: none;
-  background: var(--c); box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--c) 18%, transparent);
-}
-.of-cracha[data-e="trabalhando"] .of-ponto { --c: var(--of-s-trab); }
-.of-cracha[data-e="aguardando"] .of-ponto { --c: var(--of-s-agu); }
-.of-cracha[data-e="erro"] .of-ponto { --c: var(--of-s-erro); }
-.of-cracha[data-e="ocioso"] .of-ponto { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
-/* trabalhando: uma onda lenta e fraca, o único movimento do crachá */
-.of-cracha[data-e="trabalhando"] .of-ponto::after {
-  content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--c);
-  animation: of-onda 2.2s cubic-bezier(.2, .8, .2, 1) infinite;
-}
-@keyframes of-onda { from { transform: scale(1); opacity: .55; } to { transform: scale(2.4); opacity: 0; } }
+/* Dentro da casa: o robô some na porta e não recebe clique; o ícone de estado fica abaixo da porta e abre o cartão. */
+.of-ator.of-na-porta { pointer-events: none; }
+.of-ator.of-dentro { visibility: hidden; }
 
-/* Balão em pixel art: sem moldura, quinas arredondadas,
-   sombra dura de 4 px embaixo e ponta em degraus. Cores sólidas, para a moldura não somar com a sombra.
-   --bf fundo, --bb moldura (também na ponta e no fio), --bt texto do selo, --bc fundo do selo,
-   --bp quadradinho do selo. O tipo de mensagem vem no selo e no tom da moldura; numa conversa,
-   os dois balões da dupla usam o mesmo tom.
-   A posição vem do JS em `transform`; a entrada usa `scale` e a flutuação usa `translate`, que compõem com ele. */
-.of-balao {
-  --bf: #222225; --bb: #3d3d43; --bt: #c4c4ca; --bc: rgba(255, 255, 255, .07); --bp: #9a9aa2;
-  position: absolute; left: 0; top: 0; max-width: 214px; width: max-content;
-  padding: 7px 10px 8px;
-  background: var(--bf); border-radius: 10px;
-  box-shadow:
-    inset 0 2px 0 0 rgba(255, 255, 255, .045),
-    0 6px 0 0 rgba(0, 0, 0, .34),
-    0 12px 22px -8px rgba(0, 0, 0, .6);
-  font-size: 12px; font-weight: 450; line-height: 1.38; color: #f1f1f3; letter-spacing: -.004em;
-  overflow-wrap: anywhere; text-wrap: pretty;
-  transform-origin: var(--cx, 50%) calc(100% + 10px);
-  opacity: 0; visibility: hidden; scale: .55;
-  transition: opacity .16s ease, scale .2s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .2s;
-  animation: of-flutua 3.6s ease-in-out infinite, none .4s ease;
-  animation-delay: var(--fd, 0s), 0s;
-  pointer-events: none; will-change: transform;
+/* Ícone de estado sobre a cabeça (trabalhando …, concluído ✓, erro ✕, aguardando você !). Clicável: abre o cartão. */
+.of-icone {
+  position: absolute; left: 0; top: 0; padding: 0; margin: 0; border: 0; background: none;
+  pointer-events: auto; cursor: pointer; will-change: transform; z-index: 2;
 }
-.of-balao.of-vis {
-  opacity: 1; visibility: visible; scale: 1;
-  transition: opacity .18s ease-out, scale .46s cubic-bezier(.34, 1.56, .64, 1);
-}
-/* conteúdo trocou com o balão aberto: um "pulinho" em vez de um salto seco */
-.of-balao.of-muda { animation-name: of-flutua, of-muda; }
-@keyframes of-flutua { 0%, 100% { translate: 0 0; } 50% { translate: 0 -2px; } }
-@keyframes of-muda { 0% { scale: .93; } 55% { scale: 1.03; } 100% { scale: 1; } }
+.of-icone:hover .of-px, .of-icone.of-sel .of-px { filter: brightness(1.12); }
+.of-icone:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+/* "!" pulsando: dois quadros (sobe 1 px de arte e clareia), em degrau */
+.of-icone[data-k="espera"] .of-px { animation: of-px-pulsa .9s steps(1, end) infinite; }
+@keyframes of-px-pulsa { 0%, 100% { translate: 0 0; filter: none; } 50% { translate: 0 calc(-1 * var(--of-u, 1px)); filter: brightness(1.25) saturate(1.2); } }
+@media (prefers-reduced-motion: reduce) { .of-icone[data-k="espera"] .of-px { animation: none; } }
 
-/* Ponta em degraus de 2 px, na cor do fundo (sem moldura, como o balão). */
-.of-b-ponta {
-  position: absolute; top: 100%; left: calc(var(--cx, 50%) - 7px); width: 14px; height: 10px;
-}
-.of-b-ponta::before, .of-b-ponta::after { content: ''; position: absolute; inset: 0; }
-.of-b-ponta::before {
-  background: var(--bf);
-  clip-path: polygon(0 0, 14px 0, 14px 4px, 12px 4px, 12px 6px, 10px 6px, 10px 8px, 8px 8px, 8px 10px, 6px 10px, 6px 8px, 4px 8px, 4px 6px, 2px 6px, 2px 4px, 0 4px);
-}
-.of-b-ponta::after {
-  background: var(--bf);
-  clip-path: polygon(2px 0, 12px 0, 12px 4px, 10px 4px, 10px 6px, 8px 6px, 8px 8px, 6px 8px, 6px 6px, 4px 6px, 4px 4px, 2px 4px);
-}
-/* sem espaço em cima: o balão desce para baixo dos pés e a ponta vira para cima */
-.of-balao.of-baixo { transform-origin: var(--cx, 50%) -10px; }
-.of-balao.of-baixo .of-b-ponta { top: auto; bottom: 100%; transform: scaleY(-1); }
+/* Balão (hover ou clique): pergaminho 9-slice com ponta em degraus; não recebe clique. */
+.of-balao { position: absolute; left: 0; top: 0; pointer-events: none; visibility: hidden; will-change: transform; z-index: 3; }
+.of-balao.of-vis { visibility: visible; }
 
-/* Cabeçalho: selo do tipo (quadradinho + caixa alta) e, na fala que abre a conversa, "→ destinatário". */
-.of-b-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin: 0 0 5px; white-space: nowrap; }
-.of-b-tit {
-  display: inline-flex; align-items: center; gap: 5px; height: 17px; padding: 0 7px 0 6px; border-radius: 999px;
-  background: var(--bc); color: var(--bt);
-  font-size: 9.5px; font-weight: 650; line-height: 1; letter-spacing: .075em; text-transform: uppercase;
-  font-feature-settings: "case" 1;
+/* Fila de pedidos de permissão: no canto de baixo à direita, fora do mapa quando a margem cabe. */
+.of-avisos {
+  position: absolute; left: 0; top: 0; z-index: 1500; display: flex; flex-direction: column; align-items: flex-end;
+  gap: calc(3 * var(--of-u, 1px)); pointer-events: none;
 }
-.of-b-tit::before { content: ''; width: 5px; height: 5px; flex: none; background: var(--bp); }
-.of-b-para { display: inline-flex; align-items: baseline; gap: 4px; font-size: 11px; font-weight: 500; color: #8e8e96; }
-.of-b-para b { font-weight: 600; color: var(--pc, #e8e8e8); }
+.of-avisos:empty { display: none; }
+.of-aviso { position: relative; pointer-events: auto; }
+.of-aviso > .of-px { position: absolute; left: 0; top: 0; }
+.of-aviso-mais { pointer-events: none; }
+.of-aviso-mais > .of-px { position: static; }
+.of-aviso-bt { position: absolute; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; }
+.of-aviso-bt:hover .of-px { filter: brightness(1.15); }
+.of-aviso-bt:active .of-px { translate: 0 var(--of-u, 1px); }
+.of-aviso-bt:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.of-aviso-bt:disabled { cursor: default; }
+.of-aviso-bt:disabled .of-px { filter: grayscale(.6) brightness(.85); }
 
-/* Texto: as palavras entram em cascata, rápido (a frase inteira em menos de meio segundo). */
-.of-b-txt { display: block; }
-.of-pl {
-  display: inline-block; max-width: 100%;
-  animation: of-palavra .34s cubic-bezier(.2, .7, .2, 1) backwards;
-  animation-delay: calc(var(--i, 0) * 28ms + 60ms);
+.of-prov-cadeado {
+  position: absolute; right: -2px; top: -2px; width: 12px; height: 12px; pointer-events: none; z-index: 3;
+  background: #ff7a3d; border: 1px solid #301a14; border-radius: 3px;
 }
-@keyframes of-palavra { from { opacity: 0; translate: 0 3px; filter: blur(1.5px); } }
-/* resposta ainda sendo "digitada": três pixels pulando */
-.of-b-dig { display: flex; align-items: center; gap: 4px; height: 17px; padding: 0 2px; }
-.of-b-dig i { width: 4px; height: 4px; background: var(--bt); animation: of-pula 1s ease-in-out infinite; }
-.of-b-dig i:nth-child(2) { animation-delay: .15s; }
-.of-b-dig i:nth-child(3) { animation-delay: .3s; }
-@keyframes of-pula { 0%, 60%, 100% { translate: 0 0; opacity: .45; } 30% { translate: 0 -3px; opacity: 1; } }
+.of-prov-cadeado::before { content: ""; position: absolute; left: 2px; top: -4px; width: 4px; height: 4px; border: 1.5px solid #ff7a3d; border-bottom: 0; border-radius: 3px 3px 0 0; }
+.of-prov-cadeado[hidden] { display: none; }
+.of-marc-img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+.of-img-icone-cadeado { position: absolute; right: -2px; top: -4px; width: 14px; height: 14px; pointer-events: none; z-index: 3; }
+.of-img-icone-cadeado[hidden] { display: none; }
 
-/* fio pontilhado até o crachá: só quando o balão subiu para fugir de outro rótulo */
-.of-haste {
-  position: absolute; top: calc(100% + 10px); left: calc(var(--cx, 50%) - 1px); width: 2px;
-  height: max(0px, calc(var(--hs, 12px) - 10px));
-  background: repeating-linear-gradient(to bottom, var(--bb) 0 2px, transparent 2px 4px);
-  opacity: 0; transition: opacity .18s ease;
-}
-.of-balao.of-longe .of-haste { opacity: .9; }
-
-/* trabalho: o mais comum, então o mais calmo */
-.of-balao[data-k="trabalho"] { --bf: #1f1f22; --bb: #36363c; color: #d8d8dc; }
-.of-balao[data-k="espera"] { --bf: #2a2416; --bb: #7e6427; --bt: #ffd35c; --bc: rgba(255, 197, 61, .15); --bp: #ffc53d; }
-.of-balao[data-k="erro"] { --bf: #2c1a1b; --bb: #84373b; --bt: #ffa19e; --bc: rgba(229, 72, 77, .17); --bp: #e5484d; }
-.of-balao[data-t="delegar"] { --bf: #212233; --bb: #4d5099; --bt: #c5c7ff; --bc: rgba(139, 143, 248, .18); --bp: #8b8ff8; }
-.of-balao[data-t="entregar"] { --bf: #1b2620; --bb: #2e744a; --bt: #86e8ae; --bc: rgba(61, 214, 140, .15); --bp: #3dd68c; }
-.of-balao[data-t="falhas"] { --bf: #2b1c24; --bb: #87395c; --bt: #ffabcc; --bc: rgba(244, 114, 182, .16); --bp: #f472b6; }
-.of-balao[data-t="referencias"] { --bf: #1a2827; --bb: #2a7068; --bt: #85ecdc; --bc: rgba(45, 212, 191, .15); --bp: #2dd4bf; }
-/* aguardando: o quadradinho do selo pisca devagar */
-.of-balao[data-k="espera"] .of-b-tit::before { animation: of-respira 1.6s steps(2, jump-none) infinite; }
-@keyframes of-respira { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+/* Modo escritório: camada de marcadores no palco (sob os robôs). Provisórios em CSS; a imagem, se carregar, os substitui. */
+.of-marcadores { z-index: 0; }
+.of-marcadores[hidden], .of-marcadores .of-marc[hidden] { display: none; }
+.of-marcadores .of-marc { position: absolute; box-sizing: border-box; pointer-events: none; }
+/* placa de pausa na porta */
+.of-prov-placa-pausado { background: #1a2233; border: 2px solid #ffc61a; border-radius: 3px; box-shadow: 0 2px 0 #0c1019, 0 0 10px rgba(255, 198, 26, .28); }
+.of-prov-placa-pausado::before, .of-prov-placa-pausado::after { content: ""; position: absolute; top: 24%; height: 52%; width: 12%; background: #ffc61a; border-radius: 1px; }
+.of-prov-placa-pausado::before { left: 32%; }
+.of-prov-placa-pausado::after { right: 32%; }
+/* vagas da fila de espera: marca tracejada no chão */
+.of-prov-fila-espera { background: rgba(42, 53, 80, .55); border: 1.5px dashed rgba(255, 198, 26, .7); border-radius: 4px; }
+/* balcão de envio: bancada com faixa verde */
+.of-prov-balcao-envio { background: #1d2740; border: 2px solid #2f3d5e; border-top: 4px solid #1fd67a; border-radius: 3px; box-shadow: 0 2px 0 #0c1019; }
+.of-prov-balcao-envio::before { content: ""; position: absolute; left: 50%; top: 22%; width: 22%; height: 38%; translate: -50% 0; background: rgba(31, 214, 122, .28); border: 1.5px solid #1fd67a; border-radius: 2px; }
+/* ícone de moeda (gasto): disco âmbar com aro */
+.of-prov-icone-moeda { display: inline-block; vertical-align: -2px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; background: #ffc61a; border: 2px solid #b88a00; box-shadow: inset 0 0 0 2px #ffd95e; }
+.of-img-icone-moeda { display: inline-block; vertical-align: -2px; width: 14px; height: 14px; }
 @media (prefers-reduced-motion: reduce) {
-  .of-balao, .of-balao.of-vis { scale: 1; translate: none; transition: opacity .16s ease, visibility 0s linear .16s; }
-  .of-ator:active .of-img, .of-cracha:active { scale: 1; }
+  .of-ator:active .of-img { scale: 1; }
+}
+/* Marca provisória do Codex (21/10) na linha da TV: texto pequeno e neutro depois do nome. */
+.of-tp-ag[data-prov="codex"] .of-tp-nome::after {
+  content: "Codex"; margin-left: 5px; font-size: 8.5px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase;
+  color: #a3a3a6; opacity: .75; vertical-align: 1px;
 }
 
 /* ───────── Cartão do agente ───────── */
@@ -475,8 +356,8 @@
 .of-pilula[data-e="erro"] { --c: #f87171; }
 .of-pilula[data-e="ocioso"] { --c: #a3a3a3; }
 
-/* ───────── TV da sala do Mestre e painel do time ───────── */
-/* Área clicável sobre o desenho da TV: invisível; no hover, um contorno índigo fraco (o tom do Mestre). */
+/* ───────── Mural da praça (a "TV" do Mestre) e painel do time ───────── */
+/* Área clicável sobre o mural de missões: invisível; no hover, um contorno índigo fraco (o tom do Mestre). */
 .of-tv {
   position: absolute; z-index: 1; margin: 0; padding: 0; border: 0; border-radius: 6px;
   background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -558,6 +439,7 @@
 .of-tp-acoes i[data-s="ok"] { background: rgba(61, 214, 140, .55); }
 .of-tp-acoes i[data-s="erro"] { background: var(--of-s-erro); }
 .of-tp-acoes i[data-s="aberta"] { background: var(--of-s-trab); animation: of-respira 1.6s steps(2, jump-none) infinite; }
+@keyframes of-respira { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 .of-tp-vazio { margin: 16px 0 14px; text-align: center; font-size: 12.5px; color: var(--of-t3); }
 
 @media (max-width: 520px) {
@@ -580,6 +462,9 @@
 .of-r-modo { color: var(--of-t1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .of-r-cont { color: var(--of-t3); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .of-r-atual { font-variant-numeric: tabular-nums; }
+.of-r-dica { padding: 0 6px; border: 0; background: none; color: var(--of-t3, #6b6b6b); font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.of-r-dica:hover { color: var(--of-t2, #a3a3a3); }
+.of-r-dica[aria-pressed="false"] { text-decoration: line-through; }
 
 @media (max-width: 760px) {
   .of-r-cont { display: none; }
@@ -598,3 +483,73 @@
 .of-img.of-dorme { object-fit: cover; object-position: 0 0; animation: of-dormir 3.2s steps(4, jump-none) infinite; }
 @keyframes of-dormir { to { object-position: 100% 0; } }
 @media (prefers-reduced-motion: reduce) { .of-img.of-dorme { animation: none; object-position: 66.667% 0; } }
+
+/* Balão da casa: o interior em pixel art, preso à casa, com rabicho em degraus. Moldura de madeira com contorno
+   escuro e cantos cortados em degrau (sem arredondado nem sombra borrada). Só mostra: não recebe clique. */
+.of-casa {
+  --madeira: #6b4426; --madeira-c: #9a6438; --madeira-e: #3f2614; --contorno: #1e120a;
+  position: absolute; left: 0; top: 0; z-index: 1000; pointer-events: none;
+  opacity: 0; visibility: hidden; transition: opacity .12s steps(3, end), visibility 0s linear .12s;
+  image-rendering: pixelated;
+}
+.of-casa.of-vis { opacity: 1; visibility: visible; transition: opacity .12s steps(3, end); }
+.of-casa-caixa {
+  padding: 4px; background: var(--madeira); border: 2px solid var(--contorno);
+  box-shadow: inset 2px 2px 0 0 var(--madeira-c), inset -2px -2px 0 0 var(--madeira-e);
+  clip-path: polygon(2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px), 0 2px, 2px 2px);
+}
+.of-casa-cab {
+  display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px; padding: 3px 7px 4px;
+  background: #e9d6a6; color: #3b2412; border: 2px solid var(--contorno);
+  box-shadow: inset 0 -2px 0 0 #c9ad78; white-space: nowrap; overflow: hidden;
+}
+.of-casa-cab b { font-size: 12px; font-weight: 700; letter-spacing: .01em; }
+.of-casa-cab small { font-size: 10.5px; color: #6b4a2e; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.of-casa-cab b, .of-casa-cab small, .of-casa-et b, .of-casa-et small, .of-casa-vazia { display: inline-flex; align-items: center; }
+.of-casa-cab b::before {
+  content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 6px 1px 0; vertical-align: middle;
+  background: var(--cor, #a3a3a3); box-shadow: 0 0 0 1px var(--contorno);
+}
+.of-casa-cena { position: relative; overflow: hidden; border: 2px solid var(--contorno); background: #120b07; }
+.of-casa-tela { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.of-casa-gente { position: absolute; inset: 0; }
+.of-casa-ag { position: absolute; width: 0; height: 0; }
+.of-casa-robo {
+  position: absolute; left: calc(var(--rs, 26px) / -2); top: calc(var(--rs, 26px) * -1 + 2px);
+  width: var(--rs, 26px); height: var(--rs, 26px); image-rendering: pixelated;
+}
+.of-casa-ag[data-e="dormindo"] .of-casa-robo { opacity: .6; }
+.of-casa-et {
+  position: absolute; left: 0; top: 3px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 1px 4px 2px; white-space: nowrap;
+  background: rgba(30, 18, 10, .88); color: #f3e6c8; border: 1px solid var(--contorno);
+  font-size: 9.5px; line-height: 1.2;
+}
+.of-casa-et b { font-weight: 600; }
+.of-casa-et small { font-size: 9px; color: #d9c7a0; }
+.of-casa-et i { width: 5px; height: 5px; flex: none; background: #9a9aa2; }
+.of-casa-ag[data-e="trabalhando"] .of-casa-et i { background: #1fd67a; }
+.of-casa-ag[data-e="pensando"] .of-casa-et i { background: #818cf8; }
+.of-casa-ag[data-e="aguardando"] .of-casa-et i { background: #ffc61a; }
+.of-casa-ag[data-e="erro"] .of-casa-et i { background: #ff4757; }
+.of-casa-ag[data-e="dormindo"] .of-casa-et i { background: #5b5b66; }
+.of-casa-vazia {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 1px 6px 2px; white-space: nowrap;
+  background: rgba(30, 18, 10, .82); color: #e9d6a6; border: 1px solid var(--contorno); font-size: 10px;
+}
+/* Rabicho: triângulo em degraus de 2 px (contorno + madeira), cobrindo a borda da moldura do lado da casa. */
+.of-casa-ponta { position: absolute; width: 16px; height: 8px; left: calc(var(--px, 50%) - 8px); top: calc(100% - 2px); }
+.of-casa-ponta::before, .of-casa-ponta::after { content: ''; position: absolute; inset: 0; }
+.of-casa-ponta::before {
+  background: var(--contorno);
+  clip-path: polygon(0 0, 16px 0, 16px 2px, 14px 2px, 14px 4px, 12px 4px, 12px 6px, 10px 6px, 10px 8px, 6px 8px, 6px 6px, 4px 6px, 4px 4px, 2px 4px, 2px 2px, 0 2px);
+}
+.of-casa-ponta::after {
+  background: var(--madeira);
+  clip-path: polygon(2px 0, 14px 0, 14px 2px, 12px 2px, 12px 4px, 10px 4px, 10px 6px, 6px 6px, 6px 4px, 4px 4px, 4px 2px, 2px 2px);
+}
+.of-casa[data-lado="baixo"] .of-casa-ponta { top: auto; bottom: calc(100% - 2px); transform: scaleY(-1); }
+.of-casa[data-lado="dir"] .of-casa-ponta { left: -10px; top: calc(var(--py, 50%) - 4px); transform: rotate(90deg); }
+.of-casa[data-lado="esq"] .of-casa-ponta { left: calc(100% - 6px); top: calc(var(--py, 50%) - 4px); transform: rotate(-90deg); }
+.of-compacto .of-casa-cab small { display: none; }

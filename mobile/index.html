@@ -15,177 +15,62 @@
 <link rel="apple-touch-icon" href="/assets/pwa/icone-192.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/pwa/icone-32.png">
 <link rel="stylesheet" href="/assets/comum/base.css">
-<link rel="stylesheet" href="/m/mobile.css">
-<link rel="stylesheet" href="/m/widgets.css">
+<link rel="stylesheet" href="/assets/comum/componentes.css">
+<link rel="stylesheet" href="/m/app.css">
+<link rel="stylesheet" href="/m/folha.css">
+<!-- telas (onda 3): um arquivo por dono (já criados pelo líder) -->
+<link rel="stylesheet" href="/m/md.css">
+<link rel="stylesheet" href="/m/cartoes.css">
+<link rel="stylesheet" href="/m/parear.css">
+<link rel="stylesheet" href="/m/inicio.css">
+<link rel="stylesheet" href="/m/sessoes.css">
+<link rel="stylesheet" href="/m/composer.css">
+<link rel="stylesheet" href="/m/conversa.css">
+<link rel="stylesheet" href="/m/aprovacoes.css">
+<link rel="stylesheet" href="/m/detalhe.css">
+<link rel="stylesheet" href="/m/nova.css">
+<link rel="stylesheet" href="/m/mais.css">
+<link rel="stylesheet" href="/m/uso.css">
+<link rel="stylesheet" href="/m/ideias.css">
+<link rel="stylesheet" href="/m/historico.css">
+<link rel="stylesheet" href="/m/grafo.css">
 </head>
 <body>
+<!-- Orbit no celular: casca (onda 2). Sem nada inline (CSP do contrato). API window.OM: contrato, "App do celular". -->
 <div id="app">
-  <p id="carregando" class="carregando" role="status">Abrindo o Orbit…</p>
-
-  <!-- 1. Parear -->
-  <section id="v-parear" class="tela" hidden aria-labelledby="par-tit">
-    <div class="par-miolo">
-      <img class="par-logo" src="/assets/pwa/icone-96.png" width="56" height="56" alt="">
-      <h1 id="par-tit">Parear este aparelho</h1>
-      <p class="par-sub" id="par-sub">Dê um nome a este aparelho. Depois, digite o código de 6 dígitos que vai aparecer no Orbit do seu PC.</p>
-      <form id="par-f1" novalidate>
-        <label class="rot" for="par-nome">Nome do aparelho</label>
-        <input class="campo" id="par-nome" type="text" value="iPhone" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false">
-        <button class="btn prim bloco" id="par-pedir" type="submit">Parear</button>
-      </form>
-      <form id="par-f2" novalidate hidden>
-        <label class="rot" for="par-codigo">Código mostrado no PC</label>
-        <input class="campo" id="par-codigo" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="000000" spellcheck="false">
-        <p class="par-expira" id="par-expira" role="timer"></p>
-        <button class="btn prim bloco" id="par-confirmar" type="submit">Confirmar</button>
-        <button class="btn bloco" id="par-outro" type="button">Pedir outro código</button>
-      </form>
-      <p class="erro" id="par-erro" role="alert" hidden></p>
-    </div>
-  </section>
-
-  <!-- 2, 4 e 5. Sessões, uso do plano e este aparelho -->
-  <section id="v-principal" class="tela" hidden>
-    <header class="topo">
-      <img src="/assets/pwa/icone-48.png" width="28" height="28" alt="">
-      <h1 id="topo-tit">Sessões</h1>
-      <button class="btn-ic cheio" id="btn-nova" type="button" aria-label="Nova instância" title="Nova instância" hidden></button>
-    </header>
-    <p class="aviso" id="aviso-conexao" role="status" hidden>Sem conexão com o Orbit. Tentando de novo…</p>
-    <div class="rolagem" id="rolagem-principal">
-      <div id="p-visao" hidden></div>
-
-      <div id="p-sessoes">
-        <div id="lista-sessoes"></div>
-      </div>
-
-      <div id="p-uso" hidden>
-        <p class="painel-sub" id="uso-sub"></p>
-        <div id="uso-barras"></div>
-      </div>
-
-      <div id="p-aparelho" hidden>
-        <h2 class="painel-tit" id="ap-nome">Este aparelho</h2>
-        <p class="painel-sub">Notificações e acesso deste aparelho ao Orbit.</p>
-
-        <div class="bloco aviso-bloco" id="ap-instalar" hidden>
-          <h3>Adicione o Orbit à Tela de Início</h3>
-          <p class="nota">As notificações do iPhone só funcionam com o Orbit instalado como app. Pelo Safari:</p>
-          <ol>
-            <li>Toque em <b>Compartilhar</b> (o quadrado com a seta para cima).</li>
-            <li>Escolha <b>Adicionar à Tela de Início</b> e confirme.</li>
-            <li>Abra o Orbit pelo ícone novo e volte a esta tela.</li>
-          </ol>
-        </div>
-
-        <div class="bloco" id="ap-notif">
-          <h3>Notificações</h3>
-          <p class="nota" id="ap-notif-txt"></p>
-          <p class="sel-estado" id="ap-notif-estado" data-on="0"><i></i><span id="ap-notif-estado-txt">Desativadas</span></p>
-          <p class="erro" id="ap-erro" role="alert" hidden></p>
-          <div class="acoes">
-            <button class="btn prim bloco" id="ap-ativar" type="button">Ativar notificações</button>
-            <button class="btn bloco" id="ap-testar" type="button" hidden>Testar notificação</button>
-            <button class="btn bloco" id="ap-desativar" type="button" hidden>Desativar notificações</button>
-          </div>
-        </div>
-
-        <div class="bloco">
-          <h3>Sair deste aparelho</h3>
-          <p class="nota">O aparelho deixa de ter acesso e precisa ser pareado de novo com um código do PC.</p>
-          <div class="acoes">
-            <button class="btn perigo bloco" id="ap-sair" type="button">Sair</button>
-            <div id="ap-sair-conf" hidden>
-              <p class="nota">Sair mesmo? Você terá de parear de novo.</p>
-              <div class="acoes">
-                <button class="btn perigo bloco" id="ap-sair-sim" type="button">Sim, sair</button>
-                <button class="btn bloco" id="ap-sair-nao" type="button">Cancelar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <nav class="abas" aria-label="Seções do Orbit">
-      <button class="aba" id="aba-visao" type="button" data-aba="visao"><span class="ic"></span><span>Visão geral</span></button>
-      <button class="aba" id="aba-sessoes" type="button" data-aba="sessoes"><span class="ic"></span><span>Sessões</span></button>
-      <button class="aba" id="aba-uso" type="button" data-aba="uso"><span class="ic"></span><span>Uso</span></button>
-      <button class="aba" id="aba-aparelho" type="button" data-aba="aparelho"><span class="ic"></span><span>Aparelho</span></button>
-    </nav>
-  </section>
-
-  <!-- 3. Sessão -->
-  <section id="v-sessao" class="tela" hidden aria-label="Sessão">
-    <header class="s-topo">
-      <button class="btn-ic" id="s-voltar" type="button" aria-label="Voltar para as sessões"></button>
-      <div class="s-tit"><p class="s-proj" id="s-proj"></p><h2 class="s-nome" id="s-nome"></h2></div>
-      <span id="s-pill"></span>
-    </header>
-    <div class="cv-rolagem" id="cv-rolagem">
-      <button class="btn cv-mais" id="cv-mais" type="button" hidden>Carregar anteriores</button>
-      <p class="cv-vazio" id="cv-vazio" role="status">Carregando a conversa…</p>
-      <div class="cv-itens" id="cv-itens"></div>
-      <div class="cv-novas" id="cv-novas" hidden><button class="btn prim" id="cv-novas-b" type="button">Novas mensagens</button></div>
-    </div>
-    <div class="perm" id="cv-perm" role="group" aria-label="Pedido do agente" hidden></div>
-    <div class="cv-estado" id="cv-estado" hidden>
-      <span id="cv-estado-txt"></span>
-      <button class="btn perigo" id="cv-parar" type="button">Parar</button>
-    </div>
-    <details class="cv-aj" id="cv-aj" hidden>
-      <summary id="cv-aj-res">Modelo e esforço</summary>
-      <div class="cv-aj-corpo">
-        <label><span class="rot">Modelo</span><select class="campo" id="cv-modelo"></select></label>
-        <label><span class="rot">Esforço</span><select class="campo" id="cv-esforco"></select></label>
-      </div>
-    </details>
-    <p class="cv-aviso" id="cv-aviso" role="status" hidden></p>
-    <div class="cv-faixa" id="cv-faixa" hidden></div>
-    <form class="cv-comp" id="cv-comp" novalidate>
-      <input id="cv-arq" type="file" accept="image/*" multiple hidden>
-      <div class="cv-cartao" id="cv-cartao">
-        <textarea class="cv-texto" id="cv-texto" rows="1" maxlength="20000" placeholder="Mensagem para a sessão" aria-label="Mensagem para a sessão" enterkeyhint="send"></textarea>
-        <div class="cv-acoes">
-          <button class="cv-mais-b" id="cv-foto" type="button" aria-label="Anexar foto" title="Anexar foto"></button>
-          <span class="cv-esp"></span>
-          <button class="cv-medidor" id="cv-medidor" type="button" hidden></button>
-          <button class="cv-enviar" id="cv-enviar" type="submit" aria-label="Enviar" title="Enviar" disabled></button>
-        </div>
-      </div>
-    </form>
-  </section>
-
-  <!-- Nova instância -->
-  <section id="v-nova" class="folha" hidden aria-labelledby="nova-tit">
-    <div class="folha-in">
-      <div class="folha-cab"><h2 id="nova-tit">Nova instância</h2><button class="btn-ic" id="nova-fechar" type="button" aria-label="Fechar"></button></div>
-      <form id="nova-f" novalidate>
-        <label class="rot" for="nova-projeto">Projeto</label>
-        <select class="campo" id="nova-projeto"></select>
-        <label class="rot" for="nova-modelo">Modelo</label>
-        <select class="campo" id="nova-modelo"></select>
-        <label class="rot" for="nova-esforco">Esforço</label>
-        <select class="campo" id="nova-esforco"></select>
-        <label class="rot" for="nova-perm">Permissão</label>
-        <select class="campo" id="nova-perm">
-          <option value="default">Padrão · pede antes de agir</option>
-          <option value="acceptEdits">Aceitar edições</option>
-          <option value="plan">Planejar · só planeja</option>
-          <option value="auto">Auto · com verificador</option>
-        </select>
-        <label class="rot" for="nova-texto">Primeira mensagem <small>opcional</small></label>
-        <textarea class="campo" id="nova-texto" rows="4" maxlength="20000" placeholder="O que a instância faz primeiro"></textarea>
-        <p class="erro" id="nova-erro" role="alert" hidden></p>
-        <button class="btn prim bloco" id="nova-criar" type="submit">Criar instância</button>
-      </form>
-    </div>
-  </section>
-
-  <div class="toast" id="toast" role="status" hidden></div>
+  <p id="abertura" class="abertura" role="status">Abrindo o Orbit…</p>
+  <main id="pilha" class="pilha"></main>
+  <nav id="barra" class="barra" aria-label="Navegação">
+    <a class="barra-aba" href="#inicio" data-aba="inicio"><span class="barra-ico" data-ico="casa"></span><span class="barra-rot">Início</span></a>
+    <a class="barra-aba" href="#sessoes" data-aba="sessoes"><span class="barra-ico" data-ico="balao"></span><span class="barra-rot">Sessões</span></a>
+    <a class="barra-aba" href="#aprovacoes" data-aba="aprovacoes"><span class="barra-ico" data-ico="check-duplo"></span><span class="barra-rot">Aprovações</span><span class="barra-badge" hidden></span></a>
+    <a class="barra-aba" href="#mais" data-aba="mais"><span class="barra-ico" data-ico="pontos"></span><span class="barra-rot">Mais</span></a>
+  </nav>
 </div>
+<div id="faixa" class="faixa" role="status" hidden></div>
 <script src="/assets/comum/base.js"></script>
 <script src="/assets/comum/widgets.js"></script>
-<script src="/m/mobile.js"></script>
-<script src="/m/widgets.js"></script>
+<script src="/assets/comum/icones.js"></script>
+<script src="/assets/comum/sprites.js"></script>
+<script src="/assets/comum/md.js"></script>
+<script src="/assets/comum/cartoes.js"></script>
+<script src="/m/nucleo.js"></script>
+<script src="/m/folha.js"></script>
+<script src="/m/gestos.js"></script>
+<script src="/m/rotas.js"></script>
+<!-- telas (onda 3): um arquivo por dono (já criados pelo líder); a tela chama OM.telas.registrar -->
+<script src="/m/parear.js"></script>
+<script src="/m/inicio.js"></script>
+<script src="/m/sessoes.js"></script>
+<script src="/m/composer.js"></script>
+<script src="/m/conversa.js"></script>
+<script src="/m/aprovacoes.js"></script>
+<script src="/m/detalhe.js"></script>
+<script src="/m/nova.js"></script>
+<script src="/m/mais.js"></script>
+<script src="/m/uso.js"></script>
+<script src="/m/ideias.js"></script>
+<script src="/m/historico.js"></script>
+<script src="/m/grafo.js"></script>
 </body>
 </html>

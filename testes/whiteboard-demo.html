@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Whiteboard — demo de teste</title>
+<link rel="stylesheet" href="../assets/comum/base.css">
+<link rel="stylesheet" href="../assets/whiteboard.css">
+<link rel="stylesheet" href="../assets/whiteboard-agentes.css">
+<link rel="stylesheet" href="../assets/whiteboard-times.css">
+<link rel="stylesheet" href="../assets/whiteboard-menu.css">
+<link rel="stylesheet" href="../assets/whiteboard-web.css">
+<link rel="stylesheet" href="../assets/whiteboard-painel.css">
+<link rel="stylesheet" href="../assets/whiteboard-exportar.css">
+<style>
+  /* Só o mínimo de layout, para o teste não depender do whiteboard.css. */
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  #whiteboard { position: fixed; inset: 0; overflow: hidden; }
+  #whiteboard .wb-palco { position: absolute; inset: 0; }
+  #whiteboard .wb-canvas, #whiteboard .wb-html { position: absolute; left: 0; top: 0; }
+</style>
+</head>
+<body>
+<section id="whiteboard" aria-label="Whiteboard"></section>
+<script>
+// Banco falso em memória (localStorage só para sobreviver ao recarregar). demo.reqs = [[método, url, corpo]].
+(() => {
+  window.demo = { reqs: [] };
+  const CHAVE = 'demo.wb.db';
+  const vazio = new URLSearchParams(location.search).has('vazio');
+  const semente = () => {
+    const t = Date.now() - 3600e3;
+    const r = (id, x, y) => ({ id, tipo: 'retangulo', x, y, w: 200, h: 120, angulo: 0, cor: '#7aa2ff', traco: { largura: 2, estilo: 'solido' }, preenchimento: '#7aa2ff33', opacidade: 1, grupo: null, z: 0, pontos: null, texto: null, ligacoes: null, sessao: null });
+    return vazio ? { n: 0, q: {} } : { n: 1, q: { q1: { id: 'q1', nome: 'Mapa do projeto', criado: t, atualizado: t, versao: 1, camera: { x: 0, y: 0, zoom: 1 }, elementos: [r('ea', 100, 100), r('eb', 500, 150), r('ec', 300, 400)] } } };
+  };
+  let db = JSON.parse(localStorage.getItem(CHAVE) || 'null') || semente();
+  const gravar = () => localStorage.setItem(CHAVE, JSON.stringify(db));
+  gravar();
+  const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } });
+  const erro = (msg, status = 400) => json({ erro: msg }, status);
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const resumo = (q) => ({ id: q.id, nome: q.nome, criado: q.criado, atualizado: q.atualizado, total: q.elementos.length });
+  const criar = (nome, base) => {
+    const id = 'q' + (++db.n) + Math.random().toString(36).slice(2, 5), agora = Date.now();
+    const q = { id, nome: nome || 'Quadro ' + db.n, criado: agora, atualizado: agora, versao: 1, camera: base ? base.camera : { x: 0, y: 0, zoom: 1 }, elementos: base ? clone(base.elementos) : [] };
+    db.q[id] = q; return q;
+  };
+  const real = window.fetch.bind(window);
+  window.fetch = async (url, init = {}) => {
+    const u = new URL(String(url), location.href);
+    if (!u.pathname.startsWith('/whiteboard/')) return real(url, init);
+    const metodo = (init.method || 'GET').toUpperCase();
+    let corpo = null;
+    if (init.body) { try { corpo = JSON.parse(init.body); } catch { corpo = init.body; } }
+    window.demo.reqs.push([metodo, u.pathname + u.search, corpo]);
+    const rota = u.pathname.slice('/whiteboard/'.length);
+    if (metodo === 'GET') {
+      if (rota === 'lista') return json({ quadros: Object.values(db.q).sort((a, b) => b.atualizado - a.atualizado).map(resumo) });
+      if (rota === 'quadro') { const q = db.q[u.searchParams.get('id')]; return q ? json(clone(q)) : erro('Quadro não encontrado.', 404); }
+      return erro('Rota desconhecida.', 404);
+    }
+    if (!init.headers || !(new Headers(init.headers).get('x-gerenciador'))) return erro('Cabeçalho x-gerenciador ausente.', 403);
+    const q = corpo && db.q[corpo.id];
+    let saida;
+    if (rota === 'novo') saida = json(clone(criar(corpo && corpo.nome)));
+    else if (rota === 'salvar') {
+      if (!q) return erro('Quadro não encontrado.', 404);
+      q.camera = corpo.camera; q.elementos = corpo.elementos; q.atualizado = Date.now();
+      saida = json({ ok: true, atualizado: q.atualizado });
+    } else if (rota === 'renomear') { if (!q) return erro('Quadro não encontrado.', 404); q.nome = corpo.nome; q.atualizado = Date.now(); saida = json(resumo(q)); }
+    else if (rota === 'duplicar') { if (!q) return erro('Quadro não encontrado.', 404); saida = json(clone(criar(q.nome + ' (cópia)', q))); }
+    else if (rota === 'excluir') { if (!q) return erro('Quadro não encontrado.', 404); delete db.q[q.id]; saida = json({ ok: true }); }
+    else return erro('Rota desconhecida.', 404);
+    gravar();
+    return saida;
+  };
+})();
+</script>
+<script src="../assets/whiteboard.js"></script>
+<script src="../assets/whiteboard-formas.js"></script>
+<script src="../assets/whiteboard-texto.js"></script>
+<script src="../assets/whiteboard-setas.js"></script>
+<script src="../assets/whiteboard-edicao.js"></script>
+<script src="../assets/whiteboard-estilo.js"></script>
+<script>
+// Fonte falsa de sessões (contrato whiteboard-etapa4). demoSessoes.mudar(id, campos),
+// .remover(id), .repor(id, resumo) disparam os ouvintes; demoSessoes.abertos = ids passados a abrir().
+(() => {
+  const spr = (n) => '../assets/sprites/sprite-' + n + '.gif';
+  const agora = Date.now();
+  const S = new Map([
+    ['s1', { id: 's1', nome: 'Refatorar o grafo', projeto: 'Orbit', status: 'trabalhando', statusTexto: 'Trabalhando', sprite: spr('work'), contexto: { tokens: 84000, limite: 200000, pct: 0.42 }, atividade: 'Editando assets/grafo.js', detalhe: 'Editando arquivos', ferramenta: { nome: 'Edit' }, desde: agora - 5 * 60e3, agentes: 2, pai: null }],
+    ['s2', { id: 's2', nome: 'Revisar contrato', projeto: 'Bazar', status: 'aguardando', statusTexto: 'Aguardando você', sprite: spr('needu'), contexto: { tokens: 150000, limite: 200000, pct: 0.75 }, atividade: 'Pergunta: qual cláusula manter?', detalhe: 'Aguardando decisão', ferramenta: null, desde: agora - 20 * 60e3, agentes: 0, pai: null }],
+    ['s3', { id: 's3', nome: 'Testes do servidor', projeto: 'Orbit', status: 'concluida', statusTexto: 'Concluída', sprite: spr('done'), contexto: { tokens: 30000, limite: 200000, pct: 0.15 }, atividade: '', detalhe: 'Terminou', ferramenta: null, desde: agora - 2 * 3600e3, agentes: 0, pai: null }],
+    ['s4', { id: 's4', nome: 'Pesquisa de mercado', projeto: 'Pessoal', status: 'nova', statusTexto: 'Nova', sprite: spr('sleep'), contexto: null, atividade: '', detalhe: '', ferramenta: null, desde: agora, agentes: 0, pai: null }],
+    ['t1', { id: 't1', nome: 'Lançar a versão 2', projeto: 'Orbit', status: 'trabalhando', statusTexto: 'Trabalhando', sprite: spr('work'), contexto: { tokens: 60000, limite: 200000, pct: 0.3 }, atividade: 'Coordenando o time', detalhe: 'Coordenando', ferramenta: { nome: 'Task' }, desde: agora - 8 * 60e3, agentes: 2, pai: null }],
+    ['t2', { id: 't2', nome: 'Escrever as notas de versão', projeto: 'Orbit', status: 'aguardando', statusTexto: 'Aguardando você', sprite: spr('needu'), contexto: { tokens: 40000, limite: 200000, pct: 0.2 }, atividade: 'Pergunta: qual tom usar?', detalhe: 'Aguardando decisão', ferramenta: null, desde: agora - 4 * 60e3, agentes: 1, pai: 't1' }],
+  ]);
+  // Subagentes do Task por sessão dona (não são sessões). Só t1 e t2 têm; s1..s4 ficam sem time (card solto).
+  const SUBS = new Map([
+    ['t1', [
+      { id: 'a1', sessao: 't1', tipo: 'Explore', descricao: 'Mapear os módulos do app', status: 'trabalhando', statusTexto: 'Trabalhando', inicio: agora - 3 * 60e3, fim: null, atividade: 'Lendo assets/grafo.js' },
+      { id: 'a2', sessao: 't1', tipo: 'general-purpose', descricao: 'Rodar a suíte de testes', status: 'concluido', statusTexto: 'Concluído', inicio: agora - 7 * 60e3, fim: agora - 2 * 60e3, atividade: '' },
+    ]],
+    ['t2', [
+      { id: 'a3', sessao: 't2', tipo: 'Plan', descricao: 'Planejar o texto das notas', status: 'trabalhando', statusTexto: 'Trabalhando', inicio: agora - 2 * 60e3, fim: null, atividade: 'Comparando versões' },
+    ]],
+  ]);
+  const raizDe = (id) => { let r = S.get(id), n = 0; while (r && r.pai && S.has(r.pai) && n++ < 20) r = S.get(r.pai); return r ? r.id : null; };
+  const vivo = (st) => st === 'trabalhando' || st === 'aguardando';
+  const ouvintes = new Set();
+  const avisar = (ev) => { for (const f of [...ouvintes]) try { f(ev); } catch (e) { console.error(e); } };
+  const copia = (r) => JSON.parse(JSON.stringify(r));
+  window.demoSessoes = {
+    abertos: [],
+    ouvintes: () => ouvintes.size,
+    mudar(id, campos) { const r = S.get(id); if (!r) return false; Object.assign(r, campos); avisar({ tipo: 'sessao', id }); return true; },
+    remover(id) { const ok = S.delete(id); avisar({ tipo: 'remover', id }); return ok; },
+    repor(id, r) { S.set(id, { id, ...r }); avisar({ tipo: 'sessao', id }); },
+    // Subagente novo na sessão dona (ex.: criarSub('t1', { id: 'a4', tipo: 'Explore', descricao: '...', status: 'trabalhando' })).
+    criarSub(sessao, sub) {
+      if (!S.has(sessao)) return false;
+      const lista = SUBS.get(sessao) || []; SUBS.set(sessao, lista);
+      lista.push({ sessao, statusTexto: '', inicio: Date.now(), fim: null, atividade: '', status: 'trabalhando', ...sub });
+      avisar({ tipo: 'sessao', id: sessao }); return true;
+    },
+    // Muda campos de um subagente (ex.: mudarSub('a1', { status: 'concluido', statusTexto: 'Concluído' })).
+    mudarSub(id, campos) {
+      for (const [dona, lista] of SUBS) { const a = lista.find((x) => x.id === id); if (a) { Object.assign(a, campos); avisar({ tipo: 'sessao', id: dona }); return true; } }
+      return false;
+    },
+    concluirSub(id) { return this.mudarSub(id, { status: 'concluido', statusTexto: 'Concluído', fim: Date.now(), atividade: '' }); },
+    // Sessão nova dependente de um pai (ex.: addMembro('t3', 't1', { nome: 'Revisar' })).
+    addMembro(id, pai, campos) {
+      this.repor(id, { nome: 'Sessão ' + id, projeto: 'Orbit', status: 'trabalhando', statusTexto: 'Trabalhando', sprite: spr('work'), contexto: null, atividade: '', detalhe: '', ferramenta: null, desde: Date.now(), agentes: 0, ...campos, pai });
+    },
+  };
+  if (new URLSearchParams(location.search).has('semfonte')) return; // ?semfonte: página sem fonte (cards só com o resumo guardado)
+  window.OrbitFonteSessoes = {
+    obter: (id) => (S.has(id) ? copia(S.get(id)) : null),
+    lista: () => [...S.values()].map(copia),
+    ouvir: (fn) => { ouvintes.add(fn); return () => ouvintes.delete(fn); },
+    abrir: (id) => { window.demoSessoes.abertos.push(id); },
+    // Contrato da etapa 5 (whiteboard-etapa5.md): família da sessão (raiz + dependentes) e subagentes do Task.
+    time: (id) => {
+      const raiz = raizDe(id); if (!raiz) return null;
+      const ids = [...S.keys()].filter((k) => raizDe(k) === raiz);
+      const membros = ids.filter((k) => k !== raiz).map((k) => copia(S.get(k)));
+      const lider = copia(S.get(raiz));
+      const subagentes = ids.flatMap((k) => (SUBS.get(k) || []).map(copia));
+      const fam = [lider, ...membros];
+      const ativos = fam.filter((r) => vivo(r.status)).length + subagentes.filter((a) => vivo(a.status)).length;
+      return { raiz, nome: lider.nome, lider, membros, subagentes, ativos, total: fam.length + subagentes.length };
+    },
+  };
+})();
+</script>
+<script src="../assets/whiteboard-agentes.js"></script>
+<script src="../assets/whiteboard-times.js"></script>
+<script>
+// Entrega B (card web): respostas falsas de /navegador/checar e /navegador/externo. bloqueado.exemplo = bloqueado por frame-ancestors,
+// fora.exemplo = fora do ar, rede.exemplo = erro de rede, semrota.exemplo = rota inexistente (404); o resto = ok. demo.navegador guarda as chamadas.
+(() => {
+  window.demo.navegador = { checar: [], externo: [] };
+  const antes = window.fetch.bind(window);
+  window.fetch = async (url, init = {}) => {
+    const u = new URL(String(url), location.href);
+    if (!u.pathname.startsWith('/navegador/')) return antes(url, init);
+    const corpo = init.body ? JSON.parse(init.body) : {};
+    if (!init.headers || !(new Headers(init.headers).get('x-gerenciador'))) return new Response('{}', { status: 403 });
+    const j = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } });
+    let host = ''; try { host = new URL(corpo.url).hostname; } catch {}
+    if (u.pathname === '/navegador/externo') { window.demo.navegador.externo.push(corpo.url); return j({ ok: true, url: corpo.url }); }
+    if (u.pathname !== '/navegador/checar') return j({}, 404);
+    window.demo.navegador.checar.push(corpo.url);
+    if (host === 'semrota.exemplo') return j({}, 404);
+    if (host === 'rede.exemplo') throw new TypeError('Failed to fetch');
+    if (host === 'bloqueado.exemplo') return j({ estado: 'bloqueado', bloqueio: 'frame-ancestors', url: corpo.url });
+    if (host === 'fora.exemplo') return j({ estado: 'fora-do-ar', url: corpo.url, local: false });
+    return j({ estado: 'ok', url: corpo.url });
+  };
+})();
+</script>
+<script>
+// Entrega E (ligação site ↔ agente): rota falsa POST /sessao/:id/mensagem. s1 → 202 ok; s2 → 409 nao_assumida (mesmo formato do servidor:
+// { erro, codigo }); s3 → 500; o resto → 202. Pedidos em demo.reqs (e demo.mensagens: [{ id, corpo, cabecalho }]).
+(() => {
+  window.demo.mensagens = [];
+  const antes = window.fetch.bind(window);
+  window.fetch = async (url, init = {}) => {
+    const u = new URL(String(url), location.href);
+    const m = /^\/sessao\/([^\/]+)\/mensagem$/.exec(u.pathname);
+    if (!m) return antes(url, init);
+    const id = decodeURIComponent(m[1]);
+    let corpo = null; try { corpo = JSON.parse(init.body); } catch {}
+    const cab = new Headers(init.headers || {});
+    window.demo.reqs.push([(init.method || 'GET').toUpperCase(), u.pathname, corpo]);
+    window.demo.mensagens.push({ id, corpo, gerenciador: cab.get('x-gerenciador') });
+    const j = (o, s) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } });
+    if (!cab.get('x-gerenciador')) return j({ erro: 'Cabeçalho x-gerenciador ausente.' }, 403);
+    if (id === 's2') return j({ erro: 'Sem processo vivo nem canal: assuma no Orbit para conversar.', codigo: 'nao_assumida' }, 409);
+    if (id === 's3') return j({ erro: 'falha interna' }, 500);
+    return j({ acao: { id: 'a1' } }, 202);
+  };
+})();
+</script>
+<script src="../assets/navegador.js"></script>
+<script src="../assets/whiteboard-web.js"></script>
+<script src="../assets/whiteboard-painel.js"></script>
+<script src="../assets/whiteboard-menu.js"></script>
+<script src="../assets/whiteboard-exportar.js"></script>
+<script>
+  Whiteboard.entrar(document.getElementById('whiteboard'));
+</script>
+</body>
+</html>

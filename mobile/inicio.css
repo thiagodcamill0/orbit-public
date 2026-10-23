@@ -1,0 +1,113 @@
+/* Orbit no celular — tela Início (onda 3). Só tokens de assets/comum/base.css e as peças de componentes.css (.tile, .selo, .esq).
+   O celular ajusta tamanho (alvos de 44 px), nunca cor. Movimento do PC: --ease-press, 150–300 ms; nada com movimento reduzido. */
+
+.in-lista { display: grid; gap: var(--esp-3); padding-bottom: var(--esp-4); min-width: 0; }
+
+/* Cartão = .tile do PC; aqui ocupa a largura toda e não levanta no hover (toque não tem hover). */
+.in-card.tile { display: flex; flex-direction: column; gap: var(--esp-3); padding: 14px var(--esp-4) var(--esp-4); min-width: 0; color: var(--t1); text-align: left; transition: opacity var(--dur-2) var(--ease); }
+.in-card.tile:hover { transform: none; }
+a.in-card.toque { display: flex; transition: transform var(--dur-1) var(--ease-press), opacity var(--dur-2) var(--ease); }
+a.in-card.toque:active { transform: scale(.98); transition-duration: .06s; }
+.in-lista.velho .in-card { opacity: .55; }
+
+.in-cab { display: flex; align-items: center; gap: var(--esp-2); min-height: 20px; }
+.in-tit { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.in-seta { display: grid; place-items: center; flex: none; color: var(--t3); }
+.in-corpo { display: grid; gap: var(--esp-3); min-width: 0; }
+.in-conteudo { display: grid; gap: var(--esp-3); min-width: 0; }
+
+/* Entrada: o que chega ou aparece sobe 4 px e cresce de .98 a 1; cada cartão entra um pouco depois do anterior. */
+@keyframes in-entra { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
+.in-card.entra { animation: in-entra var(--dur-2) var(--ease-press) backwards; animation-delay: calc(var(--i, 0) * 40ms); }
+.in-itens > .entra, .in-esp > .entra, .in-sts > .entra { animation: in-entra var(--dur-2) var(--ease-press) backwards; }
+
+/* Esqueleto */
+.in-esq { display: grid; gap: var(--esp-2); }
+.in-esq-l1 { height: 28px; width: 46%; border-radius: var(--r-2); }
+.in-esq-l2 { height: 14px; width: 88%; }
+.in-esq-l3 { height: 14px; width: 64%; }
+
+/* Vazio / erro (por widget) */
+.in-msg { color: var(--t2); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.in-msg.erro { color: var(--aviso); }
+
+.in-un { font-size: 14px; font-weight: 500; color: var(--t2); }
+.in-topo { display: flex; align-items: baseline; gap: var(--esp-2); flex-wrap: wrap; }
+.in-topo b { font-size: 28px; font-weight: 600; letter-spacing: -.035em; line-height: 1; }
+.in-sub { font-size: 13px; color: var(--t2); }
+.in-sub.bom { color: var(--sucesso); }
+.in-sub.alerta { color: var(--aviso); }
+.in-meta { font-size: 12px; color: var(--t3); overflow-wrap: anywhere; }
+.in-lido { font-size: 12px; color: var(--t3); }
+.in-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+
+/* Precisa de você */
+.in-tile-n { display: flex; align-items: baseline; gap: var(--esp-2); flex-wrap: wrap; min-width: 0; }
+.in-tile-n .in-un { color: var(--agu-t); }
+.in-esp { display: grid; gap: var(--esp-2); min-width: 0; }
+.in-esp:empty { display: none; }
+.in-esp-l { display: grid; gap: 2px; min-width: 0; padding-top: var(--esp-2); border-top: 1px solid var(--fio); }
+.in-mais { font-size: 12px; color: var(--t2); }
+
+/* Sessões: contagens por status (cor do ponto = COR_STATUS) e o sprite da mais relevante */
+.in-sess { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--esp-3); align-items: center; }
+.in-sess-e { display: grid; gap: var(--esp-3); min-width: 0; }
+.in-sts { display: grid; gap: 6px; min-width: 0; }
+.in-st { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-width: 0; font-size: 13px; }
+.in-ponto { display: grid; place-items: center; width: 12px; height: 12px; }
+.in-ponto svg { display: block; }
+.in-st-rot { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t1); }
+.in-st-n { font-weight: 600; }
+.in-fig { display: grid; justify-items: center; gap: var(--esp-1); width: 76px; min-width: 0; }
+.in-sprite { display: block; width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; pointer-events: none; user-select: none; }
+.in-leg { max-width: 100%; font-size: 11px; color: var(--t3); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Contexto e uso: linhas com trilho (cor de corEscala / degradeEscala) */
+.in-itens { display: grid; gap: var(--esp-1); min-width: 0; }
+.in-linha, .in-item { display: grid; gap: 6px; min-width: 0; padding: var(--esp-2) 0; }
+.in-linha { min-height: 44px; align-content: center; border-radius: var(--r-2); }
+.in-linha:active { opacity: .7; }
+.in-l1 { display: flex; align-items: baseline; gap: var(--esp-2); min-width: 0; }
+.in-val { font-weight: 600; flex: none; }
+.in-trilho { display: block; height: 6px; border-radius: var(--r-pilula); background: var(--fio-2); overflow: hidden; }
+.in-trilho i { display: block; height: 100%; width: 0; border-radius: var(--r-pilula); transition: width var(--dur-3) var(--ease-press); }
+.in-selo { flex: none; color: var(--aviso); }
+
+/* Sincronização */
+.in-chip { flex: none; padding: 3px 10px; border-radius: var(--r-pilula); background: var(--bloco); color: var(--t1); font-size: 12px; font-weight: 600; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.in-chip[data-tom="ok"] { color: var(--sucesso); }
+.in-chip[data-tom="atras"], .in-chip[data-tom="aviso"] { color: var(--aviso); }
+.in-chip[data-tom="perigo"] { color: var(--perigo); }
+.in-chip[data-tom="ocupado"], .in-chip[data-tom="neutro"] { color: var(--t2); }
+.in-repo { display: grid; gap: 2px; min-width: 0; padding: var(--esp-1) 0; }
+.in-repo-l1 { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
+.in-pt { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--t3); }
+.in-pt[data-tom="ok"] { background: var(--sucesso); }
+.in-pt[data-tom="atras"], .in-pt[data-tom="aviso"] { background: var(--aviso); }
+.in-pt[data-tom="perigo"] { background: var(--perigo); }
+.in-pt[data-tom="neutro"] { background: var(--foco); }
+.in-branch { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px; border-radius: var(--r-1); background: var(--bloco); font-family: var(--mono); font-size: 11px; color: var(--t2); }
+.in-repo .in-meta { padding-left: 16px; }
+
+/* Resumo do dia */
+.in-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
+.in-stat { display: grid; gap: 2px; align-content: start; min-width: 0; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-3); background: var(--poco); }
+.in-stat-r { font-size: 11px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.in-stat-v { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+
+/* Telas estreitas (320 px): sprite menor e uma coluna a menos de folga */
+@media (max-width: 340px) {
+  .in-card.tile { padding: 12px var(--esp-3) var(--esp-3); }
+  .in-sprite { width: 56px; height: 56px; }
+  .in-fig { width: 60px; }
+  .in-stat { padding: var(--esp-2); }
+}
+
+/* Movimento reduzido: sem transform; a entrada vira só um fade curto e as barras não correm */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes in-entra { from { opacity: 0; } to { opacity: 1; } }
+  .in-card.entra, .in-itens > .entra, .in-esp > .entra, .in-sts > .entra { animation-duration: 120ms; animation-delay: 0s; }
+  a.in-card.toque:active { transform: none; opacity: .7; }
+  .in-trilho i { transition: none; }
+  .in-lista .girando { animation: none; }
+}

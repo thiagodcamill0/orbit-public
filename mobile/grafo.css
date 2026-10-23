@@ -1,0 +1,93 @@
+/* Orbit no celular — tela "grafo" (#mais/grafo, onda 5). Só tokens de assets/comum/base.css (as cores do canvas vêm deles pelo JS). Prefixo gf-. */
+
+/* Casca: a tela é uma coluna de altura cheia; o palco do canvas ocupa o que sobra e não rola (o canvas trata os gestos). */
+.gf-raiz .tela-corpo { overflow: hidden; display: flex; flex-direction: column; touch-action: none; }
+.gf-raiz .tela-cont { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.gf-tela { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); padding-bottom: var(--esp-2); }
+
+/* Barra: projeto · encaixar · atualizar */
+.gf-barra { flex: none; display: flex; align-items: center; gap: var(--esp-1); min-width: 0; }
+.gf-sel-caixa { position: relative; flex: 1; min-width: 0; }
+.gf-sel {
+  width: 100%; height: var(--alvo); padding: 0 calc(var(--esp-4) + var(--esp-5)) 0 var(--esp-3);
+  appearance: none; -webkit-appearance: none;
+  background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t1);
+  border: 1px solid var(--fio-2); border-radius: var(--r-3);
+  font: inherit; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+}
+.gf-sel:disabled { opacity: 1; -webkit-text-fill-color: var(--t1); }
+.gf-sel-chev { position: absolute; top: 0; bottom: 0; right: var(--esp-3); display: grid; place-items: center; color: var(--t2); pointer-events: none; }
+.gf-sel-caixa.so-um .gf-sel-chev { display: none; }
+.gf-bt { flex: none; width: var(--alvo); height: var(--alvo); display: grid; place-items: center; color: var(--t1); }
+.gf-bt:disabled { opacity: .4; }
+
+/* Busca */
+.gf-busca-caixa { flex: none; position: relative; display: flex; align-items: center; min-width: 0; }
+.gf-busca-ico { position: absolute; left: var(--esp-3); display: grid; place-items: center; color: var(--t3); pointer-events: none; }
+.gf-busca {
+  flex: 1; min-width: 0; width: 100%; height: var(--alvo); padding: 0 var(--esp-6) 0 calc(var(--esp-3) + var(--esp-5));
+  appearance: none; -webkit-appearance: none;
+  background: var(--poco); box-shadow: var(--poco-sombra); color: var(--t1);
+  border: 1px solid var(--fio-2); border-radius: var(--r-3);
+  font: inherit; font-size: 16px;
+}
+.gf-busca::placeholder { color: var(--t3); }
+.gf-busca:disabled { opacity: .5; }
+.gf-contagem { position: absolute; right: var(--esp-3); color: var(--t2); font-size: 12px; pointer-events: none; font-variant-numeric: tabular-nums; }
+
+/* Avisos */
+.gf-aviso, .gf-nota-aviso { flex: none; display: flex; align-items: flex-start; gap: var(--esp-3); border: 1px solid var(--fio-2); background: var(--sup); min-width: 0; }
+.gf-aviso { padding: var(--esp-3) var(--esp-4); border-radius: var(--r-3); }
+.gf-aviso > svg, .gf-nota-aviso > svg { flex: none; margin-top: 1px; color: var(--t2); }
+.gf-aviso > div { display: grid; gap: 2px; min-width: 0; font-size: 13px; line-height: 1.4; }
+.gf-aviso strong { font-size: 14px; font-weight: 600; }
+.gf-aviso span { color: var(--t2); overflow-wrap: anywhere; }
+.gf-nota-aviso { padding: var(--esp-2) var(--esp-3); border-radius: var(--r-2); font-size: 12.5px; line-height: 1.4; color: var(--t2); }
+.gf-aviso[hidden], .gf-nota-aviso[hidden], .gf-resumo[hidden], .gf-estado[hidden] { display: none; }
+
+/* Palco do canvas: sangra até as bordas da tela (as áreas seguras laterais já vêm do .tela-corpo). */
+.gf-palco {
+  position: relative; flex: 1; min-height: 240px; margin: 0 calc(-1 * var(--esp-4));
+  background: var(--poco); border-block: 1px solid var(--fio); overflow: hidden;
+}
+.gf-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.gf-resumo { position: absolute; left: var(--esp-3); bottom: var(--esp-2); color: var(--t3); font-size: 12px; font-variant-numeric: tabular-nums; pointer-events: none; }
+
+/* Estados (carregando · sem brain · vazio · sem projetos · erro) */
+.gf-estado {
+  position: absolute; inset: 0; z-index: 1; background: var(--poco);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-2);
+  padding: var(--esp-5) var(--esp-4); text-align: center;
+}
+.gf-estado-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--r-5); background: var(--sup); color: var(--t2); box-shadow: var(--sombra); }
+.gf-estado-tit { margin: var(--esp-2) 0 0; font-size: 16px; font-weight: 600; }
+.gf-estado-txt { margin: 0 0 var(--esp-2); max-width: 30ch; color: var(--t2); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.gf-esqueleto { width: min(220px, 70%); }
+.gf-esq-grande { height: 120px; border-radius: var(--r-5); }
+
+/* Folha com a nota */
+.gf-folha { display: grid; gap: var(--esp-3); min-width: 0; padding-bottom: var(--esp-4); }
+.gf-folha-caminho { margin: 0; color: var(--t3); font-size: 12px; overflow-wrap: anywhere; }
+.gf-folha-msg { margin: 0; color: var(--t2); font-size: 14px; line-height: 1.5; }
+.gf-md { min-width: 0; overflow-wrap: anywhere; font-size: 15px; line-height: 1.55; }
+.gf-esq-n { height: 20px; width: 100%; border-radius: var(--r-1); }
+.gf-esq-c { width: 64%; }
+.gf-tentar { justify-self: start; }
+.gf-ligacoes { display: grid; gap: var(--esp-3); min-width: 0; }
+.gf-lig { display: grid; gap: var(--esp-1); min-width: 0; }
+.gf-lig-tit { margin: 0; padding: 0 var(--esp-1); color: var(--t2); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.gf-lig-lista { background: var(--poco); border: 1px solid var(--fio); border-radius: var(--r-3); overflow: hidden; min-width: 0; }
+.gf-lig-lista > * + * { border-top: 1px solid var(--fio); }
+.gf-lig-item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); width: 100%; min-height: var(--alvo);
+  padding: 0 var(--esp-3); border: 0; background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; min-width: 0;
+}
+button.gf-lig-item:hover { background: var(--sup-h); }
+.gf-lig-item > svg { flex: none; color: var(--t3); }
+.gf-lig-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gf-lig-tipo { flex: none; color: var(--t3); font-size: 12px; }
+.gf-lig-morto { color: var(--t2); }
+
+@media (max-height: 600px) {
+  .gf-palco { min-height: 160px; }
+}

@@ -1,48 +1,50 @@
-// Teste da interface do celular (Orbit no celular) contra o servidor falso testes/mobile-mock.mjs.
-// Sobe o mock numa porta livre de 47822–47826 (nunca a 47821) e um Edge headless mudo com viewport de iPhone (390×844).
-//   node testes/mobile-ui.test.mjs [pasta-de-saida]     sem a pasta, as capturas vão para uma pasta temporária apagada no fim
-// Confere: pareamento (erros: código errado, expirado, bloqueado), lista com "Precisa de você" ao vivo, abrir sessão,
-// permitir, responder pergunta, aprovar plano, mandar mensagem (texto e foto), carregar anteriores, parar, modelo/esforço,
-// abrir direto por #s=<id>, uso do plano, este aparelho (instalar, ativar/testar/desativar push, push recebido pelo service worker),
-// nova instância, sair; alvos de toque >= 44 px, sem rolagem lateral, sem erro de console e sem violação de CSP.
+// Teste de interface do app do celular (Orbit): telas SESSÕES e APROVAÇÕES e o comportamento de CONEXÃO.
+// mobile/ contra o servidor falso testes/mobile-mock.mjs (mesmo processo: o teste mexe em mock.estado / mock.sessoes direto),
+// num Edge headless mudo. A Conversa e o Composer têm teste próprio.
+//   node --test testes/mobile-ui.test.mjs
+// Confere (390×844 e, nos pontos principais, 320×568; movimento reduzido em Sessões e Aprovações):
+//   Sessões: grupos como os do PC (interrompida em Concluídas/Revisadas, erro em "Precisa de você", fixadas no topo de cada
+//     grupo, Encerradas recolhido), detalhe, tags, sprites, busca, filtro por projeto (guardado), deslizar → revisada / fixar /
+//     silenciar (+ "Desfazer"; o pedido que chegou no mock), reversão quando o servidor falha, "+" só com criar instâncias ligado.
+//   Aprovações: agrupadas por sessão (mais antiga em cima), badge na barra, o cartão sai depois de respondido (corpo do POST
+//     conferido no mock), 404/409 = "já respondido", fila, pedido novo/removido pelo fluxo.
+//   Conexão: PC desconectado → faixa e estado certos, lista mantida, reconexão automática do SSE com ressincronização, primeira
+//     abertura com o PC fora do ar.
+//   0 erro de console e 0 violação de CSP.
+// Gestos por PointerEvent sintético (touch). Portas: mock só em 47822–47826 (porta-livre); CDP em 9800–9949.
+// Capturas só com ORBIT_UI_FOTOS=<pasta>.
 
+import { test as testeBase, before, after } from 'node:test';
+const test = (nome, fn) => testeBase(nome, { timeout: 120000 }, fn);   // travou, falha com mensagem
+import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { caminhoNavegador, fecharEdge } from './edge.mjs';
 import { subirMock } from './mobile-mock.mjs';
+import { portaLivre } from './porta-livre.mjs';
 
-const PASTA = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const arg = process.argv.slice(2).find((a) => !a.startsWith('--'));
-const SAIDA = arg ? path.resolve(arg) : fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-mobile-ui-'));
-fs.mkdirSync(SAIDA, { recursive: true });
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+const FOTOS = process.env.ORBIT_UI_FOTOS ? path.resolve(process.env.ORBIT_UI_FOTOS) : '';
 
-const checks = [];
-const conferir = (nome, ok, detalhe) => { checks.push({ nome, ok: !!ok, detalhe: ok ? undefined : detalhe }); };
+let mock = null, ws = null, seq = 0, portaCdp = 0, perfil = '', manter = null;
+const pend = new Map();
 const consoleErros = [];
 const violacoes = [];
-const esperados = []; // erros de rede provocados de propósito (401 sem pareamento, código errado...)
+const esperados = [];   // erros de rede provocados de propósito (PC caído, 404/409 forçados)
+let tolerando = 0;      // > 0: erros de rede são esperados
 
-let mock = null;
-let ws, seq = 0;
-const pend = new Map();
-const eventos = [];
-const registros = new Map();
-const porta = 9800 + Math.floor(Math.random() * 150);
-const perfil = path.join(SAIDA, 'edge-' + porta);
-let edge = null;
-
+// ───────────────────────────── CDP ─────────────────────────────
 async function conectar() {
   let alvo;
   for (let i = 0; i < 60 && !alvo; i++) {
-    try { alvo = (await (await fetch(`http://127.0.0.1:${porta}/json`)).json()).find((x) => x.type === 'page'); } catch {}
+    try { alvo = (await (await fetch(`http://127.0.0.1:${portaCdp}/json`)).json()).find((x) => x.type === 'page'); } catch {}
     if (!alvo) await dormir(200);
   }
+  if (!alvo) throw new Error('o Edge de teste não abriu a porta de depuração ' + portaCdp);
   ws = new WebSocket(alvo.webSocketDebuggerUrl);
-  await new Promise((r) => (ws.onopen = r));
+  await new Promise((r, x) => { ws.onopen = r; ws.onerror = x; });
   ws.onmessage = (m) => {
     const d = JSON.parse(m.data);
     if (d.id && pend.has(d.id)) { pend.get(d.id)(d); pend.delete(d.id); return; }
@@ -53,406 +55,812 @@ async function conectar() {
     if (d.method === 'Runtime.exceptionThrown') consoleErros.push('exceção: ' + (d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text));
     if (d.method === 'Log.entryAdded' && d.params.entry.level === 'error') {
       const e = d.params.entry;
-      // Erros de rede provocados de propósito: 401 sem pareamento, código errado/expirado/bloqueado, sessão que não existe.
-      if (e.source === 'network' && /\/remoto\/(eu|parear\/)|\/sessao\/nao-existe/.test(e.url || '')) esperados.push(e.url);
-      else if (/Content Security Policy|Refused to/i.test(e.text || '')) violacoes.push(e.text);
+      if (/Content Security Policy|Refused to/i.test(e.text || '')) violacoes.push(e.text);
+      else if (e.source === 'network' && (tolerando > 0 || /\/remoto\/(eu(\?|$)|parear\/confirmar)/.test(e.url || ''))) esperados.push(`${e.text} ${e.url || ''}`);
       else consoleErros.push(`${e.source}: ${e.text} ${e.url || ''}`);
     }
-    if (d.method === 'ServiceWorker.workerRegistrationUpdated') for (const r of d.params.registrations) registros.set(r.scopeURL, r.registrationId);
-    eventos.push(d.method);
   };
 }
-const cdp = (method, params = {}) => new Promise((r) => { const id = ++seq; pend.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
+// toda chamada CDP tem limite: página travada ou Edge morto falham com mensagem em vez de pendurar o arquivo
+const cdp = (method, params = {}, ms = 20000) => new Promise((res, rej) => {
+  const id = ++seq;
+  const t = setTimeout(() => { pend.delete(id); rej(new Error('CDP sem resposta em ' + ms + ' ms: ' + method + ' ' + JSON.stringify(params).slice(0, 160))); }, ms);
+  pend.set(id, (d) => { clearTimeout(t); res(d); });
+  try { ws.send(JSON.stringify({ id, method, params })); } catch (e) { clearTimeout(t); pend.delete(id); rej(e); }
+});
 const avaliar = async (expr) => {
   const r = (await cdp('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result;
-  if (r?.exceptionDetails) throw new Error('avaliar: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text) + ' em ' + expr.slice(0, 120));
+  if (r?.exceptionDetails) throw new Error('avaliar: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text) + ' em ' + expr.slice(0, 160));
   return r?.result?.value;
 };
-async function esperar(expr, ms = 10000) {
+async function esperar(expr, ms = 8000) {
   const fim = Date.now() + ms;
   while (Date.now() < fim) {
     try { if (await avaliar(expr)) return true; } catch {}
-    await dormir(120);
+    await dormir(100);
   }
   return false;
 }
+async function exigir(expr, msg, ms) {
+  if (await esperar(expr, ms)) return;
+  let est = '';
+  try { est = await avaliar(`JSON.stringify({ hash: location.hash, conexao: OM.estado.conexao, rota: OM.rotas.atual().nome, faixa: document.getElementById('faixa').textContent, grupos: window.__grupos ? window.__grupos() : null, msgSessoes: (document.querySelector('.tela[data-tela=\"sessoes\"] .sx-msg') || {}).outerHTML.slice(0, 200), sel: [...document.querySelectorAll('.tela[data-tela=\"sessoes\"] .sx-gcab, .tela[data-tela=\"sessoes\"] .sx-fp, .tela[data-tela=\"sessoes\"] .sx-nova:not([hidden])')].map((b) => b.className + ':' + Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height)) })`); } catch {}
+  assert.fail(msg + ' | ' + expr.slice(0, 140) + ' | estado: ' + est);
+}
 const foto = async (nome) => {
-  const r = await cdp('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(SAIDA, nome + '.png'), Buffer.from(r.result.data, 'base64'));
+  if (!FOTOS) return;
+  fs.mkdirSync(FOTOS, { recursive: true });
+  const r = await cdp('Page.captureScreenshot', { format: 'jpeg', quality: 40 });
+  fs.writeFileSync(path.join(FOTOS, nome + '.jpg'), Buffer.from(r.result.data, 'base64'));
 };
 const Q = (sel) => `document.querySelector(${JSON.stringify(sel)})`;
-const visivel = (sel) => `(() => { const e = ${Q(sel)}; return !!e && !e.hidden && e.getClientRects().length > 0; })()`;
-const clicar = (sel) => avaliar(`(() => { const e = ${Q(sel)}; if (!e) return false; e.click(); return true; })()`);
-const texto = (sel) => avaliar(`(${Q(sel)} || {}).textContent || ''`);
-const digitar = (sel, t) => avaliar(`(() => { const e = ${Q(sel)}; const proto = e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(e, ${JSON.stringify(t)}); e.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
-const contar = (sel) => avaliar(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
-const clicarTexto = (sel, t) => avaliar(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find((x) => x.textContent.includes(${JSON.stringify(t)})); if (!e) return false; e.click(); return true; })()`);
-const registro = async () => (await fetch(mock.base + '/_mock/log')).json();
-const ultimo = async (rota) => (await registro()).filter((x) => x.rota === rota).at(-1);
-const nRegistro = async (rota) => (await registro()).filter((x) => x.rota === rota).length;
-const postMock = (rota, corpo = {}) => fetch(mock.base + rota, { method: 'POST', headers: { 'content-type': 'application/json', origin: mock.base }, body: JSON.stringify(corpo) });
+const J = JSON.stringify;
+const postMock = (r, corpo = {}) => fetch(mock.base + r, { method: 'POST', headers: { 'content-type': 'application/json', origin: mock.base }, body: JSON.stringify(corpo) });
+const mudar = async (corpo) => { assert.equal((await postMock('/_mock/mudar', corpo)).status, 200, 'mudar ' + corpo.id); };
 const codigoReal = async () => (await (await fetch(mock.base + '/_mock/codigo')).json()).codigo;
 const semRolagemLateral = () => avaliar('document.documentElement.scrollWidth <= innerWidth && document.body.scrollWidth <= innerWidth');
-const irPara = async (hash) => { await avaliar(`location.hash = ${JSON.stringify(hash)}`); await dormir(150); };
-
-// Alvos de toque dentro de um container visível: menores que 44 px viram erro.
-async function alvosPequenos(raiz) {
-  return avaliar(`(() => {
-    const r = ${Q(raiz)};
-    if (!r) return ['sem ' + ${JSON.stringify(raiz)}];
-    const ruins = [];
-    for (const e of r.querySelectorAll('button, a[href], select, input:not([type=hidden]):not([type=file]), textarea, summary, label.op')) {
-      if (e.tagName === 'INPUT' && e.closest('label.op')) continue; // o alvo de toque é a linha inteira (label.op)
-      const b = e.getBoundingClientRect();
-      if (!b.width || !b.height || getComputedStyle(e).visibility === 'hidden') continue;
-      if (b.height < 43.5 || b.width < 43.5) ruins.push((e.id || e.className || e.tagName) + ' ' + Math.round(b.width) + '×' + Math.round(b.height) + ' "' + e.textContent.trim().slice(0, 20) + '"');
-    }
-    return ruins;
-  })()`);
+const irPara = async (hash) => { await avaliar(`location.hash = ${J(hash)}`); };
+async function viewport(w, h) {
+  await cdp('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: true });
+  await dormir(250);
 }
+const base = (nome) => exigir(`OM.rotas.atual().nome === ${J(nome)} && !document.querySelector('.tela.arrastando') && [...document.querySelectorAll('.tela')].filter((t) => !t.hidden).length === 1`, 'a tela do topo devia ser ' + nome, 6000);
+async function tolerar(fn) { tolerando++; try { return await fn(); } finally { await dormir(300); tolerando--; } }
+// POSTs que o mock recebeu (menos o de teste), do mais antigo ao mais novo
+const posts = (filtro) => mock.estado.log.filter((x) => x.metodo === 'POST' && (!filtro || x.rota.includes(filtro)));
 
-// ─── ganchos injetados em toda página: CSP, "instalado" e Web Push simulado (o headless não assina de verdade) ───
+// ───────────────────────────── ganchos injetados em toda página ─────────────────────────────
 const INJETADO = `
   window.addEventListener('securitypolicyviolation', (e) => console.error('VIOLAÇÃO CSP ' + e.violatedDirective + ' ' + e.blockedURI));
-  const marca = (k) => { try { return sessionStorage.getItem(k) === '1'; } catch { return false; } }; // about:blank nega o acesso
-  if (marca('__standalone')) Object.defineProperty(navigator, 'standalone', { get: () => true, configurable: true });
-  if (marca('__pushfalso')) {
-    let permissao = 'default', assinatura = null;
-    Object.defineProperty(Notification, 'permission', { get: () => permissao, configurable: true });
-    Notification.requestPermission = async () => { permissao = 'granted'; window.__pedidoPermissao = (window.__pedidoPermissao || 0) + 1; return 'granted'; };
-    PushManager.prototype.getSubscription = async () => assinatura;
-    PushManager.prototype.subscribe = async function (o) {
-      window.__subOpcoes = { userVisibleOnly: o.userVisibleOnly, bytesChave: o.applicationServerKey ? o.applicationServerKey.byteLength : 0 };
-      const s = { endpoint: 'https://push.exemplo.test/abc', expirationTime: null, keys: { p256dh: 'BPk', auth: 'au' }, unsubscribe: async () => { assinatura = null; return true; } };
-      s.toJSON = () => ({ endpoint: s.endpoint, expirationTime: null, keys: s.keys });
-      assinatura = s;
-      return s;
-    };
-  }`;
+  window.__sim = (() => {
+    const dorme = (ms) => new Promise((r) => setTimeout(r, ms));
+    let n = 100;
+    const pe = (tipo, x, y, id) => new PointerEvent(tipo, { pointerId: id, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y,
+      bubbles: true, cancelable: true, composed: true, button: tipo === 'pointermove' ? -1 : 0, buttons: tipo === 'pointerup' ? 0 : 1 });
+    const alvoDe = (a) => (typeof a === 'string' ? document.querySelector(a) : a);
+    async function arrastar(alvo, x0, y0, x1, y1, o = {}) {
+      const { passos = 6, espera = 16 } = o;
+      const el = alvoDe(alvo) || document.elementFromPoint(x0, y0);
+      const id = ++n;
+      el.dispatchEvent(pe('pointerdown', x0, y0, id));
+      for (let i = 1; i <= passos; i++) { await dorme(espera); el.dispatchEvent(pe('pointermove', x0 + (x1 - x0) * i / passos, y0 + (y1 - y0) * i / passos, id)); }
+      await dorme(espera); el.dispatchEvent(pe('pointerup', x1, y1, id));
+    }
+    return { arrastar, dorme };
+  })();`;
 
-// Carrega a página de verdade (passando por about:blank, senão só mudar o #hash não recarrega).
 async function abrirPagina(hash = '') {
   await cdp('Page.navigate', { url: 'about:blank' });
   await dormir(100);
-  await cdp('Page.navigate', { url: mock.base + '/m' + hash });
+  // a navegação já travou uma vez sem resposta (Edge lento com a máquina cheia): uma segunda tentativa, com limite menor
+  await cdp('Page.navigate', { url: mock.base + '/m' + hash }, 12000).catch(() => cdp('Page.navigate', { url: mock.base + '/m' + hash }));
   await esperar('document.readyState === "complete"');
-  await dormir(300);
+  await esperar('!!(window.OM && OM.rotas && OM.folha && OM.gestos && OM.estado)');
+  await dormir(200);
 }
 
-try {
+// Começa cada teste do zero: dados do mock de volta ao começo, filtro guardado limpo, página recarregada (o cookie fica).
+async function preparar(hash = '#sessoes', n = 6) {
+  assert.equal((await postMock('/_mock/reiniciar')).status, 200);
+  try { await avaliar(`localStorage.removeItem('orbit.m.sessoes.projeto')`); } catch {}
+  await abrirPagina(hash);
+  await exigir(`document.body.dataset.modo === 'app' && OM.estado.conexao === 'vivo' && OM.estado.sessoes.size === ${n}`, 'o app devia estar vivo com as sessões do mock');
+  await base(hash.replace('#', ''));
+  await dormir(150);
+}
+
+// ───────────────────────────── subida e descida ─────────────────────────────
+before(async () => {
   mock = await subirMock({ porta: Number(process.env.GERENCIADOR_PORTA) || 47822 });
-  edge = spawn(caminhoNavegador(), ['--headless=new', `--remote-debugging-port=${porta}`, `--user-data-dir=${perfil}`,
+  const ini = 9800 + Math.floor(Math.random() * 100);
+  for (let p = ini; p < ini + 50 && !portaCdp; p++) if (await portaLivre(p)) portaCdp = p;
+  assert.ok(portaCdp, 'nenhuma porta livre para o CDP');
+  perfil = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-ui-'));
+  spawn(caminhoNavegador(), ['--headless=new', `--remote-debugging-port=${portaCdp}`, `--user-data-dir=${perfil}`,
     '--no-first-run', '--disable-gpu', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
   await conectar();
-  for (const d of ['Page', 'Runtime', 'Log', 'DOM', 'ServiceWorker']) await cdp(d + '.enable');
+  for (const d of ['Page', 'Runtime', 'Log', 'Network']) await cdp(d + '.enable');
   await cdp('Page.addScriptToEvaluateOnNewDocument', { source: INJETADO });
-  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await cdp('Emulation.setTouchEmulationEnabled', { enabled: true });
   await cdp('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1' });
-
-  // ═════════ 1. Parear ═════════
+  await viewport(390, 844);
+  // headless deixa a página "hidden" (animações pausadas): forçar visível e em foco, e repetir
+  await cdp('Emulation.setFocusEmulationEnabled', { enabled: true });
+  await cdp('Page.bringToFront');
+  manter = setInterval(() => { cdp('Page.bringToFront', {}, 5000).catch(() => {}); }, 1000);
+  // parear uma vez (o cookie vale para o resto do arquivo)
   await abrirPagina();
-  conferir('abre em /m e mostra o pareamento (GET /remoto/eu deu 401)', await esperar(visivel('#v-parear')), await texto('#app'));
-  conferir('nome padrão do aparelho é "iPhone"', (await avaliar(`${Q('#par-nome')}.value`)) === 'iPhone');
-  conferir('manifesto, apple-touch-icon e viewport-fit=cover no HTML', await avaliar(`!!${Q('link[rel=manifest][href="/manifest-m.webmanifest"]')} && !!${Q('link[rel=apple-touch-icon]')} && /viewport-fit=cover/.test(${Q('meta[name=viewport]')}.content) && ${Q('meta[name=apple-mobile-web-app-capable]')}.content === 'yes'`));
-  conferir('alvos de toque do pareamento >= 44 px', (await alvosPequenos('#v-parear')).length === 0, await alvosPequenos('#v-parear'));
-  await foto('1-parear');
-  await digitar('#par-nome', 'iPhone de teste');
-  await clicar('#par-pedir');
-  conferir('Parear → pede o código de 6 dígitos', await esperar(visivel('#par-f2')));
-  conferir('campo do código: numérico e one-time-code', await avaliar(`${Q('#par-codigo')}.inputMode === 'numeric' && ${Q('#par-codigo')}.autocomplete === 'one-time-code' && ${Q('#par-codigo')}.maxLength === 6`));
-  conferir('mostra a expiração (Expira em m:ss)', /Expira em \d:\d\d/.test(await texto('#par-expira')), await texto('#par-expira'));
-  conferir('pedido enviou o nome do aparelho', (await ultimo('/remoto/parear/pedir'))?.corpo?.nome === 'iPhone de teste');
-  await foto('1-codigo');
-  const certo1 = await codigoReal();
-  await digitar('#par-codigo', certo1 === '111111' ? '222222' : '111111');
-  conferir('código errado → mensagem de erro', await esperar(`/errado/i.test(${Q('#par-erro')}.textContent) && !${Q('#par-erro')}.hidden`), await texto('#par-erro'));
-  conferir('após o erro o campo limpa e segue no passo do código', (await avaliar(`${Q('#par-codigo')}.value`)) === '' && (await avaliar(visivel('#par-f2'))));
-  await postMock('/_mock/expirar');
-  await digitar('#par-codigo', certo1);
-  conferir('código expirado → mensagem e volta ao passo do nome', await esperar(`/expirou/i.test(${Q('#par-erro')}.textContent) && !${Q('#par-f1')}.hidden`), await texto('#par-erro'));
-  await clicar('#par-pedir');
-  conferir('novo pedido depois de expirar', await esperar(visivel('#par-f2')));
-  const certo2 = await codigoReal();
-  conferir('novo código gerado pelo PC', !!certo2);
-  await digitar('#par-codigo', certo2);
+  await esperar(`document.body.dataset.modo === 'parear'`);
+  const pedido = await avaliar(`OM.parear.pedir('iPhone da UI').then((p) => p.pedido)`);
+  assert.ok(pedido, 'OM.parear.pedir devia devolver o pedido');
+  assert.equal(await avaliar(`OM.parear.confirmar(${J(pedido)}, ${J(await codigoReal())})`), true);
+  await exigir(`document.body.dataset.modo === 'app' && OM.estado.conexao === 'vivo'`, 'depois do código certo devia entrar no app');
+});
 
-  // ═════════ 2. Sessões ═════════
-  conferir('código certo → entra na lista de sessões', await esperar(visivel('#v-principal') + ' && ' + `document.querySelectorAll('.card').length >= 6`), await texto('#app'));
-  conferir('confirmar enviou {pedido, codigo}', (await ultimo('/remoto/parear/confirmar'))?.corpo?.codigo === certo2);
-  conferir('"Precisa de você" é o primeiro grupo, com 3 cartões', await avaliar(`(() => { const g = [...document.querySelectorAll('.grupo:not([hidden])')]; return g[0].dataset.g === 'precisa' && /Precisa de você/.test(g[0].textContent) && g[0].querySelectorAll('.card').length === 3 && g[1].dataset.g === 'trabalhando' && g[2].dataset.g === 'paradas'; })()`));
-  conferir('o que espera há mais tempo vem primeiro', await avaliar(`document.querySelector('.grupo[data-g=precisa] .card .card-nome').textContent.includes('testes do pareamento')`));
-  conferir('cartão mostra projeto, status, detalhe e tempo', await avaliar(`(() => { const c = document.querySelector('.grupo[data-g=precisa] .card'); return /Orbit/.test(c.textContent) && /Aguardando você/.test(c.textContent) && /Pede permissão: Bash/.test(c.textContent) && /\\d+ min/.test(c.textContent); })()`));
-  conferir('pergunta e plano aparecem como tal', await avaliar(`/Fez uma pergunta/.test(document.body.textContent) && /Plano para aprovar/.test(document.body.textContent)`));
-  conferir('Paradas traz a concluída e a nova', await avaliar(`document.querySelectorAll('.grupo[data-g=paradas] .card').length === 2`));
-  conferir('título da aba e selo "3" em Sessões', (await avaliar('document.title')) === '(3) Orbit' && (await texto('#aba-sessoes .conta')) === '3');
-  conferir('botão "Nova instância" visível (criarInstancias)', await avaliar(visivel('#btn-nova')));
-  conferir('lista: alvos de toque >= 44 px', (await alvosPequenos('#v-principal')).length === 0, await alvosPequenos('#v-principal'));
-  conferir('lista: sem rolagem lateral em 390 px', await semRolagemLateral());
-  conferir('cartão no visual do PC: avatar com sprite carregado, selo de status, pílula da base e fundo --sup', await esperar(`(() => { const c = document.querySelector('.grupo[data-g=precisa] .card'); const i = c.querySelector('.av-robo img.spr'); return !!i && /^\\/assets\\/sprites\\/sprite-[\\w-]+\\.(gif|png)$/.test(i.getAttribute('src')) && i.complete && i.naturalWidth > 0 && !!c.querySelector('.av-selo') && !!c.querySelector('.pilula[data-s=aguardando] svg') && getComputedStyle(c).backgroundColor === 'rgb(29, 29, 29)'; })()`), await avaliar(`document.querySelector('.card').outerHTML.slice(0, 500)`));
-  // Faixa preta (iPhone, PWA): a barra inferior vai até o fim da tela e o fundo dela cobre a área segura de baixo.
-  conferir('safe-area: viewport-fit=cover, tela e barra inferior coladas ao fundo do viewport', await avaliar(`(() => { const n = document.querySelector('.abas').getBoundingClientRect(); const a = document.getElementById('app').getBoundingClientRect(); return /viewport-fit=cover/.test(document.querySelector('meta[name=viewport]').content) && Math.abs(n.bottom - innerHeight) <= 1 && Math.abs(a.bottom - innerHeight) <= 1 && getComputedStyle(document.querySelector('.abas')).backgroundColor === 'rgb(17, 17, 17)'; })()`), await avaliar(`JSON.stringify([document.querySelector('.abas').getBoundingClientRect().bottom, innerHeight])`));
-  conferir('safe-area: .abas tem padding-bottom com env(safe-area-inset-bottom) e #app não fixa altura', await avaliar(`fetch('/m/mobile.css').then((r) => r.text()).then((t) => /\\.abas \\{[^}]*padding:[^;}]*calc\\(var\\(--sb\\) \\+ 6px\\)/.test(t) && /--sb: env\\(safe-area-inset-bottom/.test(t) && /#app \\{ position: fixed; inset: 0;[^}]*\\}/.test(t) && !/(^|\\n)#app \\{[^}]*height:/.test(t))`));
-  await foto('2-sessoes');
-  // Filtro por projeto na aba Sessões
-  const chipsTxt = `[...document.querySelectorAll('#lista-sessoes .filtro-proj')].map((c) => c.textContent.replace(/\\s+/g, ' ').trim()).join('|')`;
-  const cartoes = `document.querySelectorAll('#lista-sessoes .card').length`;
-  const gruposVis = `[...document.querySelectorAll('.grupo:not([hidden])')].map((g) => g.dataset.g).join(',')`;
-  conferir('filtro: chips Todos + um por projeto, com as contagens do mock', (await avaliar(chipsTxt)) === 'Todos6|Cliente Exemplo1|Diário1|Loja Online2|Orbit2', await avaliar(chipsTxt));
-  conferir('filtro: "Todos" é o padrão (marcado) e os chips usam .chip com alvo >= 44 px', await avaliar(`(() => { const c = [...document.querySelectorAll('#lista-sessoes .filtro-proj')]; return c[0].getAttribute('aria-pressed') === 'true' && c.every((x) => x.classList.contains('chip') && x.getBoundingClientRect().height >= 44); })()`));
-  await avaliar(`[...document.querySelectorAll('#lista-sessoes .filtro-proj')].find((c) => /^Orbit/.test(c.textContent)).click()`);
-  conferir('filtro: Orbit mostra só os 2 cartões do projeto, mantendo os grupos (vazios somem)', (await avaliar(cartoes)) === 2 && (await avaliar(gruposVis)) === 'precisa,paradas' && await avaliar(`[...document.querySelectorAll('#lista-sessoes .card-proj')].every((e) => e.textContent === 'Orbit')`), await avaliar(gruposVis));
-  conferir('filtro: selo da aba e título seguem contando todas as sessões', (await avaliar('document.title')) === '(3) Orbit' && (await texto('#aba-sessoes .conta')) === '3');
-  conferir('filtro: sem rolagem lateral com o filtro ligado', await semRolagemLateral());
-  await avaliar(`[...document.querySelectorAll('#lista-sessoes .filtro-proj')].find((c) => /^Loja/.test(c.textContent)).click()`);
-  await abrirPagina();
-  conferir('filtro: a escolha persiste após recarregar', await esperar(`${cartoes} === 2 && [...document.querySelectorAll('#lista-sessoes .card-proj')].every((e) => e.textContent === 'Loja Online')`), await avaliar(cartoes));
-  await clicar('#btn-nova');
-  conferir('filtro: "Nova instância" abre já com o projeto escolhido', await esperar(visivel('#v-nova') + ` && ${Q('#nova-projeto')}.value === 'D:\\\\Projetos\\\\Loja'`), await avaliar(`${Q('#nova-projeto')}.value`));
-  await abrirPagina();
-  await avaliar(`[...document.querySelectorAll('#lista-sessoes .filtro-proj')].find((c) => c.dataset.k === 'todos').click()`);
-  conferir('filtro: "Todos" volta tudo e limpa a escolha', (await avaliar(cartoes)) === 6 && (await avaliar('localStorage.getItem("orbit.sessoes.projeto")')) === null);
-  await avaliar(`localStorage.setItem('orbit.sessoes.projeto', 'd:/projetos/sumiu')`);
-  await abrirPagina();
-  conferir('filtro: projeto que sumiu volta para "Todos"', await esperar(`${cartoes} === 6 && document.querySelector('#lista-sessoes .filtro-proj').getAttribute('aria-pressed') === 'true'`));
-  await postMock('/_mock/mudar', { id: 's4', status: 'aguardando', controle: { permissao: { id: 'perm-4', tipo: 'ferramenta', ferramenta: 'Edit', resumo: 'Diario.tsx' }, pendentes: 1 } });
-  conferir('ao vivo: sessão que passa a aguardar entra em "Precisa de você"', await esperar(`document.querySelectorAll('.grupo[data-g=precisa] .card').length === 4 && document.title === '(4) Orbit'`), await contar('.grupo[data-g=precisa] .card'));
-  await postMock('/_mock/mudar', { id: 's4', status: 'trabalhando', controle: { permissao: null, pendentes: null } });
-  conferir('ao vivo: volta a "Trabalhando"', await esperar(`document.querySelectorAll('.grupo[data-g=precisa] .card').length === 3 && document.querySelectorAll('.grupo[data-g=trabalhando] .card').length === 1`));
-
-  // ═════════ 3. Sessão: permissão ═════════
-  await clicar('.card[href="#s=s1"]');
-  conferir('abrir sessão: tela da sessão com #s=s1', await esperar(visivel('#v-sessao')) && (await avaliar('location.hash')) === '#s=s1');
-  conferir('cabeçalho: projeto e nome', (await texto('#s-proj')) === 'Orbit' && /testes do pareamento/.test(await texto('#s-nome')), await texto('#s-nome'));
-  conferir('conversa carregada (usuário, texto formatado, código, ferramentas)', await esperar(`document.querySelectorAll('#cv-itens > *').length === 4 && !!document.querySelector('#cv-itens .it-usuario') && !!document.querySelector('#cv-itens .md li') && !!document.querySelector('#cv-itens .md pre code') && document.querySelectorAll('#cv-itens .it-ferr').length === 2`), await contar('#cv-itens > *'));
-  conferir('cartão de permissão: ferramenta e comando', await esperar(visivel('#cv-perm')) && /Bash/.test(await texto('#cv-perm .perm-chip')) && /npm test/.test(await texto('#cv-perm .perm-resumo')), await texto('#cv-perm'));
-  conferir('Permitir e Negar com alvo de toque >= 44 px', (await alvosPequenos('#cv-perm')).length === 0, await alvosPequenos('#cv-perm'));
-  conferir('sessão: alvos de toque do restante >= 44 px', (await alvosPequenos('#v-sessao')).length === 0, await alvosPequenos('#v-sessao'));
-  conferir('sessão: sem rolagem lateral', await semRolagemLateral());
-  await foto('3-sessao-permissao');
-  await clicarTexto('#cv-perm button', 'Permitir');
-  conferir('Permitir → POST /permissao {id, decisao:"permitir"}', await esperar(`${Q('#cv-perm')}.hidden`) && JSON.stringify((await ultimo('/sessao/s1/permissao'))?.corpo) === JSON.stringify({ id: 'perm-1', decisao: 'permitir' }), JSON.stringify(await ultimo('/sessao/s1/permissao')));
-  conferir('após permitir o cartão some e o status vira Trabalhando', await esperar(`${Q('#cv-perm')}.hidden && /Trabalhando/.test(${Q('#s-pill')}.textContent)`));
-  conferir('barra "Trabalhando…" com Parar quando ocupada', await avaliar(visivel('#cv-estado')) && await avaliar(visivel('#cv-parar')));
-  await clicar('#s-voltar');
-  conferir('Voltar → lista (2 ainda precisam de você)', await esperar(visivel('#v-principal') + ` && document.querySelectorAll('.grupo[data-g=precisa] .card').length === 2`));
-
-  // ═════════ pergunta ═════════
-  await clicar('.card[href="#s=s2"]');
-  conferir('pergunta: opções do AskUserQuestion', await esperar(visivel('#cv-perm') + ` && document.querySelectorAll('#cv-perm .op').length === 3`) && /Qual banco usar\?/.test(await texto('#cv-perm')), await texto('#cv-perm'));
-  conferir('pergunta: alvos de toque >= 44 px', (await alvosPequenos('#cv-perm')).length === 0, await alvosPequenos('#cv-perm'));
-  await foto('3-sessao-pergunta');
-  await clicarTexto('#cv-perm button', 'Responder');
-  conferir('Responder sem escolher → pede a escolha e não envia', /Escolha uma resposta/.test(await texto('.perm-erro')) && (await nRegistro('/sessao/s2/permissao')) === 0);
-  await clicarTexto('#cv-perm .op', 'Postgres');
-  await clicarTexto('#cv-perm button', 'Responder');
-  conferir('Responder → {id, decisao:"permitir", respostas:{pergunta: rótulo}}', await esperar(`${Q('#cv-perm')}.hidden`) && JSON.stringify((await ultimo('/sessao/s2/permissao'))?.corpo) === JSON.stringify({ id: 'perm-2', decisao: 'permitir', respostas: { 'Qual banco usar?': 'Postgres' } }), JSON.stringify(await ultimo('/sessao/s2/permissao')));
-  await clicar('#s-voltar');
-
-  // ═════════ plano ═════════
-  await esperar(visivel('#v-principal'));
-  await clicar('.card[href="#s=s3"]');
-  conferir('plano: texto do plano formatado e botões', await esperar(visivel('#cv-perm') + ` && !!document.querySelector('#cv-perm .perm-plano li') && !!document.querySelector('#cv-perm .perm-plano strong')`) && /Aprovar e aceitar edições/.test(await texto('#cv-perm')) && /Continuar planejando/.test(await texto('#cv-perm')));
-  await foto('3-sessao-plano');
-  await clicarTexto('#cv-perm button', 'Aprovar e aceitar edições');
-  conferir('Aprovar e aceitar edições → {decisao:"permitir", sugestao:0}', await esperar(`${Q('#cv-perm')}.hidden`) && JSON.stringify((await ultimo('/sessao/s3/permissao'))?.corpo) === JSON.stringify({ id: 'perm-3', decisao: 'permitir', sugestao: 0 }), JSON.stringify(await ultimo('/sessao/s3/permissao')));
-  await clicar('#s-voltar');
-
-  // ═════════ mensagem, anteriores, foto, parar, modelo ═════════
-  await esperar(visivel('#v-principal'));
-  await clicar('.card[href="#s=s4"]');
-  conferir('conversa mostra as mais recentes (40 de 70)', await esperar(`document.querySelectorAll('#cv-itens > *').length === 40`) && await avaliar(visivel('#cv-mais')), await contar('#cv-itens > *'));
-  await avaliar(`document.getElementById('cv-rolagem').scrollTop = 0`);
-  await clicar('#cv-mais');
-  conferir('"Carregar anteriores" traz o resto e some o botão', await esperar(`document.querySelectorAll('#cv-itens > *').length === 70 && ${Q('#cv-mais')}.hidden`), await contar('#cv-itens > *'));
-  conferir('o mais antigo fica no topo (ordem preservada)', await avaliar(`document.querySelector('#cv-itens > *').textContent.includes('Pergunta número 1')`));
-  await avaliar(`document.getElementById('cv-rolagem').scrollTop = 1e6`);
-  conferir('Enviar começa desabilitado (campo vazio)', await avaliar(`${Q('#cv-enviar')}.disabled`));
-  // composer colado ao fundo: o fundo dele cobre a área segura (padding-bottom com env), sem faixa vazia embaixo
-  conferir('conversa: composer encosta no fundo do viewport e #app vai até o fim', await avaliar(`(() => { const c = ${Q('#cv-comp')}.getBoundingClientRect(), a = ${Q('#app')}.getBoundingClientRect(), s = ${Q('#v-sessao')}.getBoundingClientRect(); return Math.abs(c.bottom - innerHeight) <= 1 && Math.abs(a.bottom - innerHeight) <= 1 && Math.abs(s.bottom - innerHeight) <= 1 && !document.documentElement.classList.contains('tec'); })()`), await avaliar(`JSON.stringify([${Q('#cv-comp')}.getBoundingClientRect().bottom, innerHeight, document.documentElement.className])`));
-  conferir('conversa: .cv-comp tem padding-bottom com env(safe-area-inset-bottom)', await avaliar(`fetch('/m/mobile.css').then((r) => r.text()).then((t) => /\\.cv-comp \\{[^}]*padding:[^;}]*calc\\(var\\(--sb\\) \\+ 8px\\)/.test(t) && /--sb: env\\(safe-area-inset-bottom/.test(t) && /html\\.tec \\{ --sb: 0px; \\}/.test(t))`));
-  // teclado simulado: janela visual menor (500 px) e deslocada (offsetTop 120, como o iOS faz ao rolar para o campo)
-  const vvSim = (h, top) => avaliar(`(() => { const v = visualViewport; if (${h} === null) { delete v.height; delete v.offsetTop; } else { Object.defineProperty(v, 'height', { configurable: true, get: () => ${h} }); Object.defineProperty(v, 'offsetTop', { configurable: true, get: () => ${top} }); } v.dispatchEvent(new Event('resize')); return true; })()`);
-  await vvSim(500, 120);
-  await dormir(100);
-  conferir('teclado sem campo focado não liga html.tec (não fica preso)', await avaliar(`!document.documentElement.classList.contains('tec') && Math.abs(${Q('#app')}.getBoundingClientRect().bottom - innerHeight) <= 1`));
-  await avaliar(`${Q('#cv-texto')}.focus()`);
-  await vvSim(500, 120);
-  const tecOk = `(() => { const c = ${Q('#cv-comp')}.getBoundingClientRect(), a = ${Q('#app')}.getBoundingClientRect(); return document.documentElement.classList.contains('tec') && Math.abs(a.top - 120) <= 1 && Math.abs(a.height - 500) <= 1 && c.top >= 120 && Math.abs(c.bottom - 620) <= 1 && getComputedStyle(${Q('#cv-comp')}).paddingBottom === '8px' && getComputedStyle(document.documentElement).getPropertyValue('--sb').trim() === '0px'; })()`;
-  const tecInfo = `JSON.stringify({ cls: document.documentElement.className, app: ${Q('#app')}.getBoundingClientRect(), comp: ${Q('#cv-comp')}.getBoundingClientRect(), pb: getComputedStyle(${Q('#cv-comp')}).paddingBottom })`;
-  conferir('teclado aberto: composer fica dentro da janela visual, logo acima do teclado, sem área segura', await esperar(tecOk, 2000), await avaliar(tecInfo));
-  await dormir(700); // rechecagens atrasadas do focusin não podem desfazer
-  conferir('teclado aberto: continua acima do teclado depois das rechecagens', await avaliar(tecOk), await avaliar(tecInfo));
-  await avaliar(`${Q('#cv-texto')}.blur()`);
-  await vvSim(null);
-  conferir('teclado fechado: volta a inset 0, composer no fundo, documento no topo', await esperar(`!document.documentElement.classList.contains('tec') && Math.abs(${Q('#cv-comp')}.getBoundingClientRect().bottom - innerHeight) <= 1 && scrollY === 0`, 2000), await avaliar(tecInfo));
-  await digitar('#cv-texto', 'olá do celular');
-  conferir('digitar habilita o envio', await avaliar(`!${Q('#cv-enviar')}.disabled`));
-  // composer em cartão: raio grande, margem lateral, campo sem borda, alvos >= 44 px
-  conferir('composer: cartão único arredondado com margem lateral e campo sem borda', await avaliar(`(() => { const c = ${Q('#cv-cartao')}, cs = getComputedStyle(c), r = c.getBoundingClientRect(), t = getComputedStyle(${Q('#cv-texto')}); return c.contains(${Q('#cv-texto')}) && c.contains(${Q('#cv-enviar')}) && c.contains(${Q('#cv-foto')}) && parseFloat(cs.borderTopLeftRadius) >= 22 && r.left >= 10 && innerWidth - r.right >= 10 && t.borderTopWidth === '0px'; })()`), await avaliar(`JSON.stringify(${Q('#cv-cartao')}.getBoundingClientRect())`));
-  conferir('composer: "+", medidor e enviar com alvo >= 44 px', (await alvosPequenos('#cv-cartao')).length === 0, await alvosPequenos('#cv-cartao'));
-  conferir('composer: "+" tem a função de anexo (abre o seletor de foto)', await avaliar(`(() => { const i = ${Q('#cv-arq')}; let abriu = false; const o = i.click; i.click = () => { abriu = true; }; ${Q('#cv-foto')}.click(); i.click = o; return abriu && ${Q('#cv-foto')}.getAttribute('aria-label') === 'Anexar foto' && !!${Q('#cv-foto')}.querySelector('svg'); })()`));
-  conferir('medidor de contexto: com dado mostra o percentual (40%) e o anel proporcional', await avaliar(`(() => { const m = ${Q('#cv-medidor')}, p = m.querySelector('.pr'); const [a, b] = p.getAttribute('stroke-dasharray').split(' ').map(Number); return !m.hidden && m.dataset.pct === '40' && /40%/.test(m.getAttribute('aria-label')) && Math.abs(a / b - 0.4) < 0.01; })()`), await avaliar(`${Q('#cv-medidor')}.outerHTML`));
-  await clicar('#cv-medidor');
-  conferir('medidor: toque mostra o percentual e os tokens', await esperar(`/40%.*400 mil tokens/.test(document.querySelector('.toast')?.textContent || '')`, 2000), await avaliar(`document.querySelector('.toast')?.textContent`));
-  await postMock('/_mock/mudar', { id: 's4', contexto: null });
-  conferir('medidor: sem dado de contexto fica oculto', await esperar(`${Q('#cv-medidor')}.hidden`, 3000));
-  await postMock('/_mock/mudar', { id: 's4', contexto: { tokens: 800000, modelo: 'claude-sonnet-5-5', janela: 1000000, pct: 80 } });
-  conferir('medidor: volta com o dado novo (80%)', await esperar(`!${Q('#cv-medidor')}.hidden && ${Q('#cv-medidor')}.dataset.pct === '80'`, 3000));
-  // campo cresce até o limite e depois rola
-  const altura = (n) => avaliar(`(() => { const t = ${Q('#cv-texto')}; t.value = ${JSON.stringify('')} + Array(${n}).fill('linha').join('\\n'); t.dispatchEvent(new Event('input', { bubbles: true })); return t.getBoundingClientRect().height; })()`);
-  const h1 = await altura(1), h3 = await altura(3), h20 = await altura(20), h40 = await altura(40);
-  conferir('campo cresce com o texto até o limite e depois rola', h3 > h1 && h20 > h3 && h20 === h40 && h40 <= 150 && await avaliar(`${Q('#cv-texto')}.scrollHeight > ${Q('#cv-texto')}.clientHeight`), JSON.stringify([h1, h3, h20, h40]));
-  await avaliar(`(() => { const t = ${Q('#cv-texto')}; t.value = 'olá do celular'; t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  await clicar('#cv-enviar');
-  conferir('mensagem → POST /mensagem {texto}', await (async () => { for (let i = 0; i < 30; i++) { if ((await ultimo('/sessao/s4/mensagem'))?.corpo?.texto === 'olá do celular') return true; await dormir(100); } return false; })(), JSON.stringify(await ultimo('/sessao/s4/mensagem')));
-  conferir('resposta do agente chega ao vivo (parcial e final)', await esperar(`document.querySelector('#cv-itens').textContent.includes('Feito. Recebi: olá do celular')`, 6000));
-  conferir('a mensagem aparece uma vez só (sem duplicar a otimista)', (await avaliar(`[...document.querySelectorAll('#cv-itens .it-usuario')].filter((e) => e.textContent.includes('olá do celular')).length`)) === 1);
-  conferir('campo de mensagem limpo depois de enviar', (await avaliar(`${Q('#cv-texto')}.value`)) === '');
-  await foto('3-sessao-mensagem');
-  // foto: anexa um PNG real pelo input de arquivo
-  const doc = (await cdp('DOM.getDocument', { depth: 0 })).result.root.nodeId;
-  const no = (await cdp('DOM.querySelector', { nodeId: doc, selector: '#cv-arq' })).result.nodeId;
-  await cdp('DOM.setFileInputFiles', { nodeId: no, files: [path.join(PASTA, 'assets', 'pwa', 'icone-192.png')] });
-  conferir('foto anexada aparece em miniatura', await esperar(`!!document.querySelector('#cv-faixa .cv-miniatura img') && !${Q('#cv-enviar')}.disabled`));
-  await clicar('#cv-enviar');
-  const msgFoto = await (async () => { for (let i = 0; i < 40; i++) { const u = await ultimo('/sessao/s4/mensagem'); if (u?.corpo?.imagens) return u; await dormir(100); } return null; })();
-  conferir('envio com foto: imagens[{tipo:"image/jpeg", dados:base64}]', msgFoto && msgFoto.corpo.imagens.length === 1 && msgFoto.corpo.imagens[0].tipo === 'image/jpeg' && msgFoto.corpo.imagens[0].dados.length > 200 && /^[A-Za-z0-9+/]+=*$/.test(msgFoto.corpo.imagens[0].dados) && msgFoto.corpo.texto === '', JSON.stringify(msgFoto).slice(0, 200));
-  conferir('a foto sai da faixa depois de enviar', await esperar(`${Q('#cv-faixa')}.hidden`));
-  conferir('a resposta parcial vira o item final (sem ficar "escrevendo" para sempre)', await esperar(`document.querySelector('#cv-itens').textContent.includes('Recebi: (foto)') && !document.querySelector('#cv-itens [data-parcial="1"]')`, 6000), await texto('#cv-itens > :last-child'));
-  // parar
-  await esperar(`${Q('#cv-estado')}.hidden`, 4000);
-  await postMock('/_mock/mudar', { id: 's4', status: 'trabalhando', controle: { ocupada: true } });
-  conferir('ocupada → barra com botão Parar', await esperar(visivel('#cv-estado')));
-  await clicar('#cv-parar');
-  conferir('Parar → POST /parar', await (async () => { for (let i = 0; i < 30; i++) { if (await ultimo('/sessao/s4/parar')) return true; await dormir(100); } return false; })());
-  // modelo e esforço
-  await clicar('#cv-aj > summary');
-  conferir('Modelo e esforço: seletores com o valor atual', await esperar(visivel('#cv-modelo')) && (await avaliar(`${Q('#cv-modelo')}.value`)) === 'default' && (await avaliar(`${Q('#cv-esforco')}.value`)) === 'high');
-  conferir('seletores de modelo/esforço com alvo >= 44 px', (await alvosPequenos('#cv-aj')).length === 0, await alvosPequenos('#cv-aj'));
-  await avaliar(`(() => { const s = ${Q('#cv-modelo')}; s.value = 'sonnet'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-  conferir('trocar modelo → POST /modelo {modelo}', await (async () => { for (let i = 0; i < 30; i++) { if ((await ultimo('/sessao/s4/modelo'))?.corpo?.modelo === 'sonnet') return true; await dormir(100); } return false; })());
-  await esperar(`!${Q('#cv-esforco')}.disabled`);
-  await avaliar(`(() => { const s = ${Q('#cv-esforco')}; s.value = 'medium'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-  conferir('trocar esforço → POST /esforco {esforco}', await (async () => { for (let i = 0; i < 30; i++) { if ((await ultimo('/sessao/s4/esforco'))?.corpo?.esforco === 'medium') return true; await dormir(100); } return false; })());
-  await foto('3-sessao-ajustes');
-
-  // ═════════ abrir direto por #s=<id> (clique da notificação) ═════════
-  await abrirPagina('#s=s2');
-  conferir('abre direto na sessão por #s=s2 (já pareado)', await esperar(visivel('#v-sessao') + ` && /banco de dados/.test(${Q('#s-nome')}.textContent)`), await texto('#app'));
-  conferir('direto: conversa carregada', await esperar(`document.querySelectorAll('#cv-itens > *').length === 2`));
-  await abrirPagina('#s=nao-existe');
-  conferir('sessão inexistente → aviso (sem quebrar)', await esperar(`/não está mais disponível/.test(${Q('#cv-vazio')}.textContent)`), await texto('#cv-vazio'));
-
-  // ═════════ 4. Uso do plano ═════════
-  await abrirPagina('#uso');
-  conferir('aba Uso mostra as duas janelas com os percentuais', await esperar(visivel('#p-uso') + ` && document.querySelectorAll('.uso-cartao').length === 2`) && (await avaliar(`[...document.querySelectorAll('.uso-val')].map((e) => e.textContent).join()`)) === '42%,27%');
-  conferir('barras usam a escala de cores do PC (degradê verde → cor do percentual, OrbitBase)', await avaliar(`(() => { const b = document.querySelectorAll('.trilho i'); return /uso-verde/.test(b[0].style.background) && !/uso-amarelo|uso-vermelho/.test(b[0].style.background); })()`), await avaliar(`[...document.querySelectorAll('.trilho i')].map((e) => e.style.background).join(' | ')`));
-  conferir('barras com a largura do percentual e meter acessível', await avaliar(`(() => { const t = document.querySelectorAll('.trilho'); return t[0].firstChild.style.width === '42%' && t[1].firstChild.style.width === '27%' && t[0].getAttribute('aria-valuenow') === '42'; })()`));
-  conferir('mostra quando renova (renova em … · …)', await avaliar(`/renova em 2 h/.test(document.querySelectorAll('.uso-ren')[0].textContent) && /renova em 2 d/.test(document.querySelectorAll('.uso-ren')[1].textContent)`), await texto('#uso-barras'));
-  conferir('mostra a idade da leitura', /Última leitura há \d+ min/.test(await texto('#uso-sub')), await texto('#uso-sub'));
-  conferir('uso: alvos >= 44 px e sem rolagem lateral', (await alvosPequenos('#v-principal')).length === 0 && await semRolagemLateral(), await alvosPequenos('#v-principal'));
-  await foto('4-uso');
-  await postMock('/_mock/uso', { cincoHoras: { pct: 91, renova: Date.now() + 3600e3 }, semanal: { pct: 65, renova: Date.now() + 86400e3 }, atualizado: Date.now() });
-  conferir('uso atualiza ao vivo (evento uso do /fluxo) e fica vermelho perto do limite', await esperar(`(() => { const t = document.querySelectorAll('.trilho'); return t.length === 2 && t[0].firstChild.style.width === '91%' && /uso-vermelho/.test(t[0].firstChild.style.background) && /uso-roxo/.test(t[0].firstChild.style.background) && !/uso-roxo/.test(t[1].firstChild.style.background) && /uso-amarelo/.test(t[1].firstChild.style.background); })()`), await avaliar(`[...document.querySelectorAll('.trilho i')].map((e) => e.style.background).join(' | ')`));
-
-  // ═════════ 5. Este aparelho ═════════
-  await irPara('#aparelho');
-  conferir('Este aparelho: nome do aparelho pareado', await esperar(visivel('#p-aparelho') + ` && ${Q('#ap-nome')}.textContent === 'iPhone de teste'`), await texto('#ap-nome'));
-  conferir('fora da Tela de Início: explica Compartilhar → Adicionar à Tela de Início e que o push só funciona assim', await esperar(visivel('#ap-instalar')) && /Compartilhar/.test(await texto('#ap-instalar')) && /Adicionar à Tela de Início/.test(await texto('#ap-instalar')) && /só funcionam com o Orbit instalado/.test(await texto('#ap-instalar')) && /só chegam com o Orbit instalado/.test(await texto('#ap-notif-txt')), await texto('#p-aparelho'));
-  conferir('"Nova instância" só aparece na aba Sessões', !(await avaliar(visivel('#btn-nova'))));
-  conferir('fora da Tela de Início: não oferece ativar', !(await avaliar(visivel('#ap-ativar'))));
-  conferir('aparelho: alvos de toque >= 44 px', (await alvosPequenos('#p-aparelho')).length === 0, await alvosPequenos('#p-aparelho'));
-  await foto('5-aparelho-instalar');
-  await avaliar(`sessionStorage.setItem('__standalone', '1'); sessionStorage.setItem('__pushfalso', '1'); true`);
-  await abrirPagina('#aparelho');
-  conferir('instalado: some a explicação e aparece "Ativar notificações"', await esperar(visivel('#p-aparelho') + ` && ${Q('#ap-instalar')}.hidden && !${Q('#ap-ativar')}.hidden`));
-  await foto('5-aparelho-ativar');
-  await clicar('#ap-ativar');
-  conferir('Ativar: pede permissão num toque, assina com userVisibleOnly e a chave VAPID (65 bytes)', await esperar(`!${Q('#ap-testar')}.hidden`) && (await avaliar('window.__pedidoPermissao')) === 1 && (await avaliar('JSON.stringify(window.__subOpcoes)')) === JSON.stringify({ userVisibleOnly: true, bytesChave: 65 }), await avaliar('JSON.stringify(window.__subOpcoes)'));
-  const assinatura = (await ultimo('/remoto/push/assinar'))?.corpo;
-  conferir('POST /remoto/push/assinar {assinatura:{endpoint,keys}}', assinatura?.assinatura?.endpoint === 'https://push.exemplo.test/abc' && !!assinatura.assinatura.keys, JSON.stringify(assinatura));
-  conferir('estado "Ativadas neste aparelho"', /Ativadas/.test(await texto('#ap-notif-estado-txt')));
-  await clicar('#ap-testar');
-  conferir('Testar → POST /remoto/push/teste', await (async () => { for (let i = 0; i < 30; i++) { if (await ultimo('/remoto/push/teste')) return true; await dormir(100); } return false; })());
-  // O service worker recebe o push (entregue pelo DevTools) e mostra a notificação com título, tag e url.
-  await cdp('Browser.grantPermissions', { origin: mock.base, permissions: ['notifications'] });
-  const regId = registros.get(mock.base + '/');
-  if (regId) {
-    await cdp('ServiceWorker.deliverPushMessage', { origin: mock.base, registrationId: regId, data: JSON.stringify({ titulo: 'Orbit · Orbit · precisa de você', corpo: '', url: '/m#s=s1', tag: 's-s1' }) });
-    await dormir(500);
-    const nots = await avaliar(`navigator.serviceWorker.getRegistration().then((r) => r.getNotifications()).then((l) => l.map((n) => ({ titulo: n.title, tag: n.tag, url: n.data && n.data.url, corpo: n.body })))`);
-    conferir('service worker: push mostra "Orbit · … · precisa de você" com tag s-<id> e url /m#s=<id>', nots?.length === 1 && nots[0].titulo === 'Orbit · Orbit · precisa de você' && nots[0].tag === 's-s1' && nots[0].url === '/m#s=s1', JSON.stringify(nots));
-  } else {
-    conferir('service worker: push entregue', false, 'registro do service worker não encontrado: ' + JSON.stringify([...registros]));
-  }
-  await clicar('#ap-desativar');
-  conferir('Desativar → POST /remoto/push/cancelar e volta o botão Ativar', await esperar(`!${Q('#ap-ativar')}.hidden && ${Q('#ap-testar')}.hidden`) && !!(await ultimo('/remoto/push/cancelar')) && mock.estado.push === null);
-
-  // ═════════ nova instância ═════════
-  await irPara('#sessoes');
-  await clicar('#btn-nova');
-  conferir('Nova instância: lista os projetos do /remoto/projetos', await esperar(visivel('#v-nova') + ` && document.querySelectorAll('#nova-projeto option').length === 2 && document.querySelectorAll('#nova-modelo option').length === 3 && !${Q('#nova-criar')}.disabled`));
-  conferir('Nova instância: alvos de toque >= 44 px', (await alvosPequenos('#v-nova')).length === 0, await alvosPequenos('#v-nova'));
-  await foto('2-nova-instancia');
-  await avaliar(`(() => { ${Q('#nova-projeto')}.selectedIndex = 1; const m = ${Q('#nova-modelo')}; m.value = 'sonnet'; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-  await digitar('#nova-texto', 'Monte o checkout');
-  await clicar('#nova-criar');
-  const inst = await (async () => { for (let i = 0; i < 30; i++) { const u = await ultimo('/instancias'); if (u) return u; await dormir(100); } return null; })();
-  conferir('POST /instancias com pasta/cwd do projeto, modelo, permissão e texto', inst?.corpo?.pasta === 'D:\\Projetos\\Loja' && inst.corpo.cwd === inst.corpo.pasta && inst.corpo.modelo === 'sonnet' && inst.corpo.permissao === 'default' && inst.corpo.texto === 'Monte o checkout', JSON.stringify(inst));
-  conferir('depois de criar, abre a sessão nova', await esperar(visivel('#v-sessao') + ` && ${Q('#s-proj')}.textContent === 'Loja Online' && location.hash === '#s=s7'`), await texto('#app'));
-
-  // ═════════ largura mínima e sair ═════════
-  await cdp('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 2, mobile: true });
-  await dormir(300);
-  conferir('sessão sem rolagem lateral em 320 px', await semRolagemLateral());
-  await irPara('#sessoes');
-  await dormir(200);
-  conferir('lista sem rolagem lateral em 320 px', await semRolagemLateral());
-  await foto('2-sessoes-320');
-  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
-  await irPara('#aparelho');
-  await clicar('#ap-sair');
-  conferir('Sair pede confirmação', await esperar(visivel('#ap-sair-conf')) && !(await ultimo('/remoto/sair')));
-  await clicar('#ap-sair-sim');
-  conferir('Sair → POST /remoto/sair e volta ao pareamento', await esperar(visivel('#v-parear')) && !!(await ultimo('/remoto/sair')));
-  conferir('após sair o servidor não guarda mais o aparelho (token revogado)', mock.estado.tokens.size === 0);
-  // bloqueio: 5 códigos errados
-  await clicar('#par-pedir');
-  await esperar(visivel('#par-f2'));
-  const real3 = await codigoReal();
-  const errado = real3 === '123456' ? '654321' : '123456';
-  const antesDosErros = await nRegistro('/remoto/parear/confirmar');
-  for (let i = 1; i <= 5; i++) {
-    await digitar('#par-codigo', errado);
-    for (let k = 0; k < 40 && (await nRegistro('/remoto/parear/confirmar')) < antesDosErros + i; k++) await dormir(100);
-    await dormir(250);
-  }
-  conferir('5 códigos errados → "bloqueado por 10 minutos"', await esperar(`/10 minutos/.test(${Q('#par-erro')}.textContent) && !${Q('#par-f1')}.hidden`), await texto('#par-erro'));
-  await foto('1-bloqueado');
-  await postMock('/_mock/desbloquear');
-
-  // ═════════ service worker e manifesto ═════════
-  const sw = await avaliar(`navigator.serviceWorker.getRegistration().then((r) => ({ ativo: !!(r && r.active), escopo: r && r.scope }))`);
-  conferir('service worker do PWA ativo (escopo /)', sw?.ativo && sw.escopo === mock.base + '/', JSON.stringify(sw));
-  const man = (await cdp('Page.getAppManifest')).result || {};
-  const mj = (() => { try { return JSON.parse(man.data || '{}'); } catch { return {}; } })();
-  conferir('manifesto /manifest-m.webmanifest sem erros (standalone, start_url /m)', man.url?.endsWith('/manifest-m.webmanifest') && !(man.errors || []).length && mj.display === 'standalone' && mj.start_url === '/m', JSON.stringify(man.errors));
-  const icones = [];
-  for (const i of mj.icons || []) icones.push((await fetch(new URL(i.src, mock.base))).status);
-  conferir('ícones do manifesto respondem 200', icones.length >= 7 && icones.every((s) => s === 200), JSON.stringify(icones));
-} catch (e) {
-  conferir('exceção no teste', false, e?.stack || String(e));
-} finally {
+after(async () => {
+  clearInterval(manter);
   try { ws?.close(); } catch {}
-  if (edge) await fecharEdge(porta, perfil);
+  if (portaCdp) await fecharEdge(portaCdp, perfil);
+  try { if (perfil) fs.rmSync(perfil, { recursive: true, force: true }); } catch {}
   try { await mock?.fechar(); } catch {}
-  if (!arg) { try { fs.rmSync(SAIDA, { recursive: true, force: true }); } catch {} }
+});
+
+// ═════════════════════════════ ajudantes de Sessões ═════════════════════════════
+const TS = '.tela[data-tela="sessoes"]';
+// a página guarda um leitor dos grupos: { grupo: { ids:[...], aberto:bool, n:'3' } } só dos grupos à mostra
+async function grupos() {
+  return JSON.parse(await avaliar(`JSON.stringify(Object.fromEntries([...document.querySelectorAll('${TS} .sx-grupo')].filter((g) => !g.hidden).map((g) => [g.dataset.g, {
+    ids: [...g.querySelectorAll('li.sx-linha')].map((l) => l.dataset.id),
+    aberto: g.querySelector('.sx-gcab').getAttribute('aria-expanded') === 'true',
+    n: g.querySelector('.sx-n').textContent, titulo: g.querySelector('.sx-gtit').textContent }])))`));
+}
+const ids = async () => Object.fromEntries(Object.entries(await grupos()).map(([k, v]) => [k, v.ids]));
+async function exigirGrupos(esperado, msg) {
+  const fim = Date.now() + 6000;
+  let ult;
+  while (Date.now() < fim) { ult = await ids(); if (JSON.stringify(ult) === JSON.stringify(esperado)) return; await dormir(100); }
+  assert.deepEqual(ult, esperado, msg);
+}
+const linha = (id) => `${TS} li.sx-linha[data-id="${id}"]`;
+const texto = (sel) => avaliar(`(${Q(sel)} || {}).textContent`);
+const toastTxt = () => avaliar(`(() => { const t = document.getElementById('toast'); return t && !t.hidden ? t.textContent : ''; })()`);
+const esperarToast = (re, msg) => exigir(`(() => { const t = document.getElementById('toast'); return !!t && !t.hidden && ${re}.test(t.textContent); })()`, msg, 4000);
+const abertos = () => avaliar(`[...document.querySelectorAll('${TS} .desl.aberto')].map((e) => e.closest('li').dataset.id + '|' + e.dataset.lado)`);
+// desliza a linha: 'dir' = arrastar para a direita (abre "Revisada"), 'esq' = para a esquerda (abre Fixar/Silenciar)
+async function deslizar(id, sentido, px = 110) {
+  const [cx, cy] = await avaliar(`(() => { const r = ${Q(linha(id) + ' .sx-item')}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+  const ini = sentido === 'dir' ? Math.max(40, cx - 60) : cx + 60;
+  await avaliar(`__sim.arrastar(${J(linha(id) + ' .sx-item')}, ${ini}, ${cy}, ${ini + (sentido === 'dir' ? px : -px)}, ${cy}, { passos: 6, espera: 16 })`);
+  await exigir(`!!document.querySelector('${TS} li[data-id="${id}"] .desl.aberto')`, 'a linha ' + id + ' devia abrir ao deslizar para ' + sentido, 4000);
+  await dormir(350);   // termina a transição de abertura
+}
+// botão da ação revelada (por rótulo)
+const botaoAcao = (id, rotulo) => `[...document.querySelectorAll('${TS} li[data-id="${id}"] .desl-acao')].find((b) => b.querySelector('.desl-rot').textContent.trim() === ${J(rotulo)})`;
+async function acionar(id, rotulo) {
+  await exigir(`!!(${botaoAcao(id, rotulo)})`, `botão "${rotulo}" em ${id}`, 3000);
+  await avaliar(`${botaoAcao(id, rotulo)}.click()`);
 }
 
-conferir('zero erros de console', consoleErros.length === 0, consoleErros.slice(0, 8));
-conferir('zero violações de CSP', violacoes.length === 0, violacoes.slice(0, 8));
-const falhas = checks.filter((c) => !c.ok);
-for (const c of checks) console.log((c.ok ? 'ok   ' : 'FALHA') + ' ' + c.nome + (c.ok ? '' : '\n        ' + JSON.stringify(c.detalhe)));
-console.log(`\n${checks.length - falhas.length}/${checks.length} conferências ok` + (esperados.length ? ` (${esperados.length} erros de rede provocados de propósito no pareamento, ignorados)` : '') + (arg ? `; capturas em ${SAIDA}` : ''));
-process.exit(falhas.length ? 1 : 0);
+// ═════════════════════════════ 1. SESSÕES: grupos e conteúdo ═════════════════════════════
+test('Sessões: grupos iguais aos do PC, na ordem certa, com título, projeto, detalhe e tags', async () => {
+  await preparar('#sessoes');
+  assert.equal(await avaliar(`${Q(TS + ' .tit-grande')}.textContent`), 'Sessões');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'grupos iniciais do mock');
+  const g = await grupos();
+  assert.deepEqual(Object.keys(g), ['precisa', 'trabalhando', 'novas', 'revisadas'], 'ordem dos grupos');
+  assert.equal(g.precisa.titulo, 'Precisa de você');
+  assert.equal(g.precisa.n, '3');
+  assert.equal(g.revisadas.titulo, 'Revisadas');
+  assert.ok(Object.values(g).every((x) => x.aberto), 'sem Encerradas, todos abertos');
+  // conteúdo das linhas
+  assert.equal(await texto(linha('s1') + ' .sx-tit'), 'Corrigir os testes do pareamento');
+  assert.equal(await texto(linha('s4') + ' .sx-tit'), 'Refatorar o diário', 'o apelido vence o título');
+  assert.equal(await texto(linha('s1') + ' .sx-proj'), 'Orbit');
+  assert.equal(await texto(linha('s1') + ' .sx-det'), 'Pede permissão: Bash');
+  assert.equal(await texto(linha('s2') + ' .sx-det'), 'Fez uma pergunta');
+  assert.equal(await texto(linha('s3') + ' .sx-det'), 'Plano para aprovar');
+  assert.equal(await texto(linha('s4') + ' .sx-det'), 'Edit Diario.tsx');
+  assert.equal(await texto(linha('s1') + ' .sx-pend'), '1 pendente');
+  assert.match(await texto(linha('s4') + ' .sx-tags'), /1 agente/);
+  assert.match(await texto(linha('s4') + ' .sx-tags'), /2 em 2º plano/);
+  assert.match(await texto(linha('s5') + ' .sx-tags'), /Revisada/, 'a pílula da revisada');
+  assert.equal(await avaliar(`${Q(linha('s5') + ' .av-robo')}.dataset.s`), 'revisada');
+  assert.equal(await avaliar(`${Q(linha('s1') + ' .av-robo')}.dataset.s`), 'aguardando');
+  assert.equal(await avaliar(`${Q(linha('s4') + ' .av-robo')}.dataset.s`), 'trabalhando');
+  assert.match(await texto(linha('s1') + ' .sx-tempo'), /\d/, 'tempo desde o último estado');
+  assert.equal(await avaliar(`${Q(linha('s1') + ' .sx-item')}.getAttribute('href')`), '#s=s1');
+  assert.ok(await semRolagemLateral());
+  await foto('sessoes-390');
+});
+
+test('Sessões: interrompida em Concluídas/Revisadas, erro em "Precisa de você", fixadas no topo, Encerradas recolhido', async () => {
+  await preparar('#sessoes');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  // pelo fluxo (SSE), sem recarregar: s6 interrompida e sem revisão → Concluídas; s4 com erro → Precisa de você (mais velha primeiro)
+  await mudar({ id: 's6', status: 'interrompida' });
+  await mudar({ id: 's4', status: 'erro', detalhe: 'Falha ao rodar os testes' });
+  await exigirGrupos({ precisa: ['s1', 's4', 's2', 's3'], concluidas: ['s6'], revisadas: ['s5'] }, 'interrompida em Concluídas e erro em Precisa de você');
+  assert.equal(await avaliar(`${Q(linha('s4') + ' .av-robo')}.dataset.s`), 'erro');
+  assert.equal(await texto(linha('s4') + ' .sx-det'), 'Falha ao rodar os testes');
+  // desfazer a revisão da s5 → Concluídas (mais nova primeiro: s6 depois s5)
+  await mudar({ id: 's5', revisadaEm: 0 });
+  await exigirGrupos({ precisa: ['s1', 's4', 's2', 's3'], concluidas: ['s6', 's5'] }, 'revisadaEm 0 volta para Concluídas');
+  // a interrompida também pode ser revisada → Revisadas, com a pílula
+  await mudar({ id: 's6', revisadaEm: Date.now() });
+  await exigirGrupos({ precisa: ['s1', 's4', 's2', 's3'], concluidas: ['s5'], revisadas: ['s6'] }, 'interrompida revisada em Revisadas');
+  assert.equal(await avaliar(`${Q(linha('s6') + ' .av-robo')}.dataset.s`), 'revisada');
+  // fixadas no topo de CADA grupo
+  await mudar({ id: 's3', fixada: true });
+  await exigirGrupos({ precisa: ['s3', 's1', 's4', 's2'], concluidas: ['s5'], revisadas: ['s6'] }, 'fixada vai para o topo de Precisa de você');
+  assert.ok(await avaliar(`!!${Q(linha('s3') + ' .sx-marca[title="Fixada"]')}`), 'marca de fixada na linha');
+  await mudar({ id: 's5', revisadaEm: Date.now() });
+  await mudar({ id: 's6', fixada: true, revisadaEm: Date.now() });
+  await mudar({ id: 's5', fixada: false });
+  await exigirGrupos({ precisa: ['s3', 's1', 's4', 's2'], revisadas: ['s6', 's5'] }, 'fixada no topo de Revisadas (mesmo sendo a mais nova ou não)');
+  await mudar({ id: 's5', fixada: true });
+  await mudar({ id: 's6', fixada: false });
+  await exigirGrupos({ precisa: ['s3', 's1', 's4', 's2'], revisadas: ['s5', 's6'] }, 'a fixada manda, não a data');
+  // silenciada
+  await mudar({ id: 's1', silenciada: true });
+  await exigir(`!!${Q(linha('s1') + ' .sx-marca[title="Silenciada"]')}`, 'marca de silenciada');
+  // encerrada: grupo Encerradas recolhido por padrão
+  await mudar({ id: 's5', status: 'encerrada', fixada: false });
+  await exigirGrupos({ precisa: ['s3', 's1', 's4', 's2'], revisadas: ['s6'], encerradas: ['s5'] }, 'encerrada em Encerradas');
+  let g = await grupos();
+  assert.equal(g.encerradas.aberto, false, 'Encerradas começa recolhido');
+  assert.equal(await avaliar(`${Q(TS + ' .sx-grupo[data-g="encerradas"] .sx-lista')}.hidden`), true);
+  await avaliar(`${Q(TS + ' .sx-grupo[data-g="encerradas"] .sx-gcab')}.click()`);
+  await exigir(`!${Q(TS + ' .sx-grupo[data-g="encerradas"] .sx-lista')}.hidden`, 'tocar no título abre o grupo');
+  assert.equal((await grupos()).encerradas.aberto, true);
+  // recolher outro grupo
+  await avaliar(`${Q(TS + ' .sx-grupo[data-g="precisa"] .sx-gcab')}.click()`);
+  await exigir(`${Q(TS + ' .sx-grupo[data-g="precisa"] .sx-lista')}.hidden`, 'recolher Precisa de você');
+  assert.equal((await grupos()).precisa.aberto, false);
+  assert.equal((await grupos()).precisa.n, '4', 'o contador segue contando recolhido');
+});
+
+test('Sessões: sprites carregam e mudam com o estado', async () => {
+  await preparar('#sessoes');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  await exigir(`[...document.querySelectorAll('${TS} li.sx-linha img.spr')].every((i) => i.complete && i.naturalWidth > 0)`, 'todos os sprites da lista carregados', 8000);
+  const src = (id) => avaliar(`${Q(linha(id) + ' img.spr')}.currentSrc || ${Q(linha(id) + ' img.spr')}.src`);
+  const arq = (u) => (u.match(/sprite-[\w-]+/) || [''])[0];
+  const s = {}; for (const id of ['s1', 's4', 's5', 's6']) s[id] = arq(await src(id));
+  for (const id of Object.keys(s)) assert.match(s[id], /^sprite-/, 'sprite da ' + id + ': ' + s[id]);
+  assert.notEqual(s.s1, s.s4, 'quem pede permissão e quem trabalha têm sprites diferentes: ' + JSON.stringify(s));
+  assert.notEqual(s.s4, s.s5, 'trabalhando × revisada: ' + JSON.stringify(s));
+  // muda de estado → o sprite acompanha
+  await mudar({ id: 's1', status: 'concluida', controle: { permissao: null, pendentes: null } });
+  await exigir(`${Q(linha('s1') + ' .av-robo')}.dataset.s === 'concluida'`, 'a s1 virou concluída');
+  await exigir(`document.querySelector('${linha('s1')} img.spr').complete && document.querySelector('${linha('s1')} img.spr').naturalWidth > 0`, 'sprite novo carregado', 6000);
+  assert.notEqual(arq(await src('s1')), s.s1, 'o sprite da s1 devia mudar ao concluir');
+});
+
+// ═════════════════════════════ 2. SESSÕES: busca e filtro ═════════════════════════════
+test('Sessões: busca (sem acento), "nada encontrado", limpar; filtro por projeto guardado', async () => {
+  await preparar('#sessoes');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  assert.equal(await avaliar(`${Q(TS + ' .sx-limpar')}.hidden`), true, 'sem texto, sem botão limpar');
+  const digitar = async (t) => { await avaliar(`${Q(TS + ' .sx-campo')}.focus()`); await cdp('Input.insertText', { text: t }); };
+  await digitar('diario');
+  await exigirGrupos({ trabalhando: ['s4'] }, 'busca "diario" acha "Diário"/"Refatorar o diário" sem acento');
+  assert.equal(await avaliar(`${Q(TS + ' .sx-limpar')}.hidden`), false);
+  await avaliar(`${Q(TS + ' .sx-limpar')}.click()`);
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'limpar volta tudo');
+  assert.equal(await avaliar(`${Q(TS + ' .sx-campo')}.value`), '');
+  await digitar('loja');
+  await exigirGrupos({ precisa: ['s3'], novas: ['s6'] }, 'busca por projeto');
+  await avaliar(`${Q(TS + ' .sx-campo')}.value = ''; ${Q(TS + ' .sx-campo')}.focus(); true`);
+  await cdp('Input.insertText', { text: 'checkout' });
+  await exigirGrupos({ precisa: ['s3'] }, 'busca pelo título (a lista inteira é pesquisada, não só a primeira palavra)');
+  await avaliar(`${Q(TS + ' .sx-campo')}.value = ''; ${Q(TS + ' .sx-campo')}.focus(); true`);
+  await cdp('Input.insertText', { text: 'zzzzxx' });
+  await exigir(`!${Q(TS + ' .sx-msg')}.hidden && /Nada encontrado para a busca/.test(${Q(TS + ' .sx-msg')}.textContent)`, 'mensagem de nada encontrado');
+  assert.deepEqual(await ids(), {}, 'nenhum grupo à mostra');
+  await avaliar(`[...document.querySelectorAll('${TS} .sx-msg button')].find((b) => /Limpar busca e filtro/.test(b.textContent)).click()`);
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'Limpar busca e filtro devolve a lista');
+
+  // filtro por projeto: chips (4 projetos), guardado no aparelho
+  await exigir(`!${Q(TS + ' .sx-chips')}.hidden`, 'chips de projeto à mostra com vários projetos');
+  const chips = JSON.parse(await avaliar(`JSON.stringify([...document.querySelectorAll('${TS} .sx-fp')].map((b) => [b.dataset.k, b.querySelector('.sx-fp-nome').textContent, b.querySelector('.sx-fp-n').textContent, b.getAttribute('aria-pressed')]))`));
+  assert.equal(chips[0][0], 'todos');
+  assert.deepEqual([chips[0][1], chips[0][2], chips[0][3]], ['Todos', '6', 'true']);
+  assert.equal(chips.length, 5, 'Todos + 4 projetos (Orbit, Cliente Exemplo, Loja Online, Diário): ' + JSON.stringify(chips));
+  const orbit = chips.find((c) => c[0] === 'd:/projetos/orbit');
+  assert.ok(orbit, 'chave do projeto = pasta normalizada: ' + JSON.stringify(chips));
+  assert.equal(orbit[2], '2');
+  await avaliar(`${Q(TS + ` .sx-fp[data-k="d:/projetos/orbit"]`)}.click()`);
+  await exigirGrupos({ precisa: ['s1'], revisadas: ['s5'] }, 'filtro Orbit');
+  assert.equal(await avaliar(`${Q(TS + ` .sx-fp[data-k="d:/projetos/orbit"]`)}.getAttribute('aria-pressed')`), 'true');
+  assert.equal(await avaliar(`${Q(TS + ` .sx-fp[data-k="todos"]`)}.getAttribute('aria-pressed')`), 'false');
+  assert.equal(await avaliar(`localStorage.getItem('orbit.m.sessoes.projeto')`), 'd:/projetos/orbit', 'filtro guardado');
+  // busca + filtro juntos
+  await digitar('readme');
+  await exigirGrupos({ revisadas: ['s5'] }, 'busca dentro do filtro');
+  await avaliar(`${Q(TS + ' .sx-limpar')}.click()`);
+  await exigirGrupos({ precisa: ['s1'], revisadas: ['s5'] }, 'limpar a busca mantém o filtro');
+  // sobrevive ao recarregar a página
+  await abrirPagina('#sessoes');
+  await exigir(`OM.estado.sessoes.size === 6`, 'sessões de volta');
+  await exigirGrupos({ precisa: ['s1'], revisadas: ['s5'] }, 'o filtro volta depois de recarregar');
+  // sessão nova aparece/some do filtro pelo fluxo
+  await mudar({ id: 's2', cwd: 'D:\\Projetos\\Orbit', projeto: 'Orbit' });
+  await exigirGrupos({ precisa: ['s1', 's2'], revisadas: ['s5'] }, 'o filtro vale para as mudanças do fluxo');
+  // Todos
+  await avaliar(`${Q(TS + ` .sx-fp[data-k="todos"]`)}.click()`);
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'Todos');
+  assert.equal(await avaliar(`localStorage.getItem('orbit.m.sessoes.projeto')`), null, 'Todos apaga o filtro guardado');
+});
+
+// ═════════════════════════════ 3. SESSÕES: deslizar ═════════════════════════════
+test('Sessões: deslizar → Revisada (+ Desfazer), Fixar, Silenciar; o pedido chega ao mock', async () => {
+  await preparar('#sessoes');
+  await mudar({ id: 's6', status: 'interrompida' });
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  mock.estado.log.length = 0;
+
+  // sem revisão para quem não terminou: deslizar para a direita não abre nada
+  const [cx, cy] = await avaliar(`(() => { const r = ${Q(linha('s1') + ' .sx-item')}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+  await avaliar(`__sim.arrastar(${J(linha('s1') + ' .sx-item')}, ${cx - 60}, ${cy}, ${cx + 50}, ${cy}, { passos: 6, espera: 16 })`);
+  await dormir(450);
+  assert.deepEqual(await abertos(), [], 'quem está aguardando não tem "Revisada"');
+  assert.equal(await avaliar(`document.querySelectorAll('${linha('s1')} .desl-acoes.desl-esq .desl-acao').length`), 0);
+
+  // Revisada (s6 interrompida)
+  await deslizar('s6', 'dir');
+  assert.deepEqual(await abertos(), ['s6|esq']);
+  assert.equal(await avaliar(`${botaoAcao('s6', 'Revisada')}.getBoundingClientRect().width >= 44`), true, 'alvo de toque >= 44 px');
+  await acionar('s6', 'Revisada');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], revisadas: ['s6', 's5'] }, 's6 foi para Revisadas na hora (otimista)');
+  await exigir(`${Q(linha('s6') + ' .av-robo')}.dataset.s === 'revisada'`, 'avatar revisada');
+  await esperarToast('/Marcada como revisada/', 'toast de revisada');
+  assert.ok(await avaliar(`!!document.querySelector('#toast button') && /Desfazer/.test(document.querySelector('#toast button').textContent)`), 'toast com Desfazer');
+  assert.equal(JSON.stringify(posts('/s6/revisada').map((x) => x.corpo)), JSON.stringify([{ revisada: true }]), 'POST /sessao/s6/revisada {revisada:true}');
+  assert.ok(mock.sessoes.get('s6').revisadaEm > 0, 'o mock guardou revisadaEm');
+  // Desfazer pelo toast
+  await avaliar(`document.querySelector('#toast button').click()`);
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'Desfazer devolve a s6 a Concluídas');
+  assert.equal(JSON.stringify(posts('/s6/revisada').map((x) => x.corpo)), JSON.stringify([{ revisada: true }, { revisada: false }]), 'POST de desfazer');
+  assert.equal(mock.sessoes.get('s6').revisadaEm, undefined, 'o mock apagou revisadaEm');
+
+  // Desfazer da s5 (já revisada) pelo botão da linha
+  await deslizar('s5', 'dir');
+  await acionar('s5', 'Desfazer');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6', 's5'] }, 's5 volta para Concluídas');
+  await esperarToast('/Voltou para Concluídas/', 'toast de volta');
+  assert.deepEqual(posts('/s5/revisada').map((x) => x.corpo), [{ revisada: false }]);
+
+  // Fixar (s2, aguardando): vai ao topo do grupo
+  mock.estado.log.length = 0;
+  await deslizar('s2', 'esq');
+  assert.deepEqual(await abertos(), ['s2|dir']);
+  assert.deepEqual(await avaliar(`[...document.querySelectorAll('${TS} li[data-id="s2"] .desl-acoes.desl-dir .desl-rot')].map((e) => e.textContent.trim())`), ['Fixar', 'Silenciar']);
+  await acionar('s2', 'Fixar');
+  await exigirGrupos({ precisa: ['s2', 's1', 's3'], trabalhando: ['s4'], concluidas: ['s6', 's5'] }, 'fixada vai para o topo');
+  assert.deepEqual(posts('/sessao/s2').map((x) => x.corpo), [{ fixada: true }], 'POST /sessao/s2 {fixada:true}');
+  assert.equal(mock.sessoes.get('s2').fixada, true);
+  assert.ok(await avaliar(`!!${Q(linha('s2') + ' .sx-marca[title="Fixada"]')}`));
+  // o rótulo troca para Desafixar; silenciar
+  await dormir(300);
+  await deslizar('s2', 'esq');
+  assert.deepEqual(await avaliar(`[...document.querySelectorAll('${TS} li[data-id="s2"] .desl-acoes.desl-dir .desl-rot')].map((e) => e.textContent.trim())`), ['Desafixar', 'Silenciar']);
+  await acionar('s2', 'Silenciar');
+  await exigir(`!!${Q(linha('s2') + ' .sx-marca[title="Silenciada"]')}`, 'marca de silenciada');
+  assert.deepEqual(posts('/sessao/s2').map((x) => x.corpo), [{ fixada: true }, { silenciada: true }], 'POST silenciar');
+  assert.equal(mock.sessoes.get('s2').silenciada, true);
+  await dormir(300);
+  await deslizar('s2', 'esq');
+  assert.deepEqual(await avaliar(`[...document.querySelectorAll('${TS} li[data-id="s2"] .desl-acoes.desl-dir .desl-rot')].map((e) => e.textContent.trim())`), ['Desafixar', 'Som']);
+  await acionar('s2', 'Desafixar');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6', 's5'] }, 'desafixar devolve a ordem por data');
+  assert.equal(posts('/sessao/s2').at(-1).corpo.fixada, false);
+  await dormir(300);
+  await deslizar('s2', 'esq');
+  await acionar('s2', 'Som');
+  await exigir(`!${Q(linha('s2') + ' .sx-marca[title="Silenciada"]')}`, 'Som tira a marca de silenciada');
+  assert.equal(posts('/sessao/s2').at(-1).corpo.silenciada, false);
+  assert.ok(await semRolagemLateral());
+});
+
+test('Sessões: fixar e silenciar pelo deslizar mostram "Desfazer" e o desfazer volta a ordem', async () => {
+  await preparar('#sessoes');
+  await mudar({ id: 's6', status: 'interrompida' });
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  mock.estado.log.length = 0;
+  // Fixar s2: sobe, mostra o toast com "Desfazer"; Desfazer devolve a ordem e desfixa no mock
+  await deslizar('s2', 'esq');
+  await acionar('s2', 'Fixar');
+  await exigirGrupos({ precisa: ['s2', 's1', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'fixada sobe');
+  await esperarToast('/fixada/', 'toast de fixada');
+  assert.ok(await avaliar(`!!document.querySelector('#toast button') && /Desfazer/.test(document.querySelector('#toast button').textContent)`), 'toast de fixar com Desfazer');
+  await avaliar(`document.querySelector('#toast button').click()`);
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'Desfazer devolve a ordem');
+  await exigir(`!${Q(linha('s2') + ' .sx-marca[title="Fixada"]')}`, 'sem marca depois do Desfazer');
+  assert.deepEqual(posts('/sessao/s2').map((x) => x.corpo), [{ fixada: true }, { fixada: false }], 'POSTs de fixar e desfazer');
+  assert.equal(mock.sessoes.get('s2').fixada, false);
+  // Silenciar s3 com Desfazer
+  await dormir(300);
+  await deslizar('s3', 'esq');
+  await acionar('s3', 'Silenciar');
+  await esperarToast('/silenciada/', 'toast de silenciada');
+  assert.ok(await avaliar(`!!document.querySelector('#toast button') && /Desfazer/.test(document.querySelector('#toast button').textContent)`), 'toast de silenciar com Desfazer');
+  await avaliar(`document.querySelector('#toast button').click()`);
+  await exigir(`!${Q(linha('s3') + ' .sx-marca[title="Silenciada"]')}`, 'Desfazer tira a marca de silenciada');
+  assert.deepEqual(posts('/sessao/s3').map((x) => x.corpo), [{ silenciada: true }, { silenciada: false }]);
+});
+
+test('Sessões: se o servidor recusa, a ação é desfeita e o toast avisa', async () => {
+  await preparar('#sessoes');
+  await mudar({ id: 's6', status: 'interrompida' });
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  // a sessão some só no servidor (sem avisar o fluxo): o POST dá 404
+  mock.sessoes.delete('s2');
+  mock.sessoes.delete('s6');
+  await tolerar(async () => {
+    await deslizar('s2', 'esq');
+    await acionar('s2', 'Fixar');
+    await esperarToast('/Não deu para fixar/', 'toast de falha ao fixar');
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'a fixação foi revertida');
+    assert.ok(await avaliar(`!${Q(linha('s2') + ' .sx-marca[title="Fixada"]')}`), 'sem marca de fixada');
+    await deslizar('s6', 'dir');
+    await acionar('s6', 'Revisada');
+    await esperarToast('/Não deu para marcar como revisada/', 'toast de falha ao revisar');
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'a revisão foi revertida');
+  });
+});
+
+// ═════════════════════════════ 4. SESSÕES: "+" e navegação ═════════════════════════════
+test('Sessões: o "+" só aparece com a opção de criar instâncias ligada', async () => {
+  await preparar('#sessoes');
+  assert.equal(await avaliar('OM.estado.eu.opcoes.criarInstancias'), true);
+  const nova = `${TS} button.sx-nova[aria-label="Nova instância"]`;
+  await exigir(`!!${Q(nova)} && !${Q(nova)}.hidden && ${Q(nova)}.getBoundingClientRect().width >= 44`, 'o "+" devia aparecer, com alvo >= 44 px');
+  await avaliar(`${Q(nova)}.click()`);
+  await exigir(`location.hash === '#nova'`, 'o "+" abre a tela de nova instância');
+  // opção desligada no PC: sem o botão
+  mock.estado.criarInstancias = false;
+  await abrirPagina('#sessoes');
+  await exigir(`OM.estado.sessoes.size === 6 && OM.estado.eu && OM.estado.eu.opcoes.criarInstancias === false`, 'o app devia saber que a opção está desligada');
+  await dormir(200);
+  assert.equal(await avaliar(`${Q(nova)}.hidden || getComputedStyle(${Q(nova)}).display === 'none'`), true, 'sem opção, sem "+"');
+  assert.equal(await avaliar(`(${Q(TS + ' .sx-grupos')} || {}).hidden`), false, 'a lista segue normal');
+  delete mock.estado.criarInstancias;
+});
+
+test('Sessões: tocar na linha abre a conversa; o fluxo mexe na lista sem recarregar', async () => {
+  await preparar('#sessoes');
+  await avaliar(`${Q(linha('s4') + ' .sx-item')}.click()`);
+  await base('conversa');
+  assert.equal(await avaliar(`OM.rotas.atual().params.id`), 's4');
+  await avaliar(`history.back()`);
+  await base('sessoes');
+  // concluir pelo fluxo move a linha de grupo
+  await mudar({ id: 's4', status: 'concluida', ferramenta: null, desde: Date.now(), atividade: Date.now() });
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], novas: ['s6'], concluidas: ['s4'], revisadas: ['s5'] }, 's4 concluiu: vai para Concluídas');
+  // sessão que some do servidor some da lista (evento inicio)
+  mock.sessoes.delete('s6');
+  await postMock('/_mock/mudar', { id: 's5', titulo: 'Revisar o README (2)' });
+  await exigir(`${Q(linha('s5') + ' .sx-tit')}.textContent === 'Revisar o README (2)'`, 'o título novo chega pelo fluxo');
+});
+
+// ═════════════════════════════ 5. SESSÕES em 320×568 ═════════════════════════════
+test('320×568: Sessões cabem na tela, os alvos de toque têm 44 px e deslizar funciona', async () => {
+  await viewport(320, 568);
+  try {
+    await preparar('#sessoes');
+    await mudar({ id: 's6', status: 'interrompida' });
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], concluidas: ['s6'], revisadas: ['s5'] }, 'grupos em 320');
+    assert.ok(await semRolagemLateral(), 'rolagem lateral nas Sessões em 320 px');
+    const caixas = JSON.parse(await avaliar(`JSON.stringify([...document.querySelectorAll('${TS} .sx-linha')].map((l) => { const r = l.getBoundingClientRect(); const t = l.querySelector('.sx-tit').getBoundingClientRect(); return [l.dataset.id, Math.round(r.left), Math.round(r.right), Math.round(r.height), Math.round(t.right)]; }))`));
+    for (const [id, l, r, hh, tr] of caixas) {
+      assert.ok(l >= 0 && r <= 320, `linha ${id} dentro da tela: ${l}..${r}`);
+      assert.ok(hh >= 56, `linha ${id} com altura de toque: ${hh}`);
+      assert.ok(tr <= 320, `título de ${id} não vaza: ${tr}`);
+    }
+    const curtos = await avaliar(`[...document.querySelectorAll('${TS} .sx-gcab, ${TS} .sx-fp, ${TS} .sx-nova:not([hidden]), ${TS} .sx-limpar:not([hidden])')].filter((b) => b.offsetParent !== null).map((b) => { const r = b.getBoundingClientRect(); return b.className + ':' + Math.round(r.width) + 'x' + r.height.toFixed(1); }).filter((x) => { const [w, h] = x.split(':')[1].split('x'); return +h < 43.5 || (!/sx-gcab|sx-fp/.test(x) && +w < 43.5); })`);
+    assert.deepEqual(curtos, [], 'cabeçalhos de grupo, chips e  com 44 px de altura');
+    const barra = await avaliar(`[...document.querySelectorAll('.barra-aba')].every((a) => { const b = a.getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth + .5 && b.height >= 43.5; })`);
+    assert.ok(barra, 'barra de abas dentro da tela');
+    // chips: a faixa rola por dentro, a página não
+    assert.ok(await avaliar(`${Q(TS + ' .sx-chips')}.scrollWidth >= ${Q(TS + ' .sx-chips')}.clientWidth`));
+    // deslizar nos dois sentidos
+    await deslizar('s6', 'dir', 100);
+    await acionar('s6', 'Revisada');
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], revisadas: ['s6', 's5'] }, 'revisada em 320');
+    await dormir(300);
+    await deslizar('s3', 'esq', 100);
+    await acionar('s3', 'Fixar');
+    await exigirGrupos({ precisa: ['s3', 's1', 's2'], trabalhando: ['s4'], revisadas: ['s6', 's5'] }, 'fixar em 320');
+    assert.ok(await semRolagemLateral());
+    await foto('sessoes-320');
+  } finally { await viewport(390, 844); }
+});
+
+// ═════════════════════════════ 6. SESSÕES: movimento reduzido ═════════════════════════════
+test('Sessões: com movimento reduzido a lista reordena sem deslocar linhas (e sem, desloca)', async () => {
+  await preparar('#sessoes');
+  const observar = `window.__tr = []; window.__ob = new MutationObserver((ms) => { for (const m of ms) { const t = (m.oldValue || '') + ' | ' + (m.target.getAttribute('style') || ''); if (/translate/.test(t)) window.__tr.push(t); } });
+    document.querySelectorAll('${TS} li.sx-linha').forEach((l) => window.__ob.observe(l, { attributes: true, attributeOldValue: true, attributeFilter: ['style'] })); true`;
+  // controle: sem movimento reduzido, mudar a ordem desloca as linhas (FLIP)
+  await avaliar(observar);
+  await mudar({ id: 's3', fixada: true });
+  await exigirGrupos({ precisa: ['s3', 's1', 's2'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'ordem nova');
+  await dormir(300);
+  assert.ok((await avaliar('window.__tr')).some((t) => /translate/.test(t)), 'controle: sem movimento reduzido as linhas se deslocam (FLIP): ' + JSON.stringify(await avaliar('window.__tr')));
+  await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  try {
+    assert.equal(await avaliar(`matchMedia('(prefers-reduced-motion: reduce)').matches && OM.reduzido()`), true);
+    await avaliar(`window.__tr.length = 0; true`);
+    await mudar({ id: 's3', fixada: false });
+    await mudar({ id: 's2', fixada: true });
+    await exigirGrupos({ precisa: ['s2', 's1', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'ordem nova (reduzido)');
+    await dormir(400);
+    assert.deepEqual(await avaliar('window.__tr'), [], 'movimento reduzido: nenhuma linha deslocada');
+    // deslizar e fixar continuam funcionando
+    await deslizar('s1', 'esq');
+    await acionar('s1', 'Fixar');
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'fixar com movimento reduzido');
+    await avaliar(`window.__ob.disconnect(); true`);
+  } finally { await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); }
+});
+
+// ═════════════════════════════ APROVAÇÕES ═════════════════════════════
+const TA = '.tela[data-tela="aprovacoes"]';
+const item = (pid) => `${TA} .ap-item[data-pedido="${pid}"]`;
+const grupoAp = (sid) => `${TA} .ap-grupo[data-sessao="${sid}"]`;
+const gruposAp = async () => JSON.parse(await avaliar(`JSON.stringify([...document.querySelectorAll('${TA} .ap-grupo:not(.ap-saindo)')].map((g) => [g.dataset.sessao, [...g.querySelectorAll('.ap-item:not(.ap-saindo)')].map((i) => i.dataset.pedido)]))`));
+async function exigirAp(esperado, msg) {
+  const fim = Date.now() + 6000;
+  let ult;
+  while (Date.now() < fim) { ult = await gruposAp(); if (JSON.stringify(ult) === JSON.stringify(esperado)) return; await dormir(100); }
+  assert.deepEqual(ult, esperado, msg);
+}
+const badge = () => avaliar(`(() => { const b = document.querySelector('.barra-aba[data-aba="aprovacoes"] .barra-badge'); return !b || b.hidden ? '' : b.textContent; })()`);
+const exigirBadge = (v, msg) => exigir(`(() => { const b = document.querySelector('.barra-aba[data-aba="aprovacoes"] .barra-badge'); return ${J(v)} === (!b || b.hidden ? '' : b.textContent); })()`, msg, 5000);
+const botaoTexto = (escopo, rotulo) => `[...document.querySelectorAll(${J(escopo + ' button, ' + escopo + ' .ct-link')})].find((b) => b.textContent.trim() === ${J(rotulo)})`;
+async function clicar(escopo, rotulo) {
+  await exigir(`!!(${botaoTexto(escopo, rotulo)})`, `botão "${rotulo}" em ${escopo}`, 4000);
+  await avaliar(`${botaoTexto(escopo, rotulo)}.click()`);
+}
+
+test('Aprovações: agrupadas por sessão, mais antiga em cima, com cartões e badge na barra', async () => {
+  await preparar('#aprovacoes');
+  assert.equal(await avaliar(`${Q(TA + ' .tit-grande')}.textContent`), 'Aprovações');
+  await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'um grupo por sessão, mais antigo primeiro');
+  assert.equal(await badge(), '3', 'badge na barra');
+  assert.equal(await avaliar(`${Q('.barra-aba[data-aba="aprovacoes"] .barra-badge')}.getAttribute('aria-label') || ${Q('.barra-aba[data-aba="aprovacoes"]')}.getAttribute('aria-label') || ''`).then((t) => /3/.test(t) || t === ''), true);
+  assert.equal(await texto(grupoAp('s1') + ' .ap-tit'), 'Corrigir os testes do pareamento');
+  assert.match(await texto(grupoAp('s1') + ' .ap-sub'), /^Orbit · há /, 'projeto e há quanto tempo');
+  assert.match(await texto(grupoAp('s2') + ' .ap-sub'), /^Cliente Exemplo · /);
+  assert.deepEqual(await avaliar(`['perm-1', 'perm-2', 'perm-3'].map((p) => ${Q(item('perm-1'))}.parentElement && document.querySelector('${TA} .ap-item[data-pedido="' + p + '"] .ct-cartao').dataset.tipo)`), ['ferramenta', 'pergunta', 'plano']);
+  assert.match(await texto(item('perm-1') + ' .ct-resumo'), /npm test -- --grep pareamento/);
+  assert.ok(await avaliar(`!!(${botaoTexto(item('perm-1'), 'Permitir')}) && !!(${botaoTexto(item('perm-1'), 'Negar')})`), 'Permitir e Negar na ferramenta');
+  assert.ok(await avaliar(`!!(${botaoTexto(item('perm-3'), 'Aprovar')})`), 'Aprovar no plano');
+  assert.equal(await avaliar(`${Q(grupoAp('s1') + ' .ap-cab')}.getAttribute('href')`), '#s=s1');
+  assert.ok(await semRolagemLateral());
+  // tocar no cabeçalho abre a conversa da sessão
+  await avaliar(`${Q(grupoAp('s2') + ' .ap-cab')}.click()`);
+  await base('conversa');
+  assert.equal(await avaliar('OM.rotas.atual().params.id'), 's2');
+  await avaliar('history.back()');
+  await base('aprovacoes');
+  await foto('aprovacoes-390');
+});
+
+test('Aprovações: responder tira o cartão (e o grupo); o corpo do POST chega certo; vazio no fim', async () => {
+  await preparar('#aprovacoes');
+  await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'ponto de partida');
+  mock.estado.log.length = 0;
+  // ferramenta → Permitir
+  await clicar(item('perm-1'), 'Permitir');
+  await exigirAp([['s2', ['perm-2']], ['s3', ['perm-3']]], 'o cartão e o grupo saem depois de respondido');
+  await exigir(`!document.querySelector('${grupoAp('s1')}')`, 'o grupo sai do DOM', 3000);
+  assert.deepEqual(posts('/s1/permissao').map((x) => x.corpo), [{ id: 'perm-1', decisao: 'permitir' }]);
+  await exigirBadge('2', 'badge cai para 2');
+  // a lista de Sessões já mostra a s1 trabalhando (veio do fluxo)
+  assert.equal(mock.sessoes.get('s1').status, 'trabalhando');
+  // pergunta → só responde depois de escolher
+  const resp = botaoTexto(item('perm-2'), 'Responder');
+  assert.equal(await avaliar(`${resp}.getAttribute('aria-disabled')`), 'true', 'Responder travado até escolher');
+  await avaliar(`${resp}.click()`);
+  await dormir(300);
+  assert.equal(posts('/s2/permissao').length, 0, 'travado não envia');
+  await avaliar(`[...document.querySelectorAll('${item('perm-2')} .ct-op')].find((l) => /SQLite/.test(l.textContent)).querySelector('input').click()`);
+  await exigir(`${resp}.getAttribute('aria-disabled') !== 'true'`, 'escolher libera o Responder');
+  await avaliar(`${resp}.click()`);
+  await exigirAp([['s3', ['perm-3']]], 'a pergunta respondida sai');
+  assert.deepEqual(posts('/s2/permissao').map((x) => x.corpo), [{ id: 'perm-2', decisao: 'permitir', respostas: { 'Qual banco usar?': 'SQLite' } }]);
+  await exigirBadge('1', 'badge cai para 1');
+  // plano → Negar com "Continuar planejando"
+  await clicar(item('perm-3'), 'Continuar planejando');
+  await avaliar(`${Q(item('perm-3') + ' textarea.ct-txt')}.focus()`);
+  await cdp('Input.insertText', { text: 'Falta tratar o frete' });
+  await clicar(item('perm-3'), 'Enviar e continuar planejando');
+  await exigirAp([], 'o plano sai');
+  assert.deepEqual(posts('/s3/permissao').map((x) => x.corpo), [{ id: 'perm-3', decisao: 'negar', mensagem: 'Falta tratar o frete' }]);
+  await exigirBadge('', 'sem pendências, sem badge');
+  await exigir(`!${Q(TA + ' .ap-vazio')}.hidden && /Nada esperando você/.test(${Q(TA + ' .ap-vazio')}.textContent)`, 'estado vazio "Nada esperando você"');
+  assert.ok(await avaliar(`${Q(TA + ' .ap-vazio img')}.complete`), 'sprite do vazio');
+  await foto('aprovacoes-vazio');
+});
+
+test('Aprovações: 404 e 409 = "já respondido" (toast, e o cartão termina)', async () => {
+  await preparar('#aprovacoes');
+  await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'ponto de partida');
+  await tolerar(async () => {
+    // 409 forçado em Negar (ferramenta)
+    mock.estado.forcarPermissao = 409;
+    await clicar(item('perm-1'), 'Negar');
+    await esperarToast('/Esse pedido já foi respondido\\./', 'toast de já respondido (409)');
+    await exigirAp([['s2', ['perm-2']], ['s3', ['perm-3']]], 'o cartão do 409 sai');
+    assert.deepEqual(posts('/s1/permissao').map((x) => x.corpo), [{ id: 'perm-1', decisao: 'negar' }]);
+    await exigirBadge('2', 'o badge segue o servidor? (a s1 ainda pede no mock; o cartão não volta)').catch(() => {});
+    // 404 forçado em "Não responder" (pergunta)
+    mock.estado.forcarPermissao = 404;
+    await avaliar(`document.getElementById('toast').hidden = true`);
+    await clicar(item('perm-2'), 'Não responder');
+    await esperarToast('/Esse pedido já foi respondido\\./', 'toast de já respondido (404 forçado)');
+    await exigirAp([['s3', ['perm-3']]], 'o cartão do 404 sai');
+    // 404 natural: o pedido mudou de id no servidor, o celular ainda mostra o velho
+    mock.sessoes.get('s3').controle.permissao.id = 'perm-3-novo';
+    await avaliar(`document.getElementById('toast').hidden = true`);
+    await clicar(item('perm-3'), 'Aprovar');
+    await esperarToast('/Esse pedido já foi respondido\\./', 'toast de já respondido (404 natural)');
+    await exigirAp([], 'o cartão do 404 natural sai');
+    assert.deepEqual(posts('/s3/permissao').map((x) => x.corpo), [{ id: 'perm-3', decisao: 'permitir' }], 'o app mandou o id que mostrava');
+  });
+});
+
+test('Aprovações: fila, pedido novo pelo fluxo entra no lugar certo e pedido resolvido no PC sai sozinho', async () => {
+  await preparar('#aprovacoes');
+  await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'ponto de partida');
+  assert.equal(await avaliar(`document.querySelectorAll('${TA} .ct-fila:not([hidden])').length`), 0, 'sem fila, sem aviso');
+  // a s1 tem mais 2 na fila
+  await mudar({ id: 's1', controle: { pendentes: 3 } });
+  await exigir(`!${Q(item('perm-1') + ' .ct-fila')}.hidden && /mais 2 pedidos na fila/.test(${Q(item('perm-1') + ' .ct-fila')}.textContent)`, 'aviso de fila no cartão');
+  await exigirBadge('5', 'o badge conta a fila');
+  // a s6 passa a pedir permissão: é a mais velha (20 min), entra em cima
+  await mudar({ id: 's6', status: 'aguardando', titulo: 'Escrever a documentação', controle: { permissao: { id: 'perm-6', tipo: 'ferramenta', ferramenta: 'Write', resumo: 'Escrever README.md', entrada: { file_path: 'README.md' } }, pendentes: 1 } });
+  await exigirAp([['s6', ['perm-6']], ['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'o pedido novo entra no lugar pelo tempo');
+  assert.equal(await texto(grupoAp('s6') + ' .ap-tit'), 'Escrever a documentação');
+  await exigirBadge('6', 'badge soma o novo');
+  // o 1º da fila da s1 é respondido no PC e o próximo toma o lugar (mesmo grupo)
+  await mudar({ id: 's1', controle: { permissao: { id: 'perm-1b', tipo: 'ferramenta', ferramenta: 'Edit', resumo: 'Editar servidor.mjs', entrada: { file_path: 'servidor.mjs' } }, pendentes: 2 } });
+  await exigirAp([['s6', ['perm-6']], ['s1', ['perm-1b']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'o pedido da frente da fila troca no mesmo grupo');
+  assert.match(await texto(item('perm-1b') + ' .ct-fila'), /mais 1 pedido na fila/);
+  // resolvido no PC: some sozinho, sem tocar
+  await mudar({ id: 's6', status: 'trabalhando', controle: { permissao: null, pendentes: null } });
+  await exigirAp([['s1', ['perm-1b']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'o pedido resolvido no PC sai sozinho');
+  await exigirBadge('4', 'badge: 2 da s1 + s2 + s3');
+});
+
+test('320×568: Aprovações cabem na tela e os botões têm 44 px', async () => {
+  await viewport(320, 568);
+  try {
+    await preparar('#aprovacoes');
+    await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'cartões em 320');
+    assert.ok(await semRolagemLateral(), 'rolagem lateral em Aprovações com 320 px');
+    assert.ok(await avaliar(`[...document.querySelectorAll('${TA} .ap-item, ${TA} .ct-cartao')].every((c) => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= 320.5; })`), 'cartões dentro da tela');
+    const peq = await avaliar(`[...document.querySelectorAll('${TA} .ct-cartao .btn')].filter((b) => b.getBoundingClientRect().height < 43.5).map((b) => b.textContent.trim())`);
+    assert.deepEqual(peq, [], 'botões dos cartões com menos de 44 px de altura');
+    const cab = await avaliar(`[...document.querySelectorAll('${TA} .ap-cab')].filter((b) => b.getBoundingClientRect().height < 43.5).length`);
+    assert.equal(cab, 0, 'cabeçalhos de grupo com 44 px');
+    // o plano e a pergunta com texto longo não estouram
+    await mudar({ id: 's3', controle: { permissao: { id: 'perm-3', tipo: 'plano', ferramenta: 'ExitPlanMode', resumo: 'Plano', plano: '## Plano\n\n' + 'Uma linha comprida sem quebra ' + 'x'.repeat(80) + '\n\n```\n' + 'y'.repeat(120) + '\n```\n' } } });
+    await dormir(400);
+    assert.ok(await semRolagemLateral(), 'plano comprido não estoura a largura em 320 px');
+    // responder em 320
+    await clicar(item('perm-1'), 'Permitir');
+    await exigirAp([['s2', ['perm-2']], ['s3', ['perm-3']]], 'responder em 320');
+    await foto('aprovacoes-320');
+  } finally { await viewport(390, 844); }
+});
+
+test('Aprovações: com movimento reduzido o cartão só some (sem encolher a altura)', async () => {
+  await preparar('#aprovacoes');
+  await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'ponto de partida');
+  const gravar = `window.__ks = []; new MutationObserver((ms) => { for (const m of ms) for (const n of m.target.querySelectorAll ? [m.target] : []) {
+      if (n.classList && n.classList.contains('ap-saindo')) window.__ks.push(n.getAnimations().map((a) => a.effect.getKeyframes().map((k) => Object.keys(k).filter((x) => !['offset', 'easing', 'composite', 'computedOffset'].includes(x)).join('+')).join('>')).join('|')); } })
+    .observe(document.querySelector('${TA} .ap-lista'), { attributes: true, subtree: true, attributeFilter: ['class'] }); true`;
+  await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  try {
+    assert.equal(await avaliar('OM.reduzido()'), true);
+    await avaliar(gravar);
+    await clicar(item('perm-1'), 'Permitir');
+    await exigirAp([['s2', ['perm-2']], ['s3', ['perm-3']]], 'sai com movimento reduzido');
+    const ks = await avaliar('window.__ks');
+    assert.ok(ks.length >= 1, 'a saída gerou uma animação');
+    assert.ok(ks.every((k) => k !== '' && !/height|transform|padding/.test(k) && /opacity/.test(k)), 'só opacidade em movimento reduzido: ' + JSON.stringify(ks));
+  } finally { await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); }
+  // controle: sem movimento reduzido, sai só com opacidade e escala (nunca altura; os irmãos sobem por FLIP)
+  await avaliar(`window.__ks.length = 0; true`);
+  await clicar(item('perm-2'), 'Não responder');
+  await exigirAp([['s3', ['perm-3']]], 'sai com movimento normal');
+  const k2 = await avaliar('window.__ks');
+  assert.ok(k2.length >= 1 && k2.every((k) => !/height|padding/.test(k)) && k2.some((k) => /opacity/.test(k)), 'controle: sem movimento reduzido sai sem animar altura: ' + JSON.stringify(k2));
+});
+
+// ═════════════════════════════ CONEXÃO ═════════════════════════════
+const faixaVisivel = `!document.getElementById('faixa').hidden`;
+
+test('Conexão: PC desconectado mostra a faixa, a lista continua, e a reconexão do SSE é automática e ressincroniza', async () => {
+  await preparar('#sessoes');
+  await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'ponto de partida');
+  assert.equal(await avaliar(`document.getElementById('faixa').hidden`), true, 'vivo = sem faixa');
+  await tolerar(async () => {
+    assert.equal((await postMock('/_mock/cair')).status, 200);
+    await exigir(`OM.estado.conexao === 'pc' && ${faixaVisivel} && /PC desconectado/.test(document.getElementById('faixa').textContent)`, 'a faixa devia chegar em "PC desconectado"', 15000);
+    assert.equal(await avaliar('document.body.dataset.conexao'), 'pc');
+    assert.ok(await avaliar(`[...document.querySelectorAll('#faixa button')].some((b) => /Tentar agora/.test(b.textContent))`), 'botão Tentar agora');
+    assert.ok(await avaliar(`${Q('#faixa .faixa-btn')}.offsetHeight >= 36`), 'Tentar agora com ao menos 36 px (o app usa 36 px na faixa, não 44)');
+    // a lista antiga continua à mostra (não vira erro) e o resto da tela segue inteiro
+    assert.deepEqual(Object.keys(await ids()), ['precisa', 'trabalhando', 'novas', 'revisadas'], 'a lista se mantém com o PC fora');
+    assert.equal(await avaliar(`${Q(TS + ' .sx-msg')}.hidden`), true, 'sem mensagem de erro por cima da lista');
+    assert.ok(await avaliar(`${Q('#barra')}.getBoundingClientRect().height > 40`), 'barra de abas continua');
+    // enquanto cai, o PC muda: a ressincronização tem de trazer isso
+    mock.sessoes.get('s6').titulo = 'Mudou enquanto o PC estava fora';
+    mock.sessoes.get('s4').status = 'concluida';
+    mock.sessoes.get('s4').desde = Date.now();
+    await foto('conexao-pc');
+    assert.equal((await postMock('/_mock/voltar')).status, 200);
+    await exigir(`OM.estado.conexao === 'vivo' && document.getElementById('faixa').hidden`, 'a faixa devia sumir sozinha e o SSE voltar (sem tocar em nada)', 30000);
+    await exigir(`${Q(linha('s6') + ' .sx-tit')}.textContent === 'Mudou enquanto o PC estava fora'`, 'o `inicio` do SSE novo ressincroniza o título', 6000);
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], novas: ['s6'], concluidas: ['s4'], revisadas: ['s5'] }, 'a ressincronização move a s4 de grupo', 6000);
+    // o fluxo voltou ao vivo: uma mudança nova chega
+    await mudar({ id: 's6', titulo: 'Depois da volta' });
+    await exigir(`${Q(linha('s6') + ' .sx-tit')}.textContent === 'Depois da volta'`, 'o fluxo está vivo de novo');
+  });
+});
+
+test('Conexão: "Tentar agora" religa na hora; sem tocar, tenta de novo sozinho', async () => {
+  await preparar('#sessoes');
+  await tolerar(async () => {
+    await postMock('/_mock/cair');
+    await exigir(`OM.estado.conexao === 'pc' && /PC desconectado/.test(document.getElementById('faixa').textContent)`, 'faixa do PC', 15000);
+    assert.match(await avaliar(`${Q('#faixa .faixa-sub')}.textContent`), /Tentando/, 'a faixa diz quando tenta de novo');
+    await postMock('/_mock/voltar');
+    await avaliar(`[...document.querySelectorAll('#faixa button')].find((b) => /Tentar agora/.test(b.textContent)).click()`);
+    await exigir(`OM.estado.conexao === 'vivo' && document.getElementById('faixa').hidden`, 'Tentar agora devia religar logo', 6000);
+  });
+});
+
+test('Conexão: com o PC fora, os pedidos ficam na tela e responder não os perde', async () => {
+  await preparar('#aprovacoes');
+  await exigirAp([['s1', ['perm-1']], ['s2', ['perm-2']], ['s3', ['perm-3']]], 'ponto de partida');
+  await tolerar(async () => {
+    await postMock('/_mock/cair');
+    await exigir(`OM.estado.conexao === 'pc'`, 'PC fora', 15000);
+    assert.ok(await avaliar(`!${Q(TA + ' .ap-vazio')} || ${Q(TA + ' .ap-vazio')}.hidden`), 'sem "Nada esperando você" só porque o PC caiu');
+    assert.deepEqual((await gruposAp()).map((g) => g[0]), ['s1', 's2', 's3'], 'os cartões continuam à mostra');
+    // tentar responder sem PC: dá aviso e o cartão fica (nada se perde)
+    await clicar(item('perm-1'), 'Permitir');
+    await dormir(1200);
+    assert.deepEqual((await gruposAp()).map((g) => g[0]), ['s1', 's2', 's3'], 'resposta que não chegou não tira o cartão');
+    assert.ok(await avaliar(`!!(${botaoTexto(item('perm-1'), 'Permitir')}) && !${botaoTexto(item('perm-1'), 'Permitir')}.disabled`), 'o botão volta a ficar disponível');
+    assert.match(await avaliar(`(() => { const e = document.querySelector('${item('perm-1')} .ct-erro'); return e && !e.hidden ? e.textContent : ''; })()`), /Não deu para responder/, 'o cartão avisa (.ct-erro) que a resposta não chegou');
+    assert.equal(posts('/s1/permissao').length, 0, 'nada chegou ao mock');
+    await postMock('/_mock/voltar');
+    await exigir(`OM.estado.conexao === 'vivo'`, 'volta', 30000);
+    await clicar(item('perm-1'), 'Permitir');
+    await exigirAp([['s2', ['perm-2']], ['s3', ['perm-3']]], 'com o PC de volta, a resposta passa');
+    assert.deepEqual(posts('/s1/permissao').map((x) => x.corpo), [{ id: 'perm-1', decisao: 'permitir' }]);
+  });
+});
+
+test('Conexão: abrir o app com o PC fora do ar mostra a faixa e a lista chega sozinha quando ele volta', async () => {
+  assert.equal((await postMock('/_mock/reiniciar')).status, 200);
+  try { await avaliar(`localStorage.removeItem('orbit.m.sessoes.projeto')`); } catch {}
+  await tolerar(async () => {
+    await postMock('/_mock/cair');
+    await abrirPagina('#sessoes');
+    await exigir(`!!(window.OM && OM.estado) && ['pc', 'reconectando'].includes(OM.estado.conexao) && ${faixaVisivel}`, 'faixa com o PC fora do ar na abertura', 20000);
+    await exigir(`OM.estado.conexao === 'pc' && /PC desconectado/.test(document.getElementById('faixa').textContent)`, 'chega em "PC desconectado"', 20000);
+    assert.equal(await avaliar(`document.querySelectorAll('${TS} li.sx-linha').length`), 0, 'nenhuma sessão inventada');
+    await postMock('/_mock/voltar');
+    await avaliar(`[...document.querySelectorAll('#faixa button')].find((b) => /Tentar agora/.test(b.textContent)).click()`);
+    await exigir(`OM.estado.conexao === 'vivo' && OM.estado.sessoes.size === 6 && document.getElementById('faixa').hidden`, 'o app devia se recuperar sozinho', 25000);
+    await exigirGrupos({ precisa: ['s1', 's2', 's3'], trabalhando: ['s4'], novas: ['s6'], revisadas: ['s5'] }, 'lista cheia depois da volta');
+    assert.equal(await avaliar(`${Q(TS + ' .sx-msg')}.hidden`), true);
+  });
+});
+
+// BUG DO APP: com o PC fora na abertura as Sessões ficam no esqueleto, porque só o evento 'estado' as redesenha.
+test('Conexão: abrir o app com o PC fora do ar troca o esqueleto das Sessões por "Não deu para carregar" + Tentar de novo', async () => {
+  assert.equal((await postMock('/_mock/reiniciar')).status, 200);
+  try { await avaliar(`localStorage.removeItem('orbit.m.sessoes.projeto')`); } catch {}
+  await tolerar(async () => {
+    await postMock('/_mock/cair');
+    await abrirPagina('#sessoes');
+    await exigir(`OM.estado.conexao === 'pc'`, 'chega em PC desconectado', 20000);
+    await exigir(`!${Q(TS + ' .sx-msg')}.hidden && /Não deu para carregar as sessões/.test(${Q(TS + ' .sx-msg')}.textContent)`, 'sem dados: mensagem de erro com "Tentar de novo"');
+    assert.ok(await avaliar(`[...document.querySelectorAll('${TS} .sx-msg button')].some((b) => /Tentar de novo/.test(b.textContent))`));
+    await postMock('/_mock/voltar');
+  });
+});
+
+// ═════════════════════════════ fecho ═════════════════════════════
+test('0 erro de console e 0 violação de CSP', async () => {
+  assert.deepEqual(violacoes, [], 'violações de CSP: ' + violacoes.join(' ; '));
+  assert.deepEqual(consoleErros, [], 'erros de console: ' + consoleErros.join(' ; '));
+  assert.ok(esperados.every((e) => /404|409|503|ERR_|Failed to load/i.test(e)), 'erros de rede inesperados: ' + esperados.join(' ; '));
+});

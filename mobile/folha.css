@@ -1,0 +1,116 @@
+/* Orbit no celular: folha (bottom sheet) e gestos da casca (onda 2). Só tokens de base.css/componentes.css.
+   Movimento: --ease-press, 150–300 ms, só transform/opacity; reduzido = sem deslocamento animado; body.oculta pausa. */
+
+/* ───────────── folha ───────────── */
+.folha-fundo {
+  position: fixed; inset: 0; z-index: 70;
+  background: color-mix(in srgb, var(--fundo) 64%, transparent);
+  opacity: 0; transition: opacity var(--dur-3) var(--ease-press);
+  touch-action: none;
+}
+.folha-fundo.visivel { opacity: 1; }
+.folha {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 71;
+  margin: 0 auto; max-width: 640px;
+  display: flex; flex-direction: column;
+  max-height: calc(100dvh - var(--st, env(safe-area-inset-top)) - 12px);
+  background: var(--sup); color: var(--t1);
+  border-radius: var(--r-5) var(--r-5) 0 0;
+  border-top: 1px solid var(--fio-2);
+  box-shadow: var(--sombra);
+  outline: none; overscroll-behavior: contain;
+  transition: transform var(--dur-3) var(--ease-press), opacity var(--dur-1) var(--ease);
+  will-change: transform;
+}
+.folha.alta { height: calc(100dvh - var(--st, env(safe-area-inset-top)) - 12px); }
+.folha.sem-trans, .folha.arrastando { transition: none; }
+.folha-alca {
+  flex: none; height: 22px; display: grid; place-items: center;
+  touch-action: none; cursor: grab;
+}
+.folha-alca::before { content: ''; width: 36px; height: 5px; border-radius: var(--r-pilula); background: var(--fio-3); }
+.folha-cab {
+  flex: none; display: flex; align-items: center; gap: var(--esp-2);
+  min-height: var(--alvo); padding: 0 calc(var(--esp-2) + var(--sr)) var(--esp-2) calc(var(--esp-4) + var(--sl));
+  touch-action: none;
+}
+.folha-tit {
+  flex: 1; min-width: 0; margin: 0;
+  font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--t1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.folha-x { flex: none; min-width: var(--alvo); min-height: var(--alvo); }
+.folha-corpo {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 0 calc(var(--esp-4) + var(--sr)) calc(var(--esp-4) + var(--sb, env(safe-area-inset-bottom))) calc(var(--esp-4) + var(--sl));
+  touch-action: pan-y;
+}
+/* no topo, puxar para baixo é da folha (o navegador só rola para cima); fora da parada mais alta, tudo é da folha */
+.folha-corpo.no-topo { touch-action: pan-down; }
+.folha-corpo.expandir { touch-action: none; }
+.folha-texto { margin: 0 0 var(--esp-4); color: var(--t2); line-height: 1.5; overflow-wrap: anywhere; }
+.folha-acoes { display: flex; gap: var(--esp-2); justify-content: flex-end; flex-wrap: wrap; }
+.folha-acoes .btn { min-height: var(--alvo); flex: 1 1 0; justify-content: center; }
+
+/* ───────────── toque: feedback igual ao do PC ───────────── */
+.toque { transition: transform var(--dur-1) var(--ease-press), opacity var(--dur-1) var(--ease); -webkit-tap-highlight-color: transparent; }
+.toque:active:not(:disabled) { transform: scale(.97); transition-duration: .06s; }
+
+/* ───────────── voltar pela borda ───────────── */
+body.borda-ativa { -webkit-user-select: none; user-select: none; }
+
+/* ───────────── puxar para atualizar ───────────── */
+.puxavel.no-topo { touch-action: pan-down; }
+.puxavel.puxar-volta { transition: transform var(--dur-3) var(--ease-press); }
+.puxar-ind {
+  position: absolute; left: 50%; top: 0; z-index: 2;
+  width: 36px; height: 36px; margin-top: var(--esp-1);
+  display: grid; place-items: center;
+  border-radius: var(--r-pilula); background: var(--sup); box-shadow: var(--sombra);
+  opacity: 0; transform: translate(-50%, -40px);
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.puxar-ind.puxar-volta { transition: transform var(--dur-3) var(--ease-press), opacity var(--dur-2) var(--ease); }
+.puxar-anel {
+  width: 18px; height: 18px; border-radius: var(--r-pilula);
+  border: 2px solid var(--fio-3); border-top-color: var(--t2);
+}
+.puxar-ind.pronto .puxar-anel, .puxar-ind.girando .puxar-anel { border-top-color: var(--acento); }
+.puxar-ind.girando .puxar-anel { animation: om-girar .8s linear infinite; }
+@keyframes om-girar { to { transform: rotate(360deg); } }
+@keyframes om-pulsar { from { opacity: 1; } to { opacity: .4; } }
+
+/* ───────────── deslizar item ───────────── */
+.desl { position: relative; overflow: hidden; border-radius: var(--desl-raio, 0); }
+.desl-frente { position: relative; z-index: 1; touch-action: pan-y; }
+.desl-frente.desl-anima { transition: transform var(--dur-2) var(--ease-press); }
+.desl-acoes { position: absolute; top: 0; bottom: 0; display: flex; visibility: hidden; }
+.desl-acoes.desl-esq { left: 0; }
+.desl-acoes.desl-dir { right: 0; }
+.desl[data-lado="esq"] .desl-acoes.desl-esq, .desl[data-lado="dir"] .desl-acoes.desl-dir { visibility: visible; }
+.desl-acao {
+  width: 76px; min-height: var(--alvo); border: 0; margin: 0; padding: 0 var(--esp-1);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1);
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--t1);
+  background: var(--bloco-2); cursor: pointer;
+}
+.desl-acao:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--anel); }
+.desl-acao[data-tipo="perigo"] { background: var(--erro); }
+.desl-acao[data-tipo="aviso"] { background: var(--agu); color: var(--fundo); }
+.desl-acao[data-tipo="sucesso"] { background: var(--ok); }
+.desl-acao[data-tipo="acento"] { background: var(--acento); }
+.desl-rot { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ───────────── aba oculta e movimento reduzido ───────────── */
+body.oculta .puxar-anel { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .folha { transition: opacity 120ms var(--ease); }
+  .folha-fundo { transition-duration: 120ms; }
+  .desl-frente.desl-anima, .puxavel.puxar-volta { transition: none; }
+  .puxar-ind, .puxar-ind.puxar-volta { transition: opacity var(--dur-1) var(--ease); }
+  .puxar-ind.girando .puxar-anel { animation: om-pulsar .6s var(--ease) infinite alternate; }
+  .toque { transition: opacity var(--dur-1) var(--ease); }
+  .toque:active:not(:disabled) { transform: none; opacity: .7; }
+}

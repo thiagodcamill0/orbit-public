@@ -139,9 +139,11 @@ async function macSimulado() {
     return { codigo: 0, saida: modo === 'semdestino' ? '\n' : alvo.split(path.sep).join('/') + '\n', erro: '' };
   };
   const mostrar = async (abs) => { if (mostrarFalha) throw new Error('open falhou'); mostrados.push(abs); };
+  const abertas = [];
+  const abrirPasta = async (abs) => { abertas.push(abs); };
   const criar = (home, dados) => criarArquivos({
     dados, sessoes: () => [], lerJSONCorpo: async (req) => req.corpo, log: () => {},
-    so: 'darwin', osascript, mostrar, home, volumes: VOLS, lixeiraFalsa: '',
+    so: 'darwin', osascript, mostrar, abrirPasta, home, volumes: VOLS, lixeiraFalsa: '',
     montagensOcultas: async () => new Set([path.join(VOLS, 'Recovery')]), // como o "nobrowse" do mount
   });
   const modMac = criar(HOME, path.join(MAC, 'dados'));
@@ -216,6 +218,8 @@ async function macSimulado() {
     r = await chamar(modMac, 'POST', '/arquivos/revelar', { projeto: 'macproj', caminho: 'fica.txt' });
     conferir(r.s === 500 && /Finder/.test(r.j.erro), 'Mac: falha ao mostrar cita o Finder', r);
     mostrarFalha = false;
+    r = await chamar(modMac, 'POST', '/arquivos/abrir-pasta', { projeto: 'macproj', caminho: '' });
+    conferir(r.s === 200 && abertas[0] === MPR, 'Mac: abrir na pasta usa abrirPasta com a raiz do projeto', { r, abertas });
 
     // Seletor: raízes = pasta do usuário e /Volumes/*; listagem sem ocultas.
     r = await chamar(modMac, 'GET', '/arquivos/pastas');
@@ -477,6 +481,12 @@ try {
   conferir(r.s === 200 && r.j.ok === true, 'revelar em teste só responde ok', r);
   r = await post('/arquivos/revelar', { projeto: 'projA', caminho: '../x' });
   conferir(r.s === 403, 'revelar fora → 403', r);
+  r = await post('/arquivos/abrir-pasta', { projeto: 'projA', caminho: '' });
+  conferir(r.s === 200 && r.j.ok === true, 'abrir na pasta (raiz) em teste só responde ok', r);
+  r = await post('/arquivos/abrir-pasta', { projeto: 'projA', caminho: 'Zeta.md' });
+  conferir(r.s === 400 && r.j.motivo === 'nao-pasta', 'abrir na pasta com arquivo → 400 nao-pasta', r);
+  r = await post('/arquivos/abrir-pasta', { projeto: 'projA', caminho: '../x' });
+  conferir(r.s === 403, 'abrir na pasta fora → 403', r);
   r = await get('/arquivos/pastas');
   // No Mac as unidades são os volumes de /Volumes (o do sistema, "Macintosh HD", aponta para /).
   conferir(r.s === 200 && r.j.unidades.some((u) => (WIN ? u.caminho === 'C:\\' : u.caminho.startsWith('/Volumes/') && fs.realpathSync(u.caminho) === '/'))

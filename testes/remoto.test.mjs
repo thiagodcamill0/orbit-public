@@ -29,7 +29,19 @@ const SESSOES = path.join(DADOS, 'sessoes');
 const PROJETOS = path.join(DADOS, 'projetos');
 const PROJ = path.join(DADOS, 'cwd', 'proj');
 const FORA = path.join(DADOS, 'cwd', 'fora');
-for (const d of [SESSOES, PROJETOS, PROJ, FORA]) fs.mkdirSync(d, { recursive: true });
+const OUTRO = path.join(DADOS, 'cwd', 'outro'); // 2º projeto cadastrado: suas skills não valem na sessão do PROJ
+const CASA = path.join(DADOS, 'casa');
+for (const d of [SESSOES, PROJETOS, PROJ, FORA, OUTRO, CASA]) fs.mkdirSync(d, { recursive: true });
+// skills/comandos "do usuário" para o P0 dos comandos com barra (inclusive uma skill com nome de embutido)
+for (const [raiz, nome, extra] of [[PROJ, 'skill-proj', ''], [PROJ, 'config', ''], [PROJ, 'reset', ''], [PROJ, 'plan', ''], [CASA, 'skill-casa', ''], [FORA, 'skill-fora', ''], [OUTRO, 'skill-outro', '']]) {
+  fs.mkdirSync(path.join(raiz, '.claude', 'skills', nome), { recursive: true });
+  fs.writeFileSync(path.join(raiz, '.claude', 'skills', nome, 'SKILL.md'), `---\nname: ${nome}\ndescription: teste\n---\ncorpo\n`);
+}
+fs.mkdirSync(path.join(PROJ, '.claude', 'commands', 'grupo'), { recursive: true });
+fs.writeFileSync(path.join(PROJ, '.claude', 'commands', 'cmd-proj.md'), 'faça algo\n');
+fs.writeFileSync(path.join(PROJ, '.claude', 'commands', 'grupo', 'sub.md'), 'faça algo\n');
+fs.mkdirSync(path.join(CASA, '.claude', 'commands'), { recursive: true });
+fs.writeFileSync(path.join(CASA, '.claude', 'commands', 'cmd-casa.md'), 'faça algo\n');
 const HOST = 'orbit-teste.exemplo.ts.net';
 const DONO = 'usuario@exemplo.com';
 const ORIGEM = `https://${HOST}`;
@@ -44,7 +56,7 @@ fs.writeFileSync(TS, JSON.stringify({
 }));
 // host e dono vazios: a detecção (falsa) preenche ao ligar.
 fs.writeFileSync(path.join(DADOS, 'config.json'), JSON.stringify({ remoto: { porta: PORTA_R } }));
-fs.writeFileSync(path.join(DADOS, 'projetos.json'), JSON.stringify({ lista: [{ nome: 'proj', pasta: PROJ, desde: new Date().toISOString() }], ocultos: [] }));
+fs.writeFileSync(path.join(DADOS, 'projetos.json'), JSON.stringify({ lista: [{ nome: 'proj', pasta: PROJ, desde: new Date().toISOString() }, { nome: 'outro', pasta: OUTRO, desde: new Date().toISOString() }], ocultos: [] }));
 
 const ENV = {
   ...process.env,
@@ -53,6 +65,7 @@ const ENV = {
   GERENCIADOR_TICK_MS: '250',
   GERENCIADOR_PID_MS: '300',
   GERENCIADOR_SESSOES_DIR: SESSOES,
+  GERENCIADOR_CASA: CASA,
   ORBIT_PROJETOS_DIR: PROJETOS,
   ...(WIN ? {} : { HOME: path.join(DADOS, 'home') }),
   ORBIT_CLAUDE_BIN: path.join(RAIZ, 'testes', 'claude-falso.mjs'),
@@ -225,7 +238,7 @@ test('sem cookie: 401 nas rotas de dados; só as públicas respondem; / → /m; 
   const m = await remoto('GET', '/m');
   assert.equal(m.status, 200);
   assert.equal(m.texto, fs.readFileSync(path.join(RAIZ, 'mobile', 'index.html'), 'utf8'), '/m é o mobile/index.html, nunca o index.html do PC');
-  for (const rota of ['/sw.js', '/m/mobile.css', '/m/mobile.js', '/assets/comum/base.css', '/assets/comum/base.js', '/assets/sprites/sprite-work.gif', '/assets/sprites/sprite-done-parado.png', '/offline.html']) assert.equal((await remoto('GET', rota)).status, 200, rota);
+  for (const rota of ['/sw.js', '/m/app.css', '/m/nucleo.js','/assets/comum/base.css', '/assets/comum/base.js', '/assets/sprites/sprite-work.gif', '/assets/sprites/sprite-done-parado.png', '/offline.html']) assert.equal((await remoto('GET', rota)).status, 200, rota);
   const mani = await remoto('GET', '/manifest-m.webmanifest');
   assert.equal(mani.status, 200, 'manifesto do celular (mobile/manifest-m.webmanifest)');
   const off = await remoto('GET', '/offline.html');
@@ -299,7 +312,9 @@ test('pareamento completo: código só no PC, 1 pedido por vez, cookie __Host-or
   assert.equal((await remoto('POST', '/remoto/parear/confirmar', { corpo: { pedido: p.json.pedido, codigo: e.pedido.codigo } })).status, 410);
   const eu = await remoto('GET', '/remoto/eu', { cookie: token });
   assert.equal(eu.status, 200, eu.texto);
-  assert.deepEqual(eu.json.aparelho, aparelho);
+  const { criadoEm, ...semData } = eu.json.aparelho; // criadoEm: a linha "Pareado em" do celular (22/10)
+  assert.deepEqual(semData, aparelho);
+  assert.ok(Number.isFinite(criadoEm) && criadoEm > 0, String(criadoEm));
   assert.deepEqual(eu.json.opcoes, { criarInstancias: true });
   assert.equal(typeof eu.json.vapidPublica, 'string');
   assert.equal(Buffer.from(eu.json.vapidPublica, 'base64url').length, 65);
@@ -402,18 +417,20 @@ test('10 erros na janela (mesmo em pedidos diferentes) → bloqueio maior que o 
 });
 
 test('com cookie: terminal, arquivos, repos, config, reiniciar, perfil e o resto fora da lista → 403', async () => {
-  const gets = ['/config', '/historico', '/saude', '/perfil', '/perfil/avatar', '/uso/conta', '/projetos', '/arquivos/lista', '/arquivos/ler', '/repos', '/terminal/shells', '/terminal/lista', '/ideias', '/disco', '/regras', '/skills', '/mcp', '/reinicio', '/temas', '/midia', '/navegador/portas', '/index.html', '/remoto/estado', '/remoto/projetos-x', '/modulo-futuro', '/sessao/x/agente/y', '/sessao/x/assumir'];
+  const gets = ['/config', '/historico', '/saude', '/perfil', '/perfil/avatar', '/uso/conta', '/projetos', '/arquivos/lista', '/arquivos/ler', '/repos', '/terminal/shells', '/terminal/lista', '/disco', '/regras', '/skills', '/mcp', '/reinicio', '/temas', '/midia', '/navegador/portas', '/index.html', '/remoto/estado', '/remoto/projetos-x', '/modulo-futuro', '/sessao/x/agente/y', '/sessao/x/assumir'];
   for (const rota of gets) {
     const r = await remoto('GET', rota, { cookie: token });
     assert.equal(r.status, 403, `GET ${rota}`);
     assert.deepEqual(r.json, { erro: 'bloqueado_no_celular' }, rota);
   }
-  const posts = ['/config', '/reiniciar', '/desligar', '/evento', '/limpar', '/remover', '/nova-instancia', '/terminal/bilhete', '/perfil/conectar', '/conta/claude/sair', '/repos/clonar', '/arquivos/criar', '/projetos', '/ideias', '/mcp/adicionar', '/skills/salvar', '/uso', '/uso/atualizar', '/remoto/config', '/remoto/revogar', '/remoto/tailscale/serve', '/modulo-futuro', '/sessao/x', '/sessao/x/assumir', '/sessao/x/devolver', '/sessao/x/compactar', '/sessao/x/limpar', '/sessao/x/encerrar'];
+  const posts = ['/config', '/reiniciar', '/desligar', '/evento', '/limpar', '/remover', '/nova-instancia', '/terminal/bilhete', '/perfil/conectar', '/conta/claude/sair', '/repos/clonar', '/arquivos/criar', '/projetos', '/ideias', '/mcp/adicionar', '/skills/salvar', '/uso', '/remoto/config', '/remoto/revogar', '/remoto/tailscale/serve', '/modulo-futuro', '/sessao/x/assumir', '/sessao/x/devolver', '/sessao/x/remover'];
   for (const rota of posts) {
     const r = await remoto('POST', rota, { cookie: token, corpo: { todos: true, ativo: false } });
     assert.equal(r.status, 403, `POST ${rota}`);
     assert.deepEqual(r.json, { erro: 'bloqueado_no_celular' }, rota);
   }
+  // as ações da sessão liberadas (onda 1) existem só para nativas: sessão desconhecida é 404, não 403
+  for (const a of ['', '/compactar', '/limpar', '/encerrar', '/retomar', '/autocompactar', '/revisada']) assert.equal((await remoto('POST', `/sessao/x${a}`, { cookie: token, corpo: {} })).status, 404, `POST /sessao/x${a}`);
   // nada passou: o servidor segue no ar, o celular segue ligado e pareado
   assert.equal((await local('GET', '/saude')).json.pid, proc.pid);
   const e = (await local('GET', '/remoto/estado')).json;
@@ -465,7 +482,7 @@ test('GET remoto com Sec-Fetch-Site cross-site/same-site → 403, salvo navegaç
     assert.equal((await get('/', topo)).status, 302, `${site} /`);
     assert.equal((await get('/estado', topo)).status, 403, `${site} /estado navegando`);
     assert.equal((await get('/remoto/eu', topo)).status, 403, `${site} /remoto/eu navegando`);
-    assert.equal((await get('/m/mobile.css', topo)).status, 403, `${site} asset navegando`);
+    assert.equal((await get('/m/app.css', topo)).status, 403, `${site} asset navegando`);
     // sem cookie também: a recusa vem antes da autenticação
     assert.equal((await remoto('GET', '/estado', { headers: { 'sec-fetch-site': site } })).status, 403, `${site} sem cookie`);
   }
@@ -484,7 +501,7 @@ test('só nativas: a do VS Code some de /estado, /fluxo e /sessao (404); a criad
   assert.equal((await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, permissao: 'bypassPermissions' } })).status, 403);
   const proj = await remoto('GET', '/remoto/projetos', { cookie: token });
   assert.equal(proj.status, 200);
-  assert.deepEqual(proj.json, [{ pasta: PROJ, nome: 'proj' }]);
+  assert.deepEqual(proj.json, [{ pasta: PROJ, nome: 'proj' }, { pasta: OUTRO, nome: 'outro' }]);
   const cr = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'do celular' } });
   assert.equal(cr.status, 202, cr.texto);
   nativaId = cr.json.sessao;
@@ -493,7 +510,7 @@ test('só nativas: a do VS Code some de /estado, /fluxo e /sessao (404); a criad
   const pc = (await local('GET', '/estado')).json.sessoes.map((s) => s.id);
   assert.ok(pc.includes('vscode-1') && pc.includes(nativaId));
   const est = (await remoto('GET', '/estado', { cookie: token })).json;
-  assert.deepEqual(Object.keys(est).sort(), ['sessoes', 'uso']);
+  assert.deepEqual(Object.keys(est).sort(), ['resumoDia', 'sessoes', 'uso']);
   assert.deepEqual(est.sessoes.map((s) => s.id), [nativaId]);
   for (const r of ['', '/conversa', '/acoes', '/comandos']) {
     assert.equal((await remoto('GET', `/sessao/vscode-1${r}`, { cookie: token })).status, 404, r);
@@ -516,7 +533,7 @@ test('só nativas: a do VS Code some de /estado, /fluxo e /sessao (404); a criad
   assert.equal(status, 200);
   await esperarQue(() => f.eventos.find((e) => e.tipo === 'inicio'), 4000, 'evento inicio');
   const ini = f.eventos.find((e) => e.tipo === 'inicio').dados;
-  assert.deepEqual(Object.keys(ini).sort(), ['sessoes', 'uso']);
+  assert.deepEqual(Object.keys(ini).sort(), ['resumoDia', 'sessoes', 'uso']);
   assert.deepEqual(ini.sessoes.map((s) => s.id), [nativaId]);
   await ev('vscode-1', { hook_event_name: 'Stop' });
   await ev(nativaId, { prompt: 'pelo hook' });
@@ -548,6 +565,188 @@ test('/modo: bypassPermissions (e qualquer modo fora da lista) é recusado', asy
   const lg = fs.readFileSync(path.join(DADOS, 'logs', 'servidor.log'), 'utf8');
   assert.ok(lg.includes(`remoto iPhone de teste [${aparelho.id}] modo sessão ${nativaId}`), 'log da ação remota');
   assert.ok(lg.includes(`remoto iPhone de teste [${aparelho.id}] nova instância em ${PROJ}`));
+});
+
+test('ações da sessão no celular: compactar, limpar, encerrar, retomar, autocompactar, revisada e os campos apelido/fixada/silenciada (só nativas, corpo validado)', async () => {
+  const cri = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'acoes' } });
+  assert.equal(cri.status, 202, cri.texto);
+  const id = cri.json.sessao;
+  const base = `/sessao/${encodeURIComponent(id)}`;
+  const post = (acao, corpo) => remoto('POST', `${base}${acao ? '/' + acao : ''}`, { cookie: token, corpo });
+  const chegou = (r, rotulo) => assert.ok(![400, 403, 404].includes(r.status), `${rotulo}: ${r.status} ${r.texto}`);
+  try {
+    // só nativas: a sessão do VS Code (vscode-1) é 404 em cada ação nova e no POST de campos
+    for (const a of ['compactar', 'limpar', 'encerrar', 'retomar', 'autocompactar', 'revisada', '']) {
+      const r = await remoto('POST', `/sessao/vscode-1${a ? '/' + a : ''}`, { cookie: token, corpo: { confirmar: true, ativo: true, revisada: true, fixada: true } });
+      assert.equal(r.status, 404, a);
+    }
+    // continuam fora da lista
+    for (const a of ['assumir', 'devolver', 'remover', 'abrir']) assert.equal((await post(a, {})).status, 403, a);
+
+    // autocompactar: só booleano
+    for (const corpo of [{}, { ativo: 'sim' }, { ativo: null }, { ativo: 1 }]) assert.equal((await post('autocompactar', corpo)).status, 400, JSON.stringify(corpo));
+    await esperarQue(async () => (await post('autocompactar', { ativo: true })).status === 200, 10000, 'autocompactar com a instância registrada');
+    assert.equal((await post('autocompactar', { ativo: false })).status, 200);
+
+    // compactar: foco opcional, texto de até 2000
+    assert.equal((await post('compactar', { foco: 'x'.repeat(2001) })).status, 400);
+    assert.equal((await post('compactar', { foco: 42 })).status, 400);
+    const co = await post('compactar', { foco: 'só o essencial' });
+    chegou(co, 'compactar');
+    await espera(1500);
+
+    // campos da sessão: só apelido (≤ 60), fixada e silenciada
+    const campos = await post('', { apelido: 'apelido-secreto-123', fixada: true, silenciada: true });
+    assert.equal(campos.status, 200, campos.texto);
+    assert.equal(campos.json.sessao.apelido, 'apelido-secreto-123');
+    assert.equal(campos.json.sessao.fixada, true);
+    assert.equal(campos.json.sessao.silenciada, true);
+    assert.equal((await post('', { apelido: 'a'.repeat(60), fixada: false, silenciada: false })).status, 200);
+    assert.equal((await post('', {})).status, 200, 'corpo vazio não muda nada');
+    for (const corpo of [{ cwd: '/' }, { status: 'concluida' }, { revisadaEm: 1 }, { fixada: true, titulo: 'x' }, { id: 'x' }, { pid: 1 }, { origem: 'x' }]) {
+      const r = await post('', corpo);
+      assert.equal(r.status, 400, JSON.stringify(corpo));
+      assert.deepEqual(r.json, { erro: 'campo_nao_permitido' });
+    }
+    for (const corpo of [{ apelido: 'a'.repeat(61) }, { apelido: 5 }, { fixada: 'sim' }, { silenciada: 1 }]) assert.equal((await post('', corpo)).status, 400, JSON.stringify(corpo));
+    assert.equal((await local('GET', base)).json.sessao.apelido, 'a'.repeat(60), 'os 400 não alteraram nada');
+
+    // revisada: boolean; grava revisadaEm, aparece em /estado do celular e some ao desmarcar
+    for (const corpo of [{}, { revisada: 'sim' }, { revisada: null }]) assert.equal((await post('revisada', corpo)).status, 400, JSON.stringify(corpo));
+    const rv = await post('revisada', { revisada: true });
+    assert.equal(rv.status, 200, rv.texto);
+    assert.equal(typeof rv.json.sessao.revisadaEm, 'number');
+    const noEstado = (await remoto('GET', '/estado', { cookie: token })).json.sessoes.find((s) => s.id === id);
+    assert.equal(noEstado.revisadaEm, rv.json.sessao.revisadaEm);
+    const rf = await post('revisada', { revisada: false });
+    assert.equal(rf.status, 200);
+    assert.ok(!('revisadaEm' in rf.json.sessao));
+    // a 47821 também marca (sessão do VS Code inclusive)
+    const lv = await local('POST', '/evento', { session_id: 'vscode-rev', hook_event_name: 'UserPromptSubmit', cwd: PROJ, prompt: 'oi', ts: Date.now() });
+    assert.equal(lv.status, 200, lv.texto);
+    const lr = await local('POST', '/sessao/vscode-rev/revisada', { revisada: true });
+    assert.equal(lr.status, 200, lr.texto);
+    assert.equal(typeof lr.json.sessao.revisadaEm, 'number');
+    assert.equal((await local('POST', '/sessao/vscode-rev/revisada', { revisada: 'x' })).status, 400);
+    await local('POST', '/remover', { id: 'vscode-rev' });
+    assert.equal((await local('POST', '/sessao/nao-existe/revisada', { revisada: true })).status, 404);
+
+    // encerrar: o celular nunca força. Com a volta em curso, forcar:true é descartado e o controle recusa (409 ocupada)
+    const ms = await remoto('POST', `${base}/mensagem`, { cookie: token, corpo: { texto: 'DEMORA:12000' } });
+    assert.equal(ms.status, 202, ms.texto);
+    await espera(500);
+    const en = await post('encerrar', { forcar: true });
+    assert.equal(en.status, 409, `forcar do celular deve ser ignorado: ${en.texto}`);
+    assert.match(en.texto, /ocupada|respondendo/);
+    // a 47821 continua podendo forçar
+    const forca = await local('POST', `${base}/encerrar`, { forcar: true });
+    assert.equal(forca.status, 202, forca.texto);
+    // retomar: enquanto fecha dá 409 (viva/acordando); depois de dormir, 202
+    let ret;
+    await esperarQue(async () => (ret = await post('retomar', {})).status === 202, 15000, 'retomar depois de encerrar');
+    assert.equal(ret.status, 202, ret.texto);
+    // viva de novo: retomar outra vez é recusado pelo controle (não pelo remoto)
+    await espera(500);
+    assert.equal((await post('retomar', {})).status, 409);
+
+    // o log tem aparelho, ação e sessão; nunca o conteúdo
+    const lg = fs.readFileSync(path.join(DADOS, 'logs', 'servidor.log'), 'utf8');
+    for (const a of ['compactar', 'encerrar', 'retomar', 'autocompactar', 'revisada']) assert.ok(lg.includes(`remoto iPhone de teste [${aparelho.id}] ${a} sessão ${id}`), `log de ${a}`);
+    for (const c of ['apelido-secreto-123', 'só o essencial', 'DEMORA:12000']) assert.ok(!lg.split(String.fromCharCode(10)).some((l) => l.includes(' remoto ') && l.includes(c)), 'log do remoto sem conteúdo: ' + c);
+
+    // limpar: exige confirmar === true
+    for (const corpo of [{}, { confirmar: false }, { confirmar: 'true' }, { confirmar: 1 }]) {
+      const r = await post('limpar', corpo);
+      assert.equal(r.status, 400, JSON.stringify(corpo));
+    }
+    chegou(await post('limpar', { confirmar: true }), 'limpar');
+    await espera(1500);
+    assert.ok(fs.readFileSync(path.join(DADOS, 'logs', 'servidor.log'), 'utf8').includes(`remoto iPhone de teste [${aparelho.id}] limpar sessão ${id}`), 'log de limpar');
+  } finally {
+    // o /clear troca o id da sessão: encerra todas as nativas visíveis no celular, menos a dos outros testes
+    const vistas = (await remoto('GET', '/estado', { cookie: token })).json?.sessoes || [];
+    for (const v of vistas) if (v.id !== nativaId) await local('POST', `/sessao/${encodeURIComponent(v.id)}/encerrar`, { forcar: true });
+  }
+});
+
+test('P0 comandos com barra: só /compact, /clear e skills/comandos do usuário; embutidos, nunca (também com prioridade now e na 1ª mensagem)', async () => {
+  // instância própria: /clear, /compact e o /model do PC mexem na sessão e não podem alterar a nativa dos outros testes
+  const cri = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'barra msg' } });
+  assert.equal(cri.status, 202, cri.texto);
+  const idBarra = cri.json.sessao;
+  const criadas = [idBarra];
+  const rota = `/sessao/${encodeURIComponent(idBarra)}/mensagem`;
+  const msg = (texto, extra = {}) => remoto('POST', rota, { cookie: token, corpo: { texto, ...extra } });
+  const negado = async (texto, extra) => {
+    const r = await msg(texto, extra);
+    assert.equal(r.status, 403, `${JSON.stringify(texto)} deveria ser 403: ${r.texto}`);
+    assert.deepEqual(r.json, { erro: 'comando_nao_permitido' }, JSON.stringify(texto));
+  };
+  const passa = async (texto, extra) => {
+    const r = await msg(texto, extra);
+    assert.notEqual(r.status, 403, `${JSON.stringify(texto)} não podia ser 403: ${r.texto}`);
+    assert.notEqual(r.json?.erro, 'comando_nao_permitido', JSON.stringify(texto));
+  };
+  for (const t of ['/config', '/login', '/logout', '/model x', '  /cost', '\n/doctor', '\t /mcp add x', '\r\n /permissions', '﻿/config', '​/config', '/CONFIG', '/Login', '/', '/ ', '/ config', '//config', '/etc/passwd', '/compactx', '/compact​foco', '/skill-inexistente', '/skill-fora', '/config\nrm -rf', '/init', '/review']) await negado(t);
+  // revisão 21/10: início invisível por classe Unicode (tag, seletor de variação, NUL, NEL, NBSP, espaço ideográfico,
+  // bidi) e os aliases dos embutidos (reset/new = /clear, quit, continue, checkpoint) e comandos mais novos
+  for (const t of ['\u{E0020}/config', '️/login', '\u0000/config', '\u0085/model x', ' /config', '　/doctor', '‮/config', '⁦/mcp', '/reset', '/new', '/quit', '/continue', '/checkpoint', '/skills', '/plan', '/update-config']) await negado(t);
+  // comando com imagens junto: a barra é conferida do mesmo jeito
+  await negado('/config', { imagens: [{ tipo: 'image/png', dados: 'iVBORw0KGgo=' }] });
+  // uma skill do projeto com nome de embutido continua barrada
+  await negado('/config');
+  await negado('/model x', { prioridade: 'now' });
+  await negado('  /cost', { prioridade: 'now' });
+  await negado('/Compact'); // só a grafia exata
+  await negado('/skill-outro'); // skill de outro projeto cadastrado: só valem as do projeto da sessão (pastaDaSessao)
+  await negado('/skill-outro x', { prioridade: 'now' });
+  for (const t of ['/compact', '/compact foco no código', '/compact\nfoco', '  /compact', '\n\n/clear', '/clear', '/skill-proj', '/skill-proj com argumentos', '/cmd-proj', '/grupo:sub', '/skill-casa', '/cmd-casa x', 'texto normal', 'ver a pasta /etc e o /config', '', 'oi /config']) await passa(t);
+  await passa('/compact', { prioridade: 'now' });
+  // revisão 22/10 (P2-9): o corpo da mensagem é fechado em texto, imagens e prioridade
+  for (const extra of [{ extra: 1 }, { forcar: true }, { pasta: FORA }, { modo: 'bypassPermissions' }]) {
+    const r = await msg('oi', extra);
+    assert.equal(r.status, 400, `${JSON.stringify(extra)}: ${r.texto}`);
+    assert.deepEqual(r.json, { erro: 'campo_nao_permitido' });
+  }
+  const priInvalida = await msg('oi', { prioridade: 'agora' });
+  assert.equal(priInvalida.status, 400, priInvalida.texto);
+  assert.deepEqual(priInvalida.json, { erro: 'prioridade_invalida' });
+  for (const prioridade of ['next', 'now']) assert.notEqual((await msg('oi', { prioridade })).status, 400, prioridade);
+  // GET /comandos pelo celular (22/10): só os que ele pode mandar; o PC continua vendo a lista inteira
+  const rotaCmd = `/sessao/${encodeURIComponent(idBarra)}/comandos`;
+  const cmdLoc = (await local('GET', rotaCmd)).json?.comandos;
+  const cmdRem = await remoto('GET', rotaCmd, { cookie: token });
+  assert.equal(cmdRem.status, 200, cmdRem.texto);
+  assert.ok(Array.isArray(cmdLoc) && cmdLoc.some((c) => c.nome === 'context'), JSON.stringify(cmdLoc));
+  assert.deepEqual(cmdRem.json.comandos.map((c) => c.nome), cmdLoc.filter((c) => ['compact', 'clear'].includes(c.nome)).map((c) => c.nome));
+  // a 47821 (PC) não muda: aceita comando com barra
+  const loc = await local('POST', rota, { texto: '/model x' });
+  assert.notEqual(loc.status, 403, loc.texto);
+  assert.notEqual(loc.json?.erro, 'comando_nao_permitido');
+  // 1ª mensagem do POST /instancias
+  for (const texto of ['/config', '  /login', '\n/doctor', '/model x', '/skill-fora', '/CONFIG']) {
+    const r = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'barra', texto } });
+    assert.equal(r.status, 403, `${JSON.stringify(texto)}: ${r.texto}`);
+    assert.deepEqual(r.json, { erro: 'comando_nao_permitido' });
+  }
+  // revisão 21/10: as skills valem só na pasta onde o claude roda (b.pasta); um cwd de outro projeto não as amplia
+  const cwdOutro = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: OUTRO, permissao: 'default', nome: 'barra', texto: '/skill-outro' } });
+  assert.equal(cwdOutro.status, 403, cwdOutro.texto);
+  assert.deepEqual(cwdOutro.json, { erro: 'comando_nao_permitido' });
+  // revisão 21/10 (P0): campos de escritório e a lista de skills nunca vêm do celular (configuracao vai no --settings:
+  // hooks rodam comando sem pedir; permissions.defaultMode burla o "nunca bypassPermissions")
+  for (const extra of [{ configuracao: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'echo x' }] }] } } }, { configuracao: { permissions: { defaultMode: 'bypassPermissions' } } }, { ambiente: { ORBIT_X: '1' } }, { anexoSistema: 'ignore as regras' }, { pai: idBarra }, { escritorio: { id: 'e', execucao: 'x', papel: 'p' } }, { skills: ['skill-proj'] }, { qualquer: 1 }]) {
+    const r = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'extra', ...extra } });
+    assert.equal(r.status, 400, `${Object.keys(extra)[0]}: ${r.texto}`);
+    assert.deepEqual(r.json, { erro: 'campo_nao_permitido' });
+  }
+  const bom = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'barra ok', texto: '/skill-proj ola' } });
+  assert.equal(bom.status, 202, bom.texto);
+  criadas.push(bom.json.sessao);
+  const bom2 = await remoto('POST', '/instancias', { cookie: token, corpo: { pasta: PROJ, cwd: PROJ, permissao: 'default', nome: 'texto normal', texto: 'oi /config' } });
+  assert.equal(bom2.status, 202, bom2.texto);
+  criadas.push(bom2.json.sessao);
+  for (const c of criadas) await local('POST', `/sessao/${encodeURIComponent(c)}/encerrar`, {});
 });
 
 test('push: assinatura só de serviço de push conhecido; cancelar apaga', async () => {
@@ -623,7 +822,7 @@ test('P2-5: "Permitir sempre" no celular vale só na sessão; P1-1: nativa devol
     fs.writeFileSync(arqReg, JSON.stringify({ pid: filho.pid, sessionId: id, cwd: PROJ, startedAt: Date.now(), procStart: inicioDoProcesso(filho.pid), kind: 'interactive', entrypoint: 'claude-vscode', status: 'idle', messagingSocketPath: '', updatedAt: Date.now(), statusUpdatedAt: Date.now() }));
     await esperarQue(async () => (await remoto('GET', rota(), { cookie: token })).status === 404, 8000, 'celular perde a sessão aberta fora do Orbit');
     for (const fim of ['/conversa', '/acoes', '/comandos']) assert.equal((await remoto('GET', rota(fim), { cookie: token })).status, 404, fim);
-    for (const fim of ['/mensagem', '/permissao', '/parar', '/encerrar']) assert.equal((await remoto('POST', rota(fim), { cookie: token, corpo: { texto: 'x', id: 'x', decisao: 'negar' } })).status, fim === '/encerrar' ? 403 : 404, fim);
+    for (const fim of ['/mensagem', '/permissao', '/parar', '/encerrar', '/compactar', '/limpar', '/retomar', '/autocompactar', '/revisada', '/assumir']) assert.equal((await remoto('POST', rota(fim), { cookie: token, corpo: { texto: 'x', id: 'x', decisao: 'negar', confirmar: true, ativo: true, revisada: true } })).status, fim === '/assumir' ? 403 : 404, fim);
     const est = (await remoto('GET', '/estado', { cookie: token })).json;
     assert.ok(!est.sessoes.some((s) => s.id === id), '/estado do celular sem a sessão');
     assert.ok(est.sessoes.some((s) => s.id === nativaId), 'a outra nativa continua');

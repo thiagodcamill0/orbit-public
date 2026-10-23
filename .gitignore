@@ -44,6 +44,23 @@ assets/office/conferencia-layout.png
 .env.*
 *.pem
 *.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.tfstate
+*.tfstate.*
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+kubeconfig
+.npmrc
+.pypirc
+credentials
+credentials.json
+service-account*.json
+*-firebase-adminsdk-*.json
 
 # Sistema
 Thumbs.db

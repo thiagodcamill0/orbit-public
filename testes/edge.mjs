@@ -98,4 +98,44 @@ export async function fecharEdge(portaCdp, perfil) {
   }
   await dormir(800);
   try { fs.rmSync(perfil, { recursive: true, force: true }); } catch {}
+  if (WIN) { try { limparTempNavegador(); } catch {} }
+}
+
+// Windows (21/10): o Edge de teste baixa componentes para o %TEMP% (<guid>.tmp com cabeçalho Cr24, ~70 MB) e
+// cria scoped_dir<pid>_*; fechado à força, larga tudo lá (67 GB em uma semana). Apaga só o abandonado:
+// scoped_dir cujo processo dono já não existe e <guid>.tmp Cr24 parado há mais de 30 min. O que um
+// navegador vivo (de teste, do usuário ou o Brave) está usando fica.
+const GUID_TMP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/i;
+
+function pidsAtivos() {
+  const r = spawnSync('tasklist', ['/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  if (r.status !== 0 || !r.stdout) return null;
+  const pids = new Set();
+  for (const l of r.stdout.split('\n')) { const m = /^"[^"]*","(\d+)"/.exec(l); if (m) pids.add(+m[1]); }
+  return pids.size ? pids : null;
+}
+
+export function limparTempNavegador({ pasta = os.tmpdir(), pidsVivos = pidsAtivos(), agora = Date.now(), idadeMs = 30 * 60e3 } = {}) {
+  const saida = { pastas: 0, arquivos: 0, bytes: 0 };
+  let nomes = [];
+  try { nomes = fs.readdirSync(pasta, { withFileTypes: true }); } catch { return saida; }
+  for (const d of nomes) {
+    const alvo = path.join(pasta, d.name);
+    const dono = /^scoped_dir(\d+)_/.exec(d.name);
+    if (d.isDirectory() && dono) {
+      if (!pidsVivos || pidsVivos.has(+dono[1])) continue;   // sem lista de processos, não arrisca
+      try { fs.rmSync(alvo, { recursive: true }); saida.pastas++; } catch {}
+    } else if (d.isFile() && GUID_TMP.test(d.name)) {
+      try {
+        const st = fs.statSync(alvo);
+        if (!st.size || agora - st.mtimeMs < idadeMs) continue;
+        const cab = Buffer.alloc(4);
+        const fd = fs.openSync(alvo, 'r');
+        try { fs.readSync(fd, cab, 0, 4, 0); } finally { fs.closeSync(fd); }
+        if (cab.toString('latin1') !== 'Cr24') continue;
+        fs.unlinkSync(alvo); saida.arquivos++; saida.bytes += st.size;
+      } catch {}
+    }
+  }
+  return saida;
 }

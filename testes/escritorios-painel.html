@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Painel de escritórios — página de teste</title>
+<link rel="stylesheet" href="/assets/comum/base.css">
+<link rel="stylesheet" href="/assets/escritorios-painel.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--fundo); color: var(--t1); font-family: var(--sans); }
+  #raiz { padding: 12px; }
+</style>
+</head>
+<body>
+<div id="raiz"></div>
+<script src="/assets/escritorios-painel.js"></script>
+<script>
+// demo.selecionados = ids que a página recebeu em onSelecionar (null quando não sobra escritório).
+window.demo = { selecionados: [] };
+EscritoriosPainel.montar(document.getElementById('raiz'), { base: '', onSelecionar: (id) => demo.selecionados.push(id) });
+</script>
+</body>
+</html>

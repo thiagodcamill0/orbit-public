@@ -11,7 +11,7 @@
 //
 // Rotas: GET /projetos · POST /projetos/adicionar {pasta} · /projetos/remover {nome}
 //        GET /arquivos/pastas · /arquivos/lista · /arquivos/ler · /arquivos/bruto
-//        POST /arquivos/novo · /renomear · /colar · /excluir · /buscar · /revelar · /escolher-pasta (só no Mac)
+//        POST /arquivos/novo · /renomear · /colar · /excluir · /buscar · /revelar · /abrir-pasta · /escolher-pasta (só no Mac)
 // SSE: "projetos" { projetos } e "arquivos" { projeto, pastas, arquivos } (vigia fs.watch, ~300 ms).
 // GET /projetos e /arquivos/pastas trazem `plataforma` ('win32' | 'darwin' | …): a página troca o rótulo
 // "Revelar no Explorador" por "Mostrar no Finder" no Mac.
@@ -23,7 +23,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { spawn, execFile } from 'node:child_process';
 import { Worker } from 'node:worker_threads';
-import { SO, mostrarNaPasta, pathAmpliado } from './plataforma.mjs';
+import { SO, mostrarNaPasta, abrirPastaSO, pathAmpliado } from './plataforma.mjs';
 
 const MAX_LISTA = 5000;
 const MAX_TEXTO = 2 * 1024 * 1024;
@@ -470,7 +470,7 @@ export function criarArquivos(deps) {
   // Sistema e comandos dele: os testes simulam o Mac (so: 'darwin', osascript e mostrar falsos, home e
   // pasta de volumes temporárias) sem trocar o process.platform.
   const {
-    so = SO, osascript = rodarOsascript, mostrar = mostrarNaPasta, home = os.homedir(), volumes = '/Volumes',
+    so = SO, osascript = rodarOsascript, mostrar = mostrarNaPasta, abrirPasta = abrirPastaSO, home = os.homedir(), volumes = '/Volumes',
     montagensOcultas = montagensOcultasMac, ocultosPorMarca = ocultosPorMarcaMac,
   } = deps;
   const MAC = so === 'darwin';
@@ -1097,6 +1097,20 @@ export function criarArquivos(deps) {
     return { ok: true };
   }
 
+  // "Abrir na pasta": abre a própria pasta (projeto ou subpasta) no Explorador/Finder, por dentro.
+  async function abrirNaPasta(corpo) {
+    const r = await resolver(corpo.projeto, corpo.caminho || '');
+    if (!r.st || !r.st.isDirectory()) throw erro(400, 'Só dá para abrir uma pasta.', 'nao-pasta');
+    if (teste && !deps.abrirPasta) return { ok: true };
+    try {
+      await abrirPasta(r.abs);
+    } catch (e) {
+      log('arquivos: abrir na pasta', e?.message || e);
+      throw erro(500, `Não deu para abrir o ${MAC ? 'Finder' : 'Explorador'}: ${e.message}`);
+    }
+    return { ok: true };
+  }
+
   // Mac: a janela "Escolher pasta" do Finder, para o seletor de projeto. No Windows o seletor é o da página.
   async function escolherPasta(corpo) {
     if (!MAC) throw erro(409, 'A janela do sistema para escolher pasta só existe no Mac; use o seletor da página.', 'sem-seletor');
@@ -1123,6 +1137,7 @@ export function criarArquivos(deps) {
     '/arquivos/excluir': excluir,
     '/arquivos/buscar': buscar,
     '/arquivos/revelar': revelar,
+    '/arquivos/abrir-pasta': abrirNaPasta,
     '/arquivos/escolher-pasta': escolherPasta,
   };
 
